@@ -91,12 +91,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| BASE-01 | Phase 1 | Pending |
+| BASE-02 | Phase 1 | Pending |
+| BASE-03 | Phase 1 | Pending |
+| WIRE-01 | Phase 1 | Pending |
+| WIRE-02 | Phase 1 | Pending |
+| BENCH-01 | Phase 2 | Pending |
+| WIRE-03 | Phase 3 | Pending |
+| MOCK-01 | Phase 3 | Pending |
+| TOK-01 | Phase 4 | Pending |
+| TOK-02 | Phase 4 | Pending |
+| TOK-03 | Phase 4 | Pending |
+| TOK-04 | Phase 4 | Pending |
+| LIFE-01 | Phase 5 | Pending |
+| LIFE-02 | Phase 5 | Pending |
+| LIFE-03 | Phase 5 | Pending |
+| LIFE-04 | Phase 5 | Pending |
+| LIFE-05 | Phase 5 | Pending |
+| API-01 | Phase 5 | Pending |
+| API-02 | Phase 5 | Pending |
+| PAR-01 | Phase 6 | Pending |
+| PAR-02 | Phase 6 | Pending |
+| BENCH-02 | Phase 7 | Pending |
+| BENCH-03 | Phase 7 | Pending |
+| BENCH-04 | Phase 7 | Pending |
+| BENCH-05 | Phase 7 | Pending |
+| BENCH-06 | Phase 7 | Pending |
+| BENCH-07 | Phase 7 | Pending |
+| BENCH-08 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 28 total
-- Mapped to phases: 0
-- Unmapped: 28 ⚠️
+- Mapped to phases: 28
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-10-02*
-*Last updated: 2026-10-02 after initial definition*
+*Last updated: 2026-10-02 after roadmap creation (traceability mapped)*
