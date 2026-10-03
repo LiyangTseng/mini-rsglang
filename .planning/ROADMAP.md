@@ -38,7 +38,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The backend reports `max_seq_len`, `eos_token_id`, `page_size` and `max_running_req` at readiness, and the Rust frontend logs the values it received. The Python frontend keeps working unchanged against that same backend code.
   4. For each of the 7 upstream message types, the bytes the Rust codec produces equal golden fixtures exported from upstream's Python encoder, checked by a test that runs on the Mac.
   5. Every message the Rust codec emits decodes through upstream's real Python decoder (`cls(**kwargs)`) without error.
-**Plans**: TBD
+**Plans:** 6 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Vendor mini-sglang @ 9a91cfa with UPSTREAM.md; package-legitimacy gate; hash-pinned Mac env bootstrap (wave 1)
+- [ ] 01-02-PLAN.md — Cargo workspace + rsg-server skeleton: CLI roles, stdin handshake, SHA refusal, exit codes (wave 1)
+- [ ] 01-03-PLAN.md — Tracer: `python -m rsglang.launch --frontend rust` end to end on the Mac (fake scheduler on upstream queues + real rsg-server); `--frontend python` passthrough (wave 2)
+- [ ] 01-04-PLAN.md — rsg-wire codec + golden fixtures from upstream's encoder for all 8 wire tags and boundaries (wave 2)
+- [ ] 01-05-PLAN.md — Launcher failure contract (D-12), seam unit tests, GPU verification script with end-of-phase human check (wave 3)
+- [ ] 01-06-PLAN.md — check_upstream.py frozen-tier gate, WIRE-02 decode check, check_all.sh phase gate (wave 3)
 
 ### Phase 2: Python Frontend Baseline Profile
 **Goal**: Measured numbers show where the frozen Python frontend spends host-side time and memory in each of the three benchmark scenarios, so the numbers can inform benchmark design and attribution.

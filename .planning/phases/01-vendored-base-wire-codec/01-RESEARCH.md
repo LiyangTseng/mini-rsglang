@@ -633,15 +633,18 @@ def rust_endpoints(sa) -> dict:
 | A7 | A `getppid()`-polling watchdog in the scheduler wrapper is acceptable (not a vendored change) | Launcher | Low |
 | A8 | The `handshake_version` field and the `{"kind": "ready"/"error"}` queue envelope are acceptable additions to D-11 | Handshake | Low: additive, and both ends are in this repo |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **The exact meaning of "7 message types" in ROADMAP/REQUIREMENTS.**
    - Known: there are 6 boundary messages, plus `SamplingParams` and Tensor as nested tags.
    - Recommendation: adopt A1 in test names and docs, and cover all 8 tags in fixtures.
+   - RESOLVED (planning, plan 01-04): "7 message types" = UserMsg, AbortBackendMsg, ExitMsg, BatchBackendMsg, DetokenizeMsg, BatchTokenizerMsg, SamplingParams; Tensor is the 8th `__type__` tag. The fixture matrix has a standalone `base_` case for all 8 tags, so WIRE-01 holds under either reading.
 2. **GPU type on the GPU box (SM90 vs SM100).**
    - This decides whether the expected handshake `page_size` is 1 or 64. It only affects the manual check's expected values, not the code.
+   - RESOLVED (planning, plan 01-05): `scripts/gpu_phase1_check.sh` prints the GPU name and accepts `page_size` 1 or 64; the handshake value is read after scheduler construction, so the code is correct on either.
 3. **Whether to use `zeromq` (pure Rust) for the skeleton instead.**
    - Recommendation: no. Phase 1 uses the verified `zmq` behind a trait, and Phase 3 decides.
+   - RESOLVED (planning, plan 01-02): Phase 1 uses `zmq` 0.10 behind the `Transport` trait in `crates/rsg-server/src/transport.rs`; the transport crate decision stays with Phase 3 (WIRE-03).
 
 ## Environment Availability
 
