@@ -2,7 +2,7 @@
 
 ## What This Is
 
-mini-sglang with its Python frontend replaced by an optimized Rust frontend. The repo is built on top of `sgl-project/mini-sglang` (MIT): its Python code is vendored in at a pinned commit, and the frontend processes — API server, tokenizer, detokenizer — are rewritten in Rust (concurrent ingress, request-lifecycle FSM, Hugging Face tokenization and detokenization). The Python/CUDA backend (scheduler, engine, KV cache, kernels) stays in Python and is shared by both frontends. The original Python frontend is kept frozen as the baseline, so the same repo can launch either `--frontend python` or `--frontend rust` and measure how much the Rust frontend improves each scenario. A Rust radix cache is also implemented and proven equivalent to the Python one; wiring it into the backend is a later, data-gated step. It is for the author as a learning-and-proof project.
+mini-sglang with its Python frontend replaced by an optimized Rust frontend. The repo is built on top of `sgl-project/mini-sglang` (MIT): its Python code is vendored in at a pinned commit, and the frontend processes — API server, tokenizer, detokenizer — are rewritten in Rust (concurrent ingress, request-lifecycle FSM, Hugging Face tokenization and detokenization). The Python/CUDA backend (scheduler, engine, KV cache, kernels) stays in Python and is shared by both frontends. The original Python frontend is kept frozen as the baseline, so the same repo can launch either `--frontend python` or `--frontend rust` and measure how much the Rust frontend improves each scenario. It is for the author as a learning-and-proof project.
 
 ## Core Value
 
@@ -21,7 +21,6 @@ Serving through the Rust frontend produces output identical to the Python fronte
 - [ ] Rust concurrent ingress (HTTP/async) accepting requests, streaming responses, handling client disconnects as cancellations
 - [ ] Rust async request-lifecycle FSM (received, tokenizing, submitted, decoding, finished, cancelled, failed) supporting 128 concurrent agents with dynamic requests/cancellations
 - [ ] Rust Hugging Face tokenization, chat-template rendering and incremental detokenization matching the Python frontend exactly
-- [ ] Rust radix cache trie (prefix matching, insertion, eviction) proven behaviorally equivalent to the Python radix cache by differential tests
 - [ ] Rust frontend talks to the backend over the existing ZMQ + MessagePack boundary; lock-free channels are used inside the Rust process
 - [ ] Mock backend so the entire Rust frontend is developed and tested on macOS without a GPU
 - [ ] End-to-end run on a remote GPU machine with output identical to the Python frontend
@@ -32,7 +31,7 @@ Serving through the Rust frontend produces output identical to the Python fronte
 
 - GPU kernels, weight loading, continuous batching loop — stay in Python/CUDA; the Rust work is frontend-only
 - Modifying the vendored Python frontend — it is the frozen baseline; any unavoidable change is recorded in `UPSTREAM.md`
-- Crediting the radix cache with frontend benchmark wins — it is backend code and is measured as a separate experiment
+- Rust radix cache — deferred to v2. The radix cache lives in the scheduler (backend) and indexes GPU KV pages, so it is not part of the frontend migration; listing it in the original RFC as a front-half module was a misunderstanding. Revisit only if profiling shows radix time matters
 - Structured-output / constrained-decoding FSM (regex, JSON schema) — deferred to v2; the v1 FSM is the request lifecycle FSM
 - Running the backend on the Mac — upstream backend is Linux/CUDA only; real-backend runs and benchmarks happen on a remote GPU machine
 
@@ -46,7 +45,7 @@ Serving through the Rust frontend produces output identical to the Python fronte
 
 ## Constraints
 
-- **Architecture**: Rust owns ingress, lifecycle FSM, tokenization, detokenization; Python/CUDA owns scheduler, weights, batching loop, kernels, KV cache
+- **Architecture**: Rust owns ingress, lifecycle FSM, tokenization, detokenization; Python/CUDA owns scheduler, weights, batching loop, kernels, KV cache (including the radix cache)
 - **Fair comparison**: both frontends run against the same vendored backend; backend changes must apply to both modes; the Python frontend stays frozen
 - **IPC**: the existing ZMQ + MessagePack wire format; Rust must match it byte-for-byte (an extra key crashes the scheduler)
 - **Environment**: must be developable and testable without a GPU (mock backend) — dev machine is a Mac
@@ -59,7 +58,7 @@ Serving through the Rust frontend produces output identical to the Python fronte
 |----------|-----------|---------|
 | Build on top of mini-sglang by vendoring its code (MIT) instead of a submodule | The goal is to replace mini-sglang's Python frontend; vendoring lets the backend gain small shared fixes while staying one repo | — Pending |
 | Keep the Python frontend frozen as the baseline; `--frontend python\|rust` on a shared backend | Isolates the frontend's effect in every benchmark | — Pending |
-| Radix: v1 builds a Rust radix proven equivalent; swapping it into the backend only after profiling shows radix time matters and a micro-benchmark shows Rust is clearly faster | Radix lives in the scheduler, so swapping it is a backend change with correctness risk; gate it on data | — Pending |
+| Defer the Rust radix cache to v2; only record radix's share of scheduler time during baseline profiling | Radix lives in the scheduler (backend), not the frontend; it is not an immediate need and would not show up in frontend benchmarks | — Pending |
 | FSM = request lifecycle FSM; constrained decoding deferred to v2 | Matches RFC Scenario 1 (dynamic requests/cancellations) | — Pending |
 | Mock backend for Mac development, remote GPU for real runs | Mac has no CUDA | — Pending |
 | Parity models: Qwen3-0.6B (hard gate) + one Llama-3.x | Llama exercises BOS and space-cleanup edge cases | — Pending |
