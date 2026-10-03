@@ -39,9 +39,7 @@
 
 ### Mock Backend
 
-- [ ] **MOCK-01**: A Rust mock scheduler speaks the same wire protocol, so the Rust frontend can be developed and tested end to end on a Mac
-- [ ] **MOCK-02**: The mock can simulate tricky backend behaviors: late tokens after abort, silently dropped overlong prompts, batched replies, configurable latency
-- [ ] **MOCK-03**: A Python contract check confirms the mock and the real scheduler behave the same at the protocol level
+- [ ] **MOCK-01**: One minimal Rust mock scheduler speaks the same wire protocol, so the Rust frontend runs end to end on a Mac, and can reproduce the backend behaviors the cancellation tests need (late tokens after abort, silently dropped overlong prompts, batched replies). No other mocks; protocol fidelity is covered by WIRE-01/02 and PAR-01
 
 ### End-to-End Parity
 
@@ -95,9 +93,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 
 **Coverage:**
-- v1 requirements: 30 total
+- v1 requirements: 28 total
 - Mapped to phases: 0
-- Unmapped: 30 ⚠️
+- Unmapped: 28 ⚠️
 
 ---
 *Requirements defined: 2026-10-02*

@@ -22,7 +22,7 @@ Serving through the Rust frontend produces output identical to the Python fronte
 - [ ] Rust async request-lifecycle FSM (received, tokenizing, submitted, decoding, finished, cancelled, failed) supporting 128 concurrent agents with dynamic requests/cancellations
 - [ ] Rust Hugging Face tokenization, chat-template rendering and incremental detokenization matching the Python frontend exactly
 - [ ] Rust frontend talks to the backend over the existing ZMQ + MessagePack boundary; lock-free channels are used inside the Rust process
-- [ ] Mock backend so the entire Rust frontend is developed and tested on macOS without a GPU
+- [ ] One minimal mock backend so the Rust frontend is developed and tested on macOS without a GPU (no extra mocks beyond what tests need)
 - [ ] End-to-end run on a remote GPU machine with output identical to the Python frontend
 - [ ] Reproducible benchmark harness comparing Python vs Rust frontend on the same backend for three scenarios: (1) 128 concurrent agents with dynamic requests/cancellations, P99 TTFT; (2) 32-token short-prompt saturation, RPS; (3) frontend cold start latency and frontend host RAM
 - [ ] Standard inference throughput does not regress versus the Python frontend (about parity)
