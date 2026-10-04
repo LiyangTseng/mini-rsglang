@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-06
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "A prctl failure kills the scheduler before the error envelope and for a mere backstop"
   - id: WR-07
     severity: warning
@@ -17,7 +17,7 @@ findings:
     title: "`start_session` has a 0.5 s startup race that can fail a healthy run"
   - id: WR-09
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`test_exits_at_once_when_parent_is_not_the_launcher` cannot tell a watchdog exit from any other exit 1"
   - id: WR-10
     severity: warning
@@ -99,7 +99,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 17
+open: 15
 total: 24
 recorded: 2026-10-04T06:24:13.231Z
 ---
@@ -108,10 +108,10 @@ recorded: 2026-10-04T06:24:13.231Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-06 | warning | open | - |
+| WR-06 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR06): prctl failure logs and degrades to the polling watchdog (argtypes declared); watchdog started inside run_scheduler's error-envelope try |
 | WR-07 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR07): on_gpu captures nvidia-smi output once and fails the step on an nvidia-smi error; steps 4/4b use wait_no_orphans |
 | WR-08 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR08): start_session polls pgid for up to 5 s and kills the pid it started on failure |
-| WR-09 | warning | open | - |
+| WR-09 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR09): exit test requires the 'calling' marker, no 'returned' marker and no Traceback; mutation-checked |
 | WR-10 | warning | deferred | deferred to Phase 7 (same issue as WR-03) — UAT test 7, 2026-10-03 |
 | IN-10 | info | open | - |
 | IN-11 | info | open | - |
