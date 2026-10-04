@@ -217,6 +217,12 @@ fn extra_key_exits_2() {
 }
 
 #[test]
+fn missing_eos_key_exits_2() {
+    let line = handshake_line(&vendor_sha(), "151645").replace("\"eos_token_id\":151645,", "");
+    rejected(&line);
+}
+
+#[test]
 fn handshake_version_2_exits_2() {
     let line = handshake_line(&vendor_sha(), "151645")
         .replace("\"handshake_version\":1", "\"handshake_version\":2");

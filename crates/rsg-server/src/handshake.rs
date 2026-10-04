@@ -166,6 +166,18 @@ mod tests {
     }
 
     #[test]
+    fn missing_eos_key_is_malformed() {
+        let l = line(SHA, "151645").replace("\"eos_token_id\":151645,", "");
+        let err = parse_handshake(&l, SHA).unwrap_err();
+        match err {
+            HandshakeError::Malformed(msg) => {
+                assert!(msg.contains("eos_token_id"), "{msg}");
+            }
+            other => panic!("expected Malformed, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn not_json_is_malformed() {
         assert!(matches!(
             parse_handshake("not json", SHA),
