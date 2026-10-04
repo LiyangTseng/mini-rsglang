@@ -94,7 +94,52 @@ start_session() {
 
 alive() { kill -0 "$1" 2>/dev/null; }
 
-gpu_pids() { nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | tr -d ' '; }
+gpu_pids() { nvidia-smi --query-compute-apps=pid --format=csv,noheader | tr -d ' '; }  # let failure propagate
+
+on_gpu() {  # on_gpu <pid> -> 0 listed, 1 not listed, 2 nvidia-smi failed
+  local out
+  out="$(gpu_pids)" || { echo "nvidia-smi failed" >&2; return 2; }
+  grep -qx "$1" <<<"$out"
+}
+
+wait_no_orphans() {  # wait_no_orphans <timeout_s> <pid>... -> 0 all gone and unlisted
+  local timeout="$1"; shift
+  local deadline=$((SECONDS + timeout))
+  local pid rc all_gone failed
+  while [ $SECONDS -lt $deadline ]; do
+    all_gone=1
+    for pid in "$@"; do
+      if ps -p "$pid" >/dev/null 2>&1; then all_gone=0; continue; fi
+      rc=0; on_gpu "$pid" || rc=$?
+      if [ "$rc" = 2 ]; then
+        echo "nvidia-smi failed while checking pid $pid" >&2
+        return 1
+      elif [ "$rc" = 0 ]; then
+        all_gone=0
+      fi
+    done
+    [ "$all_gone" = 1 ] && return 0
+    sleep 1
+  done
+  failed=0
+  for pid in "$@"; do
+    if ps -p "$pid" >/dev/null 2>&1; then
+      echo "pid $pid still running ${timeout} s after kill -9 of the launcher"
+      failed=1
+      continue
+    fi
+    rc=0; on_gpu "$pid" || rc=$?
+    if [ "$rc" = 2 ]; then
+      echo "nvidia-smi failed while checking pid $pid"
+      failed=1
+    elif [ "$rc" = 0 ]; then
+      echo "pid $pid still listed by nvidia-smi"
+      failed=1
+    fi
+  done
+  [ "$failed" = 0 ] && return 0
+  return 1
+}
 
 # Mac helper tests in python/tests/test_gpu_check_script.py source this file to reach the
 # helpers above; nothing below this guard runs when sourced.
@@ -216,23 +261,13 @@ fi
 
 # --- Step 4: kill -9 of the launcher leaves no orphan (D-12) -------------------
 step4() {
-  local deadline pid
+  local rc
   [ -n "$LAUNCHER_PID" ] && [ -n "$RSG_PID" ] && [ -n "$SCHED_PID" ] || { echo "step 3 did not start a full run"; return 1; }
   alive "$LAUNCHER_PID" || { echo "launcher already gone before kill -9"; return 1; }
   kill -9 "$LAUNCHER_PID"
-  deadline=$((SECONDS + 30))
-  while [ $SECONDS -lt $deadline ]; do
-    if ! ps -p "$RSG_PID" >/dev/null 2>&1 && ! ps -p "$SCHED_PID" >/dev/null 2>&1 \
-       && ! gpu_pids | grep -qx -e "$RSG_PID" -e "$SCHED_PID"; then
-      break
-    fi
-    sleep 1
-  done
+  rc=0; wait_no_orphans 30 "$RSG_PID" "$SCHED_PID" || rc=$?
   rm -f /tmp/minisgl_{0..4}.rsg="$LAUNCHER_PID"
-  for pid in "$RSG_PID" "$SCHED_PID"; do
-    if ps -p "$pid" >/dev/null 2>&1; then echo "pid $pid still running 30 s after kill -9 of the launcher"; return 1; fi
-    if gpu_pids | grep -qx "$pid"; then echo "pid $pid still listed by nvidia-smi"; return 1; fi
-  done
+  [ "$rc" = 0 ] || return 1
   echo "rsg-server $RSG_PID and scheduler $SCHED_PID exited after kill -9 of launcher $LAUNCHER_PID"
 }
 
@@ -246,7 +281,7 @@ fi
 # Step 4 kills after the handshake, outside the window where the old watchdog missed the
 # launcher's death; this one kills right after "spawned scheduler rank=0".
 step4_early() {
-  local log="$LOG_DIR/rust-mode-early-kill.log" launcher rsg sched deadline pid
+  local log="$LOG_DIR/rust-mode-early-kill.log" launcher rsg sched deadline rc
   start_session "$log" "$PYTHON" -m rsglang.launch --frontend rust --model "$MODEL" --port "$PORT" \
     --rust-bin "$RUST_BIN" --ready-timeout "$TIMEOUT" || return 1
   launcher=$BG_PID
@@ -264,19 +299,9 @@ step4_early() {
   kill -9 "$launcher"
   # The boot window with CUDA torch is unmeasured (a projection): the scheduler exits as soon
   # as run_scheduler starts, so allow up to 120 s.
-  deadline=$((SECONDS + 120))
-  while [ $SECONDS -lt $deadline ]; do
-    if ! ps -p "$rsg" >/dev/null 2>&1 && ! ps -p "$sched" >/dev/null 2>&1 \
-       && ! gpu_pids | grep -qx -e "$rsg" -e "$sched"; then
-      break
-    fi
-    sleep 1
-  done
+  rc=0; wait_no_orphans 120 "$rsg" "$sched" || rc=$?
   rm -f /tmp/minisgl_{0..4}.rsg="$launcher"
-  for pid in "$rsg" "$sched"; do
-    if ps -p "$pid" >/dev/null 2>&1; then echo "pid $pid still running 120 s after kill -9 of the launcher"; return 1; fi
-    if gpu_pids | grep -qx "$pid"; then echo "pid $pid still listed by nvidia-smi"; return 1; fi
-  done
+  [ "$rc" = 0 ] || return 1
   echo "rsg-server $rsg and scheduler $sched exited after early kill -9 of launcher $launcher"
 }
 
