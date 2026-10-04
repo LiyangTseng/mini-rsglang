@@ -96,6 +96,12 @@ alive() { kill -0 "$1" 2>/dev/null; }
 
 gpu_pids() { nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | tr -d ' '; }
 
+# Mac helper tests in python/tests/test_gpu_check_script.py source this file to reach the
+# helpers above; nothing below this guard runs when sourced.
+if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
+  return 0
+fi
+
 # --- Preflight -----------------------------------------------------------------
 missing=()
 for tool in nvidia-smi cargo curl setsid; do
