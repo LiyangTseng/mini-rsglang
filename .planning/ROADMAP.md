@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. For each of the 7 upstream message types, the bytes the Rust codec produces equal golden fixtures exported from upstream's Python encoder, checked by a test that runs on the Mac.
   5. Every message the Rust codec emits decodes through upstream's real Python decoder (`cls(**kwargs)`) without error.
 
-**Plans:** 12/12 plans executed
+**Plans:** 12/13 plans executed
 
 Plans:
 - [x] 01-12-PLAN.md
@@ -71,6 +71,9 @@ Plans:
 
 **Wave 8** *(gap closure; blocked on Wave 7 completion)*
 - [x] 01-11-PLAN.md — G-01-7-WR04 / WR-01: rsg-server rejects a handshake without eos_token_id (exit 2); rust mode rejects abbreviated --shell-mode via the parsed run_shell flag (wave 8)
+
+**Wave 10** *(gap closure; blocked on Wave 9 completion)*
+- [ ] 01-13-PLAN.md — G-01-8 / G-01-9 (WR-01, IN-01 of the 2026-10-04 review): rust mode reports the shell-mode rejection before a missing rsg-server binary (upstream args parsed once, before binary resolution); a missing prctl symbol degrades to the polling watchdog (wave 10)
 
 ### Phase 2: Python Frontend Baseline Profile
 
@@ -166,7 +169,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Vendored Base & Wire Codec | 12/12 | In Progress|  |
+| 1. Vendored Base & Wire Codec | 12/13 | In Progress|  |
 | 2. Python Frontend Baseline Profile | 0/TBD | Not started | - |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
