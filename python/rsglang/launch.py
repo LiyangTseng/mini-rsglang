@@ -21,9 +21,12 @@ import threading
 import time
 from collections import deque
 from pathlib import Path
-from typing import Callable, Deque, List, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Deque, List, Optional, Sequence
 
 from . import handshake, sockets
+
+if TYPE_CHECKING:
+    from minisgl.server.args import ServerArgs
 
 _PREFIX = "rsglang.launch:"
 _SHUTDOWN_GRACE_S = 10.0
@@ -101,29 +104,30 @@ def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
     if "--shell-mode" in rest:
         _log("--shell-mode is not supported with --frontend rust")
         return 2
-    rust_bin = resolve_rust_bin(ns.rust_bin)
-    if rust_bin is None:
-        return 2
-    suffix = f".rsg={os.getpid()}"
-    try:
-        return _run_rust_mode(ns, rest, rust_bin, suffix)
-    finally:
-        # Every exit path the launcher survives; a group SIGKILL cleans up before it fires.
-        sockets.unlink_run_sockets(suffix)
-
-
-def _run_rust_mode(ns: argparse.Namespace, rest: List[str], rust_bin: Path, suffix: str) -> int:
-    import multiprocessing as mp
-
-    from minisgl.distributed import DistributedInfo
     from minisgl.server.args import parse_args
-
-    from . import backend
 
     server_args, run_shell = parse_args(rest)
     if run_shell:
         _log("--shell-mode is not supported with --frontend rust")
         return 2
+    rust_bin = resolve_rust_bin(ns.rust_bin)
+    if rust_bin is None:
+        return 2
+    suffix = f".rsg={os.getpid()}"
+    try:
+        return _run_rust_mode(ns, server_args, rust_bin, suffix)
+    finally:
+        # Every exit path the launcher survives; a group SIGKILL cleans up before it fires.
+        sockets.unlink_run_sockets(suffix)
+
+
+def _run_rust_mode(ns: argparse.Namespace, server_args: ServerArgs, rust_bin: Path, suffix: str) -> int:
+    import multiprocessing as mp
+
+    from minisgl.distributed import DistributedInfo
+
+    from . import backend
+
     server_args = dataclasses.replace(server_args, _unique_suffix=suffix)  # D-06
     sockets.unlink_run_sockets(suffix)
 
