@@ -3,6 +3,42 @@ phase: 01
 review: 01-REVIEW.md
 titles: json
 findings:
+  - id: WR-06
+    severity: warning
+    disposition: open
+    title: "A prctl failure kills the scheduler before the error envelope and for a mere backstop"
+  - id: WR-07
+    severity: warning
+    disposition: open
+    title: "`gpu_pids` failures and SIGPIPE turn the GPU-orphan check into a false PASS"
+  - id: WR-08
+    severity: warning
+    disposition: open
+    title: "`start_session` has a 0.5 s startup race that can fail a healthy run"
+  - id: WR-09
+    severity: warning
+    disposition: open
+    title: "`test_exits_at_once_when_parent_is_not_the_launcher` cannot tell a watchdog exit from any other exit 1"
+  - id: WR-10
+    severity: warning
+    disposition: open
+    title: "`setpgid(0, 0)` moves the launcher out of the terminal's foreground group when run under a wrapper"
+  - id: IN-10
+    severity: info
+    disposition: open
+    title: "Hard-coded Qwen3-specific assertions in a script that accepts `--model`"
+  - id: IN-11
+    severity: info
+    disposition: open
+    title: "Repeated stop_requested boilerplate in the launch loops"
+  - id: IN-12
+    severity: info
+    disposition: open
+    title: "Test cleanup can signal a reused pid or process group"
+  - id: IN-13
+    severity: info
+    disposition: open
+    title: "The slow-boot test's `sitecustomize` can shadow an existing one and relies on `sys.orig_argv`"
   - id: CR-01
     severity: critical
     disposition: fixed
@@ -63,30 +99,39 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 13
-total: 15
-recorded: 2026-10-04T04:46:01.408Z
+open: 22
+total: 24
+recorded: 2026-10-04T06:24:13.231Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | fixed | 01-07-PLAN.md (gap G-01-2): stop re-checked after every ready_queue.get and before each child-state-driven shutdown(1) |
-| WR-01 | warning | open | - |
-| WR-02 | warning | fixed | 01-08-PLAN.md (gap G-01-3): launcher pid passed explicitly, immediate getppid re-check, PR_SET_PDEATHSIG on Linux |
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
-| IN-05 | info | open | - |
-| IN-06 | info | open | - |
-| IN-07 | info | open | - |
-| IN-08 | info | open | - |
-| IN-09 | info | open | - |
+| WR-06 | warning | open | - |
+| WR-07 | warning | open | - |
+| WR-08 | warning | open | - |
+| WR-09 | warning | open | - |
+| WR-10 | warning | open | - |
+| IN-10 | info | open | - |
+| IN-11 | info | open | - |
+| IN-12 | info | open | - |
+| IN-13 | info | open | - |
+| CR-01 | critical | fixed | 01-07-PLAN.md (gap G-01-2): stop re-checked after every ready_queue.get and before each child-state-driven shutdown(1) (not in the current review) |
+| WR-01 | warning | open | - (not in the current review) |
+| WR-02 | warning | fixed | 01-08-PLAN.md (gap G-01-3): launcher pid passed explicitly, immediate getppid re-check, PR_SET_PDEATHSIG on Linux (not in the current review) |
+| WR-03 | warning | open | - (not in the current review) |
+| WR-04 | warning | open | - (not in the current review) |
+| WR-05 | warning | open | - (not in the current review) |
+| IN-01 | info | open | - (not in the current review) |
+| IN-02 | info | open | - (not in the current review) |
+| IN-03 | info | open | - (not in the current review) |
+| IN-04 | info | open | - (not in the current review) |
+| IN-05 | info | open | - (not in the current review) |
+| IN-06 | info | open | - (not in the current review) |
+| IN-07 | info | open | - (not in the current review) |
+| IN-08 | info | open | - (not in the current review) |
+| IN-09 | info | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
