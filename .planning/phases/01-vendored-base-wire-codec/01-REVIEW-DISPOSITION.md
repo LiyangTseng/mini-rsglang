@@ -13,11 +13,11 @@ findings:
     title: "`prctl` failure handling only catches `OSError`, not a missing symbol"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: deferred
     title: "`gpu_phase1_check.sh`'s safety-net cleanup can signal an unrelated process group"
   - id: IN-03
     severity: info
-    disposition: open
+    disposition: deferred
     title: "Duplicated pass/report logic in `wait_no_orphans`"
   - id: WR-06
     severity: warning
@@ -99,9 +99,9 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 14
+open: 12
 total: 24
-recorded: 2026-10-04T08:35:08.080Z
+recorded: 2026-10-04T09:50:00.000Z
 ---
 
 # Phase 01: Code Review Disposition
@@ -109,9 +109,9 @@ recorded: 2026-10-04T08:35:08.080Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-01 | warning | open | - |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
+| IN-01 | info | open | fix-now decided — UAT test 9, 2026-10-04; awaiting gap closure plan (G-01-9) |
+| IN-02 | info | deferred | deferred to Phase 6 (bundle with the GPU end-to-end validation pass over gpu_phase1_check.sh) — UAT test 9, 2026-10-04 |
+| IN-03 | info | deferred | deferred to Phase 6 (bundle with the GPU end-to-end validation pass over gpu_phase1_check.sh) — UAT test 9, 2026-10-04 |
 | WR-06 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR06): prctl failure logs and degrades to the polling watchdog (argtypes declared); watchdog started inside run_scheduler's error-envelope try (not in the current review) |
 | WR-07 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR07): on_gpu captures nvidia-smi output once and fails the step on an nvidia-smi error; steps 4/4b use wait_no_orphans (not in the current review) |
 | WR-08 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR08): start_session polls pgid for up to 5 s and kills the pid it started on failure (not in the current review) |

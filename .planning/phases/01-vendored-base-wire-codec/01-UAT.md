@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: partial
 phase: 01-vendored-base-wire-codec
 source: [01-VERIFICATION.md]
 started: 2026-10-04T04:55:00Z
-updated: 2026-10-04T06:39:35Z
+updated: 2026-10-04T09:52:00Z
 ---
 
 ## Current Test
@@ -46,16 +46,30 @@ reason: "blocked. no linux machine yet. I can let other collaborators contineu o
 
 ### 7. Triage the open code-review warnings in 01-REVIEW-DISPOSITION.md
 expected: Record fixed / deferred / skipped for WR-06..WR-10 (new incremental review) and the earlier WR-01, WR-03, WR-04, WR-05. Settle WR-07 (the GPU-orphan check can false-PASS) and WR-08 (the start_session race can false-FAIL) before trusting gpu_phase1_check.sh steps 4/4b.
-result: issue
+result: pass
 reported: "修 WR-01, WR-04, WR-06, WR-07, WR-08, WR-09；延後 WR-03, WR-05, WR-10"
 severity: major
 triage: "fix WR-01, WR-04, WR-06, WR-07, WR-08, WR-09 (gaps G-01-7-WR01..WR09 below); defer WR-03/WR-10 to Phase 7 and WR-05 to Phase 6 (recorded in 01-REVIEW-DISPOSITION.md)"
+resolution: "All 6 fix gaps closed by plans 01-09..01-12 and re-verified 2026-10-04 in 01-VERIFICATION.md (gaps_closed, gaps_remaining: [])"
+
+### 8. Decide the disposition of the newly-surfaced WR-01 finding (abbreviated `--shell-m` with no rust binary built yet reports a misleading "binary not found" error instead of the shell-mode rejection)
+expected: Either fix now (reorder: parse_args/run_shell check before resolve_rust_bin in python/rsglang/launch.py) or mark deferred in 01-REVIEW-DISPOSITION.md with a target phase. This is a NEW, narrower finding than the original WR-01 (already fixed and tested — abbreviations always exit 2, never silently run with shell-mode limits); it is a misleading-diagnostic issue only, not a correctness regression, and defeats no Phase 1 must-have, but must not be silently dropped.
+result: issue
+reported: "yes (fix now, per assistant recommendation: cheap reorder, prevents a confusing error on first-run setup)"
+severity: minor
+
+### 9. Record fixed/deferred for the carried-forward info-level findings IN-01, IN-02, IN-03 (new, from the latest incremental review) alongside the still-open IN-04..IN-13 and the still-deferred WR-03/WR-05/WR-10
+expected: Each is marked fixed or deferred with a target phase, or explicitly accepted as non-blocking, in 01-REVIEW-DISPOSITION.md. None of these defeats a Phase 1 must-have.
+result: issue
+reported: "OK. let's go with your suggestion (fix IN-01 now; defer IN-02 and IN-03 to Phase 6)"
+severity: minor
+triage: "fix IN-01 (gap G-01-9 below); defer IN-02/IN-03 to Phase 6 (recorded in 01-REVIEW-DISPOSITION.md)"
 
 ## Summary
 
-total: 7
-passed: 4
-issues: 1
+total: 9
+passed: 5
+issues: 2
 pending: 0
 skipped: 0
 blocked: 2
@@ -109,7 +123,9 @@ blocked: 2
 
 - gap_id: G-01-7-WR01
   truth: "rust mode rejects shell mode however it is spelled: the parsed run_shell flag from upstream parse_args is authoritative, so `--shell` / `--shell-m` abbreviations exit 2 instead of silently running with max_running_req=1, cuda_graph_max_bs=1 (WR-01 in the first 01-REVIEW.md, commit 261f8ee)"
-  status: failed
+  status: resolved
+  resolved_by: 01-11-PLAN.md
+  resolved_at: 2026-10-04
   reason: "User reported: 修 WR-01"
   severity: major
   test: 7
@@ -124,7 +140,9 @@ blocked: 2
 
 - gap_id: G-01-7-WR04
   truth: "The rsg-server handshake rejects a line with no `eos_token_id` key as Malformed (exit 2); only an explicit null is accepted (WR-04 in the first 01-REVIEW.md)"
-  status: failed
+  status: resolved
+  resolved_by: 01-11-PLAN.md
+  resolved_at: 2026-10-04
   reason: "User reported: 修 WR-04"
   severity: major
   test: 7
@@ -139,7 +157,9 @@ blocked: 2
 
 - gap_id: G-01-7-WR06
   truth: "A failing prctl(PR_SET_PDEATHSIG) does not kill the scheduler: it logs and degrades to the polling watchdog, and any startup failure still reaches the launcher as an error envelope (WR-06 in 01-REVIEW.md)"
-  status: failed
+  status: resolved
+  resolved_by: 01-10-PLAN.md
+  resolved_at: 2026-10-04
   reason: "User reported: 修 WR-06"
   severity: major
   test: 7
@@ -155,7 +175,9 @@ blocked: 2
 
 - gap_id: G-01-7-WR07
   truth: "gpu_phase1_check.sh's GPU-orphan check cannot false-PASS: an nvidia-smi failure is a step failure, and a listed pid is never reported absent because of SIGPIPE under pipefail (WR-07 in 01-REVIEW.md)"
-  status: failed
+  status: resolved
+  resolved_by: 01-09-PLAN.md
+  resolved_at: 2026-10-04
   reason: "User reported: 修 WR-07"
   severity: major
   test: 7
@@ -170,7 +192,9 @@ blocked: 2
 
 - gap_id: G-01-7-WR08
   truth: "gpu_phase1_check.sh's start_session does not fail a healthy run on slow startup: it polls up to a timeout for pgid == BG_PID, and step4_early cleans up its session on that failure (WR-08 in 01-REVIEW.md)"
-  status: failed
+  status: resolved
+  resolved_by: 01-09-PLAN.md
+  resolved_at: 2026-10-04
   reason: "User reported: 修 WR-08"
   severity: major
   test: 7
@@ -185,7 +209,9 @@ blocked: 2
 
 - gap_id: G-01-7-WR09
   truth: "test_exits_at_once_when_parent_is_not_the_launcher passes only when the watchdog itself caused the exit, not on an import error or any other exit 1 (WR-09 in 01-REVIEW.md)"
-  status: failed
+  status: resolved
+  resolved_by: 01-10-PLAN.md
+  resolved_at: 2026-10-04
   reason: "User reported: 修 WR-09"
   severity: major
   test: 7
@@ -198,9 +224,41 @@ blocked: 2
     - "mutation check: break the import or the watchdog and confirm the test fails"
   debug_session: "none - root cause from 01-REVIEW.md, re-verified in code at b15a8fd during UAT"
 
+- gap_id: G-01-8
+  truth: "Passing `--shell-m` (or another abbreviation) in rust mode always reports the shell-mode rejection as the error, even when the rust binary has not been built yet (new, narrower WR-01 instance surfaced by the 2026-10-04 incremental review)"
+  status: failed
+  reason: "User reported: yes (fix now, per assistant recommendation)"
+  severity: minor
+  test: 8
+  root_cause: "python/rsglang/launch.py: run_rust_mode (L100-112) does a literal `\"--shell-mode\" in rest` pre-check (L101, catches only the exact spelling), then calls resolve_rust_bin (L104) and returns 2 on 'binary not found' (L105-106) BEFORE _run_rust_mode (L115) ever calls parse_args (L123) to get the authoritative run_shell flag that catches abbreviations like --shell/--shell-m. So `--shell-m` with no binary built yet hits the binary-not-found return first and the real reason (shell mode unsupported) is never reported."
+  artifacts:
+    - path: "python/rsglang/launch.py"
+      issue: "run_rust_mode resolves rust_bin (L104) before _run_rust_mode's parse_args/run_shell check (L123-126) runs"
+  missing:
+    - "Move `server_args, run_shell = parse_args(rest)` and the `if run_shell: return 2` check into run_rust_mode, before the resolve_rust_bin call; pass the already-parsed server_args/run_shell down to _run_rust_mode instead of re-parsing"
+    - "Test: --frontend rust --shell-m with no rust binary on PATH/resolved still exits 2 with the shell-mode-not-supported message, not a binary-not-found message"
+  debug_session: "none - root cause found by direct code read during UAT (python/rsglang/launch.py:100-126)"
+
+- gap_id: G-01-9
+  truth: "The parent-death watchdog logs and degrades to the polling watchdog on ANY prctl(PR_SET_PDEATHSIG) failure mode, not just OSError (IN-01 in the 2026-10-04 incremental review)"
+  status: failed
+  reason: "User reported: OK. let's go with your suggestion (fix IN-01 now)"
+  severity: minor
+  test: 9
+  root_cause: "python/rsglang/backend.py:81-97: start_parent_watchdog's try only catches OSError. `libc.prctl.argtypes = [...]` (L83) itself triggers a ctypes.CDLL.__getattr__ symbol lookup for 'prctl'; if that symbol isn't exported (a minimal/alternative libc, or a build without the usual glibc wrapper), ctypes raises AttributeError, not OSError, so it isn't caught here and the 'log it and degrade to the polling watchdog' behavior WR-06 was built to guarantee doesn't trigger for this failure mode (it's still caught one level up by run_scheduler's outer except BaseException, so it reaches the launcher as an error envelope rather than failing silently, but the degrade-and-keep-running guarantee is defeated)."
+  artifacts:
+    - path: "python/rsglang/backend.py"
+      issue: "L92: `except OSError as exc:` does not catch AttributeError from a missing prctl symbol"
+  missing:
+    - "Broaden the catch to `except (OSError, AttributeError) as exc:` at L92"
+    - "Mac-runnable test: monkeypatch libc.prctl (or the CDLL) to raise AttributeError and assert start_parent_watchdog logs 'PDEATHSIG unavailable' and returns normally (scheduler keeps running) instead of propagating"
+  debug_session: "none - root cause from 01-REVIEW.md (IN-01), re-verified in code at python/rsglang/backend.py:81-97 during UAT"
+
 - gap_id: G-01-7-WR06-CHECK
   truth: "A passing gpu_phase1_check.sh step 3 proves PR_SET_PDEATHSIG armed: step 3 fails when the scheduler logged 'PDEATHSIG unavailable' (fell back to the polling watchdog), while 01-10's degrade-to-polling runtime behavior stays"
-  status: failed
+  status: resolved
+  resolved_by: 01-12-PLAN.md
+  resolved_at: 2026-10-04
   reason: "User chose plan A on 2026-10-04 after comparing 01-08 (prctl failure aborts) with 01-10 (prctl failure degrades): keep the degrade, but make the GPU check fail if it triggered"
   severity: minor
   test: 7
