@@ -40,7 +40,9 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_ansi(false)
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .init();
 
     tracing::info!(
@@ -53,8 +55,14 @@ async fn main() {
         "rsg-server starting"
     );
 
-    let backend = Endpoint { addr: cli.backend_addr.clone(), role: cli.backend_role };
-    let detok = Endpoint { addr: cli.detok_addr.clone(), role: cli.detok_role };
+    let backend = Endpoint {
+        addr: cli.backend_addr.clone(),
+        role: cli.backend_role,
+    };
+    let detok = Endpoint {
+        addr: cli.detok_addr.clone(),
+        role: cli.detok_role,
+    };
     let _transport = match ZmqTransport::open(&backend, &detok) {
         Ok(t) => t,
         Err(e) => {

@@ -50,18 +50,57 @@ impl ZmqTransport {
     /// Open a PUSH socket for `backend` and a PULL socket for `detok`, binding or
     /// connecting each per its role.
     pub fn open(backend: &Endpoint, detok: &Endpoint) -> anyhow::Result<ZmqTransport> {
-        todo!()
+        let ctx = zmq::Context::new();
+        let backend_sock = open_socket(&ctx, zmq::PUSH, backend, "backend")?;
+        let detok_sock = open_socket(&ctx, zmq::PULL, detok, "detokenizer")?;
+        Ok(ZmqTransport {
+            _ctx: ctx,
+            backend: backend_sock,
+            detok: detok_sock,
+        })
     }
 }
 
 impl Transport for ZmqTransport {
     fn send_backend(&self, frame: &[u8]) -> anyhow::Result<()> {
-        todo!()
+        self.backend
+            .send(frame, 0)
+            .context("send on backend socket")
     }
 
     fn recv_detok(&self, timeout_ms: i64) -> anyhow::Result<Option<Vec<u8>>> {
-        todo!()
+        let ready = self
+            .detok
+            .poll(zmq::POLLIN, timeout_ms)
+            .context("poll detokenizer socket")?;
+        if ready == 0 {
+            return Ok(None);
+        }
+        let frame = self
+            .detok
+            .recv_bytes(0)
+            .context("recv on detokenizer socket")?;
+        Ok(Some(frame))
     }
+}
+
+fn open_socket(
+    ctx: &zmq::Context,
+    kind: zmq::SocketType,
+    ep: &Endpoint,
+    name: &str,
+) -> anyhow::Result<zmq::Socket> {
+    let sock = ctx
+        .socket(kind)
+        .with_context(|| format!("create {name} socket"))?;
+    sock.set_linger(0)
+        .with_context(|| format!("set linger on {name} socket"))?;
+    match ep.role {
+        Role::Bind => sock.bind(&ep.addr),
+        Role::Connect => sock.connect(&ep.addr),
+    }
+    .with_context(|| format!("{} {name} socket at {}", ep.role, ep.addr))?;
+    Ok(sock)
 }
 
 #[cfg(test)]
@@ -78,10 +117,19 @@ mod tests {
 
     #[test]
     fn detok_bind_receives_from_raw_push_peer() {
-        let backend = Endpoint { addr: addr("a"), role: Role::Connect };
-        let detok = Endpoint { addr: addr("b"), role: Role::Bind };
+        let backend = Endpoint {
+            addr: addr("a"),
+            role: Role::Connect,
+        };
+        let detok = Endpoint {
+            addr: addr("b"),
+            role: Role::Bind,
+        };
         let t = ZmqTransport::open(&backend, &detok).expect("open");
-        assert!(std::path::Path::new(path(&detok.addr)).exists(), "bind creates the ipc file");
+        assert!(
+            std::path::Path::new(path(&detok.addr)).exists(),
+            "bind creates the ipc file"
+        );
 
         let ctx = zmq::Context::new();
         let peer = ctx.socket(zmq::PUSH).unwrap();
@@ -96,8 +144,14 @@ mod tests {
 
     #[test]
     fn backend_connect_delivers_to_raw_pull_peer() {
-        let backend = Endpoint { addr: addr("c"), role: Role::Connect };
-        let detok = Endpoint { addr: addr("d"), role: Role::Bind };
+        let backend = Endpoint {
+            addr: addr("c"),
+            role: Role::Connect,
+        };
+        let detok = Endpoint {
+            addr: addr("d"),
+            role: Role::Bind,
+        };
 
         let ctx = zmq::Context::new();
         let peer = ctx.socket(zmq::PULL).unwrap();
@@ -107,7 +161,10 @@ mod tests {
         let t = ZmqTransport::open(&backend, &detok).expect("open");
         t.send_backend(b"pong").expect("send");
 
-        assert!(peer.poll(zmq::POLLIN, 2000).unwrap() > 0, "peer got nothing");
+        assert!(
+            peer.poll(zmq::POLLIN, 2000).unwrap() > 0,
+            "peer got nothing"
+        );
         assert_eq!(peer.recv_bytes(0).unwrap(), b"pong");
         let _ = std::fs::remove_file(path(&backend.addr));
         let _ = std::fs::remove_file(path(&detok.addr));
@@ -115,8 +172,14 @@ mod tests {
 
     #[test]
     fn recv_detok_times_out_with_none() {
-        let backend = Endpoint { addr: addr("e"), role: Role::Connect };
-        let detok = Endpoint { addr: addr("f"), role: Role::Bind };
+        let backend = Endpoint {
+            addr: addr("e"),
+            role: Role::Connect,
+        };
+        let detok = Endpoint {
+            addr: addr("f"),
+            role: Role::Bind,
+        };
         let t = ZmqTransport::open(&backend, &detok).expect("open");
         assert_eq!(t.recv_detok(200).expect("recv"), None);
         let _ = std::fs::remove_file(path(&detok.addr));

@@ -32,7 +32,10 @@ pub struct Handshake {
 impl Handshake {
     /// `eos_token_id` as a log-friendly string: the number, or `null`.
     pub fn eos_display(&self) -> String {
-        todo!()
+        match self.eos_token_id {
+            Some(id) => id.to_string(),
+            None => "null".to_string(),
+        }
     }
 }
 
@@ -45,7 +48,18 @@ pub enum HandshakeError {
 
 impl fmt::Display for HandshakeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        match self {
+            HandshakeError::Malformed(msg) => write!(f, "malformed handshake line: {msg}"),
+            HandshakeError::UnsupportedVersion { got, expected } => write!(
+                f,
+                "unsupported handshake_version {got} (this rsg-server understands {expected})"
+            ),
+            HandshakeError::ShaMismatch { got, expected } => write!(
+                f,
+                "upstream SHA mismatch: the Rust wire fixtures were generated for {expected}, \
+                 but the launcher reported {got}"
+            ),
+        }
     }
 }
 
@@ -53,7 +67,22 @@ impl std::error::Error for HandshakeError {}
 
 /// Parse one handshake line and check its version and upstream SHA.
 pub fn parse_handshake(line: &str, expected_sha: &str) -> Result<Handshake, HandshakeError> {
-    todo!()
+    let line = line.trim_end_matches(['\r', '\n']);
+    let hs: Handshake =
+        serde_json::from_str(line).map_err(|e| HandshakeError::Malformed(e.to_string()))?;
+    if hs.handshake_version != HANDSHAKE_VERSION {
+        return Err(HandshakeError::UnsupportedVersion {
+            got: hs.handshake_version,
+            expected: HANDSHAKE_VERSION,
+        });
+    }
+    if hs.upstream_sha != expected_sha {
+        return Err(HandshakeError::ShaMismatch {
+            got: hs.upstream_sha,
+            expected: expected_sha.to_string(),
+        });
+    }
+    Ok(hs)
 }
 
 #[cfg(test)]
@@ -108,24 +137,40 @@ mod tests {
     fn unsupported_version() {
         let l = line(SHA, "151645").replace("\"handshake_version\":1", "\"handshake_version\":2");
         let err = parse_handshake(&l, SHA).unwrap_err();
-        assert_eq!(err, HandshakeError::UnsupportedVersion { got: 2, expected: 1 });
+        assert_eq!(
+            err,
+            HandshakeError::UnsupportedVersion {
+                got: 2,
+                expected: 1
+            }
+        );
     }
 
     #[test]
     fn extra_key_is_malformed() {
-        let l = line(SHA, "151645").replace("\"num_pages\":1024}", "\"num_pages\":1024,\"extra\":1}");
-        assert!(matches!(parse_handshake(&l, SHA), Err(HandshakeError::Malformed(_))));
+        let l =
+            line(SHA, "151645").replace("\"num_pages\":1024}", "\"num_pages\":1024,\"extra\":1}");
+        assert!(matches!(
+            parse_handshake(&l, SHA),
+            Err(HandshakeError::Malformed(_))
+        ));
     }
 
     #[test]
     fn missing_key_is_malformed() {
         let l = line(SHA, "151645").replace(",\"num_pages\":1024", "");
-        assert!(matches!(parse_handshake(&l, SHA), Err(HandshakeError::Malformed(_))));
+        assert!(matches!(
+            parse_handshake(&l, SHA),
+            Err(HandshakeError::Malformed(_))
+        ));
     }
 
     #[test]
     fn not_json_is_malformed() {
-        assert!(matches!(parse_handshake("not json", SHA), Err(HandshakeError::Malformed(_))));
+        assert!(matches!(
+            parse_handshake("not json", SHA),
+            Err(HandshakeError::Malformed(_))
+        ));
     }
 
     #[test]
