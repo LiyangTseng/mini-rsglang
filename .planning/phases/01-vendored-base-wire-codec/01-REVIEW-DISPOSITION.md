@@ -9,11 +9,11 @@ findings:
     title: "A prctl failure kills the scheduler before the error envelope and for a mere backstop"
   - id: WR-07
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`gpu_pids` failures and SIGPIPE turn the GPU-orphan check into a false PASS"
   - id: WR-08
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`start_session` has a 0.5 s startup race that can fail a healthy run"
   - id: WR-09
     severity: warning
@@ -99,7 +99,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 19
+open: 17
 total: 24
 recorded: 2026-10-04T06:24:13.231Z
 ---
@@ -109,8 +109,8 @@ recorded: 2026-10-04T06:24:13.231Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-06 | warning | open | - |
-| WR-07 | warning | open | - |
-| WR-08 | warning | open | - |
+| WR-07 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR07): on_gpu captures nvidia-smi output once and fails the step on an nvidia-smi error; steps 4/4b use wait_no_orphans |
+| WR-08 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR08): start_session polls pgid for up to 5 s and kills the pid it started on failure |
 | WR-09 | warning | open | - |
 | WR-10 | warning | deferred | deferred to Phase 7 (same issue as WR-03) — UAT test 7, 2026-10-03 |
 | IN-10 | info | open | - |
