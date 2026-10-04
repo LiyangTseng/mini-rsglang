@@ -52,13 +52,21 @@ def _wait_until(predicate, timeout: float) -> bool:
 
 
 class LauncherRun:
-    def __init__(self, rust_bin: Path, status_dir: Path, mode: str = "ok", ready_timeout: float = 60):
+    def __init__(
+        self,
+        rust_bin: Path,
+        status_dir: Path,
+        mode: str = "ok",
+        ready_timeout: float = 60,
+        extra_env: dict[str, str] | None = None,
+    ):
         env = {
             **os.environ,
             "RSGLANG_SCHEDULER_FACTORY": FACTORY_PATH,
             STATUS_DIR_ENV: str(status_dir),
             MODE_ENV: mode,
             "RUST_LOG": "info",
+            **(extra_env or {}),
         }
         self.proc = subprocess.Popen(
             [sys.executable, "-m", "rsglang.launch", "--frontend", "rust",
@@ -277,6 +285,32 @@ def test_launcher_sigkill_leaves_no_orphans(make_launcher):
     # rsg-server: stdin EOF; scheduler: parent watchdog.
     for name, pid in children.items():
         assert _gone(pid, 20), f"{name} pid={pid} orphaned\n{run.text()}"
+    # The launcher had no chance to clean up its sockets.
+    sockets.unlink_run_sockets(f".rsg={run.proc.pid}")
+    assert not any(path.exists() for path in sockets.run_socket_paths(f".rsg={run.proc.pid}"))
+
+
+def test_launcher_sigkill_during_scheduler_boot_leaves_no_orphans(make_launcher, tmp_path):
+    # G-01-3 / WR-02: a launcher SIGKILLed while its scheduler child is still booting must not
+    # leave the scheduler behind. The boot window is widened without touching repo code: a
+    # test-only sitecustomize sleeps in spawned multiprocessing children (only they carry
+    # --multiprocessing-fork in their argv) before they import anything.
+    slowboot = tmp_path / "slowboot"
+    slowboot.mkdir()
+    (slowboot / "sitecustomize.py").write_text(
+        "import sys, time\n"
+        "if '--multiprocessing-fork' in sys.orig_argv:\n"
+        "    time.sleep(3.0)\n"
+    )
+    pythonpath = os.pathsep.join(p for p in (str(slowboot), os.environ.get("PYTHONPATH")) if p)
+    run = make_launcher(extra_env={"PYTHONPATH": pythonpath})
+    run.wait_for("spawned scheduler rank=0", 30)
+    children = run.pids()
+    assert set(children) == {"rsg-server", "scheduler"}, run.text()
+    os.kill(run.proc.pid, signal.SIGKILL)  # the launcher only, not its group
+    run.finish(10)
+    assert _gone(children["scheduler"], 30), f"scheduler pid={children['scheduler']} orphaned\n{run.text()}"
+    assert _gone(children["rsg-server"], 15), f"rsg-server pid={children['rsg-server']} orphaned\n{run.text()}"
     # The launcher had no chance to clean up its sockets.
     sockets.unlink_run_sockets(f".rsg={run.proc.pid}")
     assert not any(path.exists() for path in sockets.run_socket_paths(f".rsg={run.proc.pid}"))
