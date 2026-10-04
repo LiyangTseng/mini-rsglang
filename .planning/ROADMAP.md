@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. For each of the 7 upstream message types, the bytes the Rust codec produces equal golden fixtures exported from upstream's Python encoder, checked by a test that runs on the Mac.
   5. Every message the Rust codec emits decodes through upstream's real Python decoder (`cls(**kwargs)`) without error.
 
-**Plans:** 6/6 plans executed
+**Plans:** 6/8 plans executed
 
 Plans:
 **Wave 1**
@@ -54,6 +54,12 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 01-05-PLAN.md — Launcher failure contract (D-12), seam unit tests, GPU verification script with end-of-phase human check (wave 3)
 - [x] 01-06-PLAN.md — check_upstream.py frozen-tier gate, WIRE-02 decode check, check_all.sh phase gate (wave 3)
+
+**Wave 4** *(gap closure)*
+- [ ] 01-07-PLAN.md — G-01-2 / CR-01: group SIGINT (Ctrl-C) to the rust-mode launcher exits 0 with no failure report; stop re-checked after every ready_queue.get (wave 4)
+
+**Wave 5** *(gap closure; blocked on Wave 4 completion)*
+- [ ] 01-08-PLAN.md — G-01-3 / WR-02: launcher pid passed explicitly to the scheduler watchdog plus Linux PR_SET_PDEATHSIG; early kill -9 leaves no orphan; GPU check step 4b (wave 5)
 
 ### Phase 2: Python Frontend Baseline Profile
 
