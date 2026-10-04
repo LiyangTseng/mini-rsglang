@@ -73,11 +73,28 @@ def start_parent_watchdog(launcher_pid: int, poll_interval: float = 1.0) -> thre
     forked this child dies, here the launcher's main thread (p.start() in
     _run_rust_mode), which lives as long as the launcher. spawn has no preexec
     hook, so it can only be armed after exec, here.
+
+    A prctl failure, such as one in a seccomp-restricted container, is logged and
+    the polling thread alone still guards, because PDEATHSIG is defence in depth.
     """
     if sys.platform.startswith("linux"):
-        libc = ctypes.CDLL(None, use_errno=True)
-        if libc.prctl(PR_SET_PDEATHSIG, int(signal.SIGKILL), 0, 0, 0) != 0:
-            raise OSError(ctypes.get_errno(), "prctl(PR_SET_PDEATHSIG) failed")
+        try:
+            libc = ctypes.CDLL(None, use_errno=True)
+            libc.prctl.argtypes = [
+                ctypes.c_int,
+                ctypes.c_ulong,
+                ctypes.c_ulong,
+                ctypes.c_ulong,
+                ctypes.c_ulong,
+            ]
+            if libc.prctl(PR_SET_PDEATHSIG, int(signal.SIGKILL), 0, 0, 0) != 0:
+                raise OSError(ctypes.get_errno(), "prctl(PR_SET_PDEATHSIG) failed")
+        except OSError as exc:
+            print(
+                f"rsglang: PDEATHSIG unavailable ({exc}); using the polling watchdog only",
+                file=sys.stderr,
+                flush=True,
+            )
     if os.getppid() != launcher_pid:  # the launcher died while this child was booting
         os._exit(1)
 
@@ -95,12 +112,14 @@ def start_parent_watchdog(launcher_pid: int, poll_interval: float = 1.0) -> thre
 def run_scheduler(
     args: ServerArgs, ready_queue: mp.Queue, upstream_sha: str, launcher_pid: int
 ) -> None:
-    # First: the watchdog compares against the launcher pid passed at spawn time, so a
-    # launcher that died during this child's boot is noticed at once.
-    start_parent_watchdog(launcher_pid)
     rank = args.tp_info.rank
     passed_ready = False
     try:
+        # Still the first real work, still compared against the launcher pid passed at
+        # spawn time, now inside the try so a failure reaches the launcher as an error
+        # envelope instead of a silent exit.
+        start_parent_watchdog(launcher_pid)
+
         import torch
         from minisgl.utils import init_logger
 
