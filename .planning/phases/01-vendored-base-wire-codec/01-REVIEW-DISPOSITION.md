@@ -3,6 +3,22 @@ phase: 01
 review: 01-REVIEW.md
 titles: json
 findings:
+  - id: WR-01
+    severity: warning
+    disposition: open
+    title: "Abbreviated `--shell-mode` rejection can be masked by an unrelated \"binary not found\" error"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "`prctl` failure handling only catches `OSError`, not a missing symbol"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "`gpu_phase1_check.sh`'s safety-net cleanup can signal an unrelated process group"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "Duplicated pass/report logic in `wait_no_orphans`"
   - id: WR-06
     severity: warning
     disposition: fixed
@@ -43,10 +59,6 @@ findings:
     severity: critical
     disposition: fixed
     title: "Ctrl-C (SIGINT to the whole process group) makes the launcher exit 1 and report a failure"
-  - id: WR-01
-    severity: warning
-    disposition: fixed
-    title: "The `--shell-mode` rejection can be bypassed by an abbreviation, and rust mode then runs silently with shell-mode limits"
   - id: WR-02
     severity: warning
     disposition: fixed
@@ -63,18 +75,6 @@ findings:
     severity: warning
     disposition: deferred
     title: "`shutdown()` always re-sends SIGINT to the group, which interrupts upstream's graceful `scheduler.shutdown()` after an external group SIGINT"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "Struct-level wire decoders do not validate `__type__`"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "A stdin read error is reported as \"stdin EOF\" and exits 3, even for a malformed (non-UTF-8) handshake"
-  - id: IN-03
-    severity: info
-    disposition: open
-    title: "The upstream SHA is included separately in two crates"
   - id: IN-04
     severity: info
     disposition: open
@@ -99,33 +99,33 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 13
+open: 14
 total: 24
-recorded: 2026-10-04T06:24:13.231Z
+recorded: 2026-10-04T08:35:08.080Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-06 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR06): prctl failure logs and degrades to the polling watchdog (argtypes declared); watchdog started inside run_scheduler's error-envelope try |
-| WR-07 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR07): on_gpu captures nvidia-smi output once and fails the step on an nvidia-smi error; steps 4/4b use wait_no_orphans |
-| WR-08 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR08): start_session polls pgid for up to 5 s and kills the pid it started on failure |
-| WR-09 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR09): exit test requires the 'calling' marker, no 'returned' marker and no Traceback; mutation-checked |
-| WR-10 | warning | deferred | deferred to Phase 7 (same issue as WR-03) — UAT test 7, 2026-10-03 |
-| IN-10 | info | open | - |
-| IN-11 | info | open | - |
-| IN-12 | info | open | - |
-| IN-13 | info | open | - |
+| WR-01 | warning | open | - |
+| IN-01 | info | open | - |
+| IN-02 | info | open | - |
+| IN-03 | info | open | - |
+| WR-06 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR06): prctl failure logs and degrades to the polling watchdog (argtypes declared); watchdog started inside run_scheduler's error-envelope try (not in the current review) |
+| WR-07 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR07): on_gpu captures nvidia-smi output once and fails the step on an nvidia-smi error; steps 4/4b use wait_no_orphans (not in the current review) |
+| WR-08 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR08): start_session polls pgid for up to 5 s and kills the pid it started on failure (not in the current review) |
+| WR-09 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR09): exit test requires the 'calling' marker, no 'returned' marker and no Traceback; mutation-checked (not in the current review) |
+| WR-10 | warning | deferred | deferred to Phase 7 (same issue as WR-03) — UAT test 7, 2026-10-03 (not in the current review) |
+| IN-10 | info | open | - (not in the current review) |
+| IN-11 | info | open | - (not in the current review) |
+| IN-12 | info | open | - (not in the current review) |
+| IN-13 | info | open | - (not in the current review) |
 | CR-01 | critical | fixed | 01-07-PLAN.md (gap G-01-2): stop re-checked after every ready_queue.get and before each child-state-driven shutdown(1) (not in the current review) |
-| WR-01 | warning | fixed | 01-11-PLAN.md (gap G-01-7-WR01): parsed run_shell from upstream parse_args is authoritative; --shell/--shell-m exit 2 (not in the current review) |
 | WR-02 | warning | fixed | 01-08-PLAN.md (gap G-01-3): launcher pid passed explicitly, immediate getppid re-check, PR_SET_PDEATHSIG on Linux (not in the current review) |
-| WR-03 | warning | deferred | deferred to Phase 7 (benchmark harness launches the launcher under wrappers; same issue as WR-10) — UAT test 7, 2026-10-03 |
+| WR-03 | warning | deferred | deferred to Phase 7 (benchmark harness launches the launcher under wrappers; same issue as WR-10) — UAT test 7, 2026-10-03 (not in the current review) |
 | WR-04 | warning | fixed | 01-11-PLAN.md (gap G-01-7-WR04): eos_token_id required via deserialize_with = Option::deserialize; missing key exits 2 (not in the current review) |
-| WR-05 | warning | deferred | deferred to Phase 6 (graceful upstream scheduler.shutdown on the real GPU backend; intentionally left unchanged by 01-07) — UAT test 7, 2026-10-03 |
-| IN-01 | info | open | - (not in the current review) |
-| IN-02 | info | open | - (not in the current review) |
-| IN-03 | info | open | - (not in the current review) |
+| WR-05 | warning | deferred | deferred to Phase 6 (graceful upstream scheduler.shutdown on the real GPU backend; intentionally left unchanged by 01-07) — UAT test 7, 2026-10-03 (not in the current review) |
 | IN-04 | info | open | - (not in the current review) |
 | IN-05 | info | open | - (not in the current review) |
 | IN-06 | info | open | - (not in the current review) |
