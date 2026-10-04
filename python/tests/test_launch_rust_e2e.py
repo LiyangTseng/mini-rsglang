@@ -210,6 +210,19 @@ def test_group_sigint_after_ready_exits_0(make_launcher):
     _group_sigint_clean_stop(run)
 
 
+def test_group_sigint_while_scheduler_boots_exits_0(make_launcher):
+    run = make_launcher()
+    run.wait_for("spawned scheduler rank=0", 30)
+    _group_sigint_clean_stop(run)  # lands while the scheduler is still booting its interpreter
+
+
+def test_group_sigint_while_scheduler_hangs_exits_0(make_launcher, tmp_path):
+    run = make_launcher(mode="hang_before_ready")
+    run.wait_for("spawned scheduler rank=0", 30)
+    assert _wait_until((tmp_path / "hang_entered").exists, 60), run.text()
+    _group_sigint_clean_stop(run)  # the scheduler's KeyboardInterrupt envelope reaches the launcher
+
+
 # --- D-12 failure contract: every failure exits non-zero, prints its cause, leaves no child ---
 
 
