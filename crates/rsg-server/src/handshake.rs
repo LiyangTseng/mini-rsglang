@@ -23,6 +23,9 @@ pub struct Handshake {
     pub handshake_version: u32,
     pub upstream_sha: String,
     pub max_seq_len: u64,
+    // An explicit deserialize_with turns off serde's implicit missing-means-None
+    // handling for Option, so the key itself is required while an explicit null stays allowed.
+    #[serde(deserialize_with = "Option::deserialize")]
     pub eos_token_id: Option<u64>,
     pub page_size: u64,
     pub max_running_req: u64,
