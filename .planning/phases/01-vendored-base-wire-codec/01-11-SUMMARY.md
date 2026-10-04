@@ -138,3 +138,7 @@ G-01-7-WR04 and G-01-7-WR01 are closed. `cargo test -p rsg-server` (22 tests), `
 ---
 *Phase: 01-vendored-base-wire-codec*
 *Completed: 2026-10-04*
+
+## Self-Check: PASSED
+
+All 6 claimed files found on disk; all 5 claimed commit hashes (89c125d, 4783d49, 152e5bd, db028e3, b44dd4a) found in git log.
