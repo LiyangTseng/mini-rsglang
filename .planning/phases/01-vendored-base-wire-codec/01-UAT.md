@@ -1,9 +1,9 @@
 ---
-status: partial
+status: diagnosed
 phase: 01-vendored-base-wire-codec
 source: [01-VERIFICATION.md]
 started: 2026-10-04T04:55:00Z
-updated: 2026-10-04T06:39:11Z
+updated: 2026-10-04T06:39:35Z
 ---
 
 ## Current Test
@@ -113,14 +113,14 @@ blocked: 2
   reason: "User reported: 修 WR-01"
   severity: major
   test: 7
-  root_cause: "python/rsglang/launch.py guards with a literal `\"--shell-mode\" in rest` (L101) and discards run_shell (`server_args, _ = parse_args(rest)`, L123); upstream argparse uses allow_abbrev=True. Line numbers from the first review; re-locate before editing."
+  root_cause: "python/rsglang/launch.py guards with a literal `\"--shell-mode\" in rest` (L101) and discards run_shell (`server_args, _ = parse_args(rest)`, L123); upstream argparse uses allow_abbrev=True."
   artifacts:
     - path: "python/rsglang/launch.py"
       issue: "literal pre-check + discarded run_shell"
   missing:
     - "`server_args, run_shell = parse_args(rest)`; if run_shell: log and return 2"
     - "test that passes `--shell` with --frontend rust and expects exit 2"
-  debug_session: ""
+  debug_session: "none - root cause from 01-REVIEW.md, re-verified in code at b15a8fd during UAT"
 
 - gap_id: G-01-7-WR04
   truth: "The rsg-server handshake rejects a line with no `eos_token_id` key as Malformed (exit 2); only an explicit null is accepted (WR-04 in the first 01-REVIEW.md)"
@@ -135,7 +135,7 @@ blocked: 2
   missing:
     - "#[serde(deserialize_with = \"Option::deserialize\")] on eos_token_id"
     - "unit test removing the eos_token_id key expects Malformed"
-  debug_session: ""
+  debug_session: "none - root cause from 01-REVIEW.md, re-verified in code at b15a8fd during UAT"
 
 - gap_id: G-01-7-WR06
   truth: "A failing prctl(PR_SET_PDEATHSIG) does not kill the scheduler: it logs and degrades to the polling watchdog, and any startup failure still reaches the launcher as an error envelope (WR-06 in 01-REVIEW.md)"
@@ -151,7 +151,7 @@ blocked: 2
     - "wrap prctl in try/except OSError, log to stderr, keep the polling thread"
     - "declare libc.prctl.argtypes as five c_int/c_ulong args"
     - "test (Mac-runnable, e.g. monkeypatched prctl failure) that the watchdog still arms and the scheduler keeps running"
-  debug_session: ""
+  debug_session: "none - root cause from 01-REVIEW.md, re-verified in code at b15a8fd during UAT"
 
 - gap_id: G-01-7-WR07
   truth: "gpu_phase1_check.sh's GPU-orphan check cannot false-PASS: an nvidia-smi failure is a step failure, and a listed pid is never reported absent because of SIGPIPE under pipefail (WR-07 in 01-REVIEW.md)"
@@ -166,7 +166,7 @@ blocked: 2
   missing:
     - "gpu_pids lets failure propagate; on_gpu captures output once and greps a here-string; return 2 on nvidia-smi failure treated as step failure"
     - "Mac-runnable check with a stubbed nvidia-smi on PATH (failing stub -> step fails; stub listing the pid -> detected)"
-  debug_session: ""
+  debug_session: "none - root cause from 01-REVIEW.md, re-verified in code at b15a8fd during UAT"
 
 - gap_id: G-01-7-WR08
   truth: "gpu_phase1_check.sh's start_session does not fail a healthy run on slow startup: it polls up to a timeout for pgid == BG_PID, and step4_early cleans up its session on that failure (WR-08 in 01-REVIEW.md)"
@@ -181,7 +181,7 @@ blocked: 2
   missing:
     - "poll pgid every 0.1 s for up to ~5 s"
     - "step4_early stops its session when start_session fails"
-  debug_session: ""
+  debug_session: "none - root cause from 01-REVIEW.md, re-verified in code at b15a8fd during UAT"
 
 - gap_id: G-01-7-WR09
   truth: "test_exits_at_once_when_parent_is_not_the_launcher passes only when the watchdog itself caused the exit, not on an import error or any other exit 1 (WR-09 in 01-REVIEW.md)"
@@ -196,4 +196,4 @@ blocked: 2
   missing:
     - "child prints an 'armed' marker after start_parent_watchdog returns; assert the marker is present and 'Traceback' not in stderr"
     - "mutation check: break the import or the watchdog and confirm the test fails"
-  debug_session: ""
+  debug_session: "none - root cause from 01-REVIEW.md, re-verified in code at b15a8fd during UAT"
