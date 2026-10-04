@@ -161,7 +161,7 @@ def _run_rust_mode(ns: argparse.Namespace, rest: List[str], rust_bin: Path, suff
         rank_args = dataclasses.replace(server_args, tp_info=DistributedInfo(i, world))
         p = mp.Process(
             target=backend.run_scheduler,
-            args=(rank_args, ready_queue, upstream_sha),
+            args=(rank_args, ready_queue, upstream_sha, os.getpid()),
             daemon=False,
             name=f"rsglang-TP{i}-scheduler",
         )

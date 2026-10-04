@@ -51,19 +51,25 @@ def extract_handshake(scheduler: Any, args: ServerArgs, upstream_sha: str) -> Di
     }
 
 
-def start_parent_watchdog(poll_interval: float = 1.0) -> threading.Thread:
-    """Exit this process as soon as its parent (the launcher) is gone (D-12 backstop).
+def start_parent_watchdog(launcher_pid: int, poll_interval: float = 1.0) -> threading.Thread:
+    """Exit this process as soon as the launcher is gone (D-12 backstop).
 
     The Python twin of rsg-server's stdin-EOF rule: a SIGKILLed launcher cannot
     leak a GPU-holding scheduler. os._exit skips cleanup on purpose; the parent
     that would coordinate a clean exit no longer exists.
+
+    The launcher pid comes from the launcher at spawn time, never from
+    os.getppid() read here: under the spawn start method this runs seconds after
+    the child started, and a launcher killed in that window has already
+    reparented the child, so a value read now can be init or a subreaper.
     """
-    parent = os.getppid()
+    if os.getppid() != launcher_pid:  # the launcher died while this child was booting
+        os._exit(1)
 
     def _watch() -> None:
         while True:
             time.sleep(poll_interval)
-            if os.getppid() != parent:
+            if os.getppid() != launcher_pid:
                 os._exit(1)
 
     thread = threading.Thread(target=_watch, name="rsglang-parent-watchdog", daemon=True)
@@ -71,8 +77,12 @@ def start_parent_watchdog(poll_interval: float = 1.0) -> threading.Thread:
     return thread
 
 
-def run_scheduler(args: ServerArgs, ready_queue: mp.Queue, upstream_sha: str) -> None:
-    start_parent_watchdog()  # first: covers a launcher that dies during a long startup
+def run_scheduler(
+    args: ServerArgs, ready_queue: mp.Queue, upstream_sha: str, launcher_pid: int
+) -> None:
+    # First: the watchdog compares against the launcher pid passed at spawn time, so a
+    # launcher that died during this child's boot is noticed at once.
+    start_parent_watchdog(launcher_pid)
     rank = args.tp_info.rank
     passed_ready = False
     try:
