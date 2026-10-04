@@ -182,3 +182,14 @@ G-01-7-WR06 and G-01-7-WR09 are closed. `01-REVIEW-DISPOSITION.md` now shows `op
 ---
 *Phase: 01-vendored-base-wire-codec*
 *Completed: 2026-10-04*
+
+## Self-Check: PASSED
+
+- FOUND: .planning/phases/01-vendored-base-wire-codec/01-10-SUMMARY.md
+- FOUND: python/rsglang/backend.py
+- FOUND: python/tests/test_parent_watchdog.py
+- FOUND commit: c54c756 (test(01-10): add failing tests for prctl-failure degradation and watchdog startup error envelope)
+- FOUND commit: 05ffff3 (feat(01-10): degrade prctl failure to polling watchdog; run watchdog inside error-envelope try)
+- FOUND commit: d523d34 (test(01-10): harden watchdog exit tests to prove the watchdog caused the exit)
+- FOUND commit: 3f35d56 (docs(01-10): record WR-06 and WR-09 fixed)
+- FOUND commit: 0a036d4 (docs(01-10): complete gap closure plan)
