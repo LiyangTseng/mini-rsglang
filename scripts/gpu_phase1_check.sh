@@ -83,13 +83,23 @@ start_session() {
     setsid "$@" >"$log" 2>&1 &
   BG_PID=$!
   STARTED_PGIDS+=("$BG_PID")
-  sleep 0.5
-  local pgid
-  pgid="$(ps -o pgid= -p "$BG_PID" 2>/dev/null | tr -d ' ' || true)"
-  if [ -n "$pgid" ] && [ "$pgid" != "$BG_PID" ]; then
-    echo "setsid did not exec in place (pid $BG_PID, pgid $pgid)" >&2
-    return 1
-  fi
+  # Poll for up to 5 s: a slower interpreter start plus `exec setsid` must not fail a
+  # healthy run (the old fixed half-second wait did).
+  local pgid round
+  for round in $(seq 1 50); do
+    pgid="$(ps -o pgid= -p "$BG_PID" 2>/dev/null | tr -d ' ' || true)"
+    if [ -z "$pgid" ]; then
+      return 0  # already exited; the caller's liveness check reports this
+    fi
+    [ "$pgid" = "$BG_PID" ] && return 0
+    sleep 0.1
+  done
+  echo "setsid did not exec in place (pid $BG_PID, pgid $pgid after 5 s)" >&2
+  # Never signal a process group here: at this moment BG_PID still shares the script's
+  # own process group, so a group kill would hit the script itself.
+  kill -9 "$BG_PID" 2>/dev/null || true
+  wait "$BG_PID" 2>/dev/null || true
+  return 1
 }
 
 alive() { kill -0 "$1" 2>/dev/null; }
