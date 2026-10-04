@@ -120,7 +120,10 @@ def _run_rust_mode(ns: argparse.Namespace, rest: List[str], rust_bin: Path, suff
 
     from . import backend
 
-    server_args, _ = parse_args(rest)
+    server_args, run_shell = parse_args(rest)
+    if run_shell:
+        _log("--shell-mode is not supported with --frontend rust")
+        return 2
     server_args = dataclasses.replace(server_args, _unique_suffix=suffix)  # D-06
     sockets.unlink_run_sockets(suffix)
 
