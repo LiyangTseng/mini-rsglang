@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Vendored Base & Wire Codec
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-10-04T02:48:19.402Z"
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-10-04T02:55:23.517Z"
 last_activity: 2026-10-03
 last_activity_desc: Phase 01 execution started
-state_head: 3da12c9598c52d69d94be39c4754febd4d1064ed
+state_head: e817254489c8ca927c217ebf8112da85469cc9af
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 ## Current Position
 
 Phase: 01 (Vendored Base & Wire Codec) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-10-03 — Phase 01 execution started
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P02 | 6 min | 2 tasks | 9 files |
+| Phase 01 P01 | 14 min | 3 tasks | 128 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Roadmap]: Phase 4 (tokenizer parity) does not depend on the transport and can run alongside Phase 3.
 - [Phase 01]: rsg-server toolchain stays on Rust 1.99.0: zmq-sys bundled libzmq builds on it (A2 confirmed)
 - [Phase 01]: rsg-server exit-code contract: 0 signal, 1 startup failure, 2 bad handshake, 3 stdin EOF
+- [Phase 01]: Mac dev env is a project-local uv-managed .venv synced from the sha256-hashed requirements-mac.txt; never install into system/user Python
+- [Phase 01]: Human package gate approved torch 2.9.1, numpy 2.5.3, msgpack 1.2.3, pyzmq 27.2.0, transformers 4.57.3, pytest 9.1.1, setuptools/wheel, their transitive deps, and crate thiserror 2.0.21
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-04T02:48:19.388Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-10-04T02:55:23.500Z
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None
