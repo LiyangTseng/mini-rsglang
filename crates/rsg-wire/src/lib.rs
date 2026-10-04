@@ -67,17 +67,36 @@ impl Tensor {
     /// Builds an int32 tensor; the buffer is little-endian, like numpy `tobytes()` on the
     /// little-endian hosts upstream supports.
     pub fn from_i32_slice(ids: &[i32]) -> Tensor {
-        let _ = ids;
+        let mut buffer = Vec::with_capacity(ids.len() * 4);
+        for id in ids {
+            buffer.extend_from_slice(&id.to_le_bytes());
+        }
         Tensor {
-            buffer: Vec::new(),
-            dtype: String::new(),
+            buffer,
+            dtype: TENSOR_DTYPE_INT32.to_owned(),
         }
     }
 
     /// Reads the buffer back as int32 values. Rejects any dtype other than `torch.int32` and
     /// any buffer whose length is not a multiple of 4.
     pub fn to_i32_vec(&self) -> Result<Vec<i32>, WireError> {
-        Ok(Vec::new())
+        if self.dtype != TENSOR_DTYPE_INT32 {
+            return Err(WireError::TensorDtype {
+                got: self.dtype.clone(),
+            });
+        }
+        if !self.buffer.len().is_multiple_of(4) {
+            return Err(WireError::TensorLength {
+                len: self.buffer.len(),
+            });
+        }
+        Ok(self
+            .buffer
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| i32::from_le_bytes(*c))
+            .collect())
     }
 }
 
@@ -140,8 +159,7 @@ pub enum TokenizerMsg {
 
 /// Encodes any wire value as a named msgpack map (the same bytes as upstream's encoder).
 pub fn encode<T: Serialize>(value: &T) -> Result<Vec<u8>, WireError> {
-    let _ = value;
-    Ok(Vec::new())
+    Ok(rmp_serde::to_vec_named(value)?)
 }
 
 /// Decodes any wire value from msgpack bytes.
@@ -178,7 +196,9 @@ mod tests {
     const DTYPE_ENTRY: &str = "a56474797065ab746f7263682e696e743332";
 
     fn ids(n: usize) -> Vec<i32> {
-        (0..n).map(|i| ((i as i64 * 7919) % 151936) as i32).collect()
+        (0..n)
+            .map(|i| ((i as i64 * 7919) % 151936) as i32)
+            .collect()
     }
 
     fn hex(bytes: &[u8]) -> String {
@@ -233,7 +253,10 @@ mod tests {
             ..SamplingParams::default()
         };
         let h = hex(&encode(&sp(-1)).expect("encode"));
-        assert!(h.contains("a5746f705f70cb3feccccccccccccd"), "top_p 0.9 as f64: {h}");
+        assert!(
+            h.contains("a5746f705f70cb3feccccccccccccd"),
+            "top_p 0.9 as f64: {h}"
+        );
         assert!(h.contains("a5746f705f6bff"), "top_k -1: {h}");
         let h = hex(&encode(&sp(-33)).expect("encode"));
         assert!(h.contains("a5746f705f6bd0df"), "top_k -33: {h}");
@@ -255,7 +278,10 @@ mod tests {
                 h.contains(&format!("{BUFFER_KEY}{header}")),
                 "tensor of {n} ids: bin header {header} missing"
             );
-            assert!(h.contains(DTYPE_ENTRY), "tensor of {n} ids: dtype entry missing");
+            assert!(
+                h.contains(DTYPE_ENTRY),
+                "tensor of {n} ids: dtype entry missing"
+            );
         }
     }
 
@@ -334,9 +360,15 @@ mod tests {
             ignore_eos: true,
             max_tokens: 256,
         };
-        assert_eq!(decode::<SamplingParams>(&encode(&sp).expect("encode")).expect("decode"), sp);
+        assert_eq!(
+            decode::<SamplingParams>(&encode(&sp).expect("encode")).expect("decode"),
+            sp
+        );
         let t = Tensor::from_i32_slice(&ids(5));
-        assert_eq!(decode::<Tensor>(&encode(&t).expect("encode")).expect("decode"), t);
+        assert_eq!(
+            decode::<Tensor>(&encode(&t).expect("encode")).expect("decode"),
+            t
+        );
     }
 
     #[test]
