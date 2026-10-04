@@ -1,0 +1,926 @@
+{
+  "upstream_sha": "9a91cfafe754aa85daee49998176275667eb58f2",
+  "interpretation": "7 message types = UserMsg, AbortBackendMsg, ExitMsg, BatchBackendMsg, DetokenizeMsg, BatchTokenizerMsg, SamplingParams; Tensor is the 8th __type__ tag",
+  "type_tags": [
+    "UserMsg",
+    "AbortBackendMsg",
+    "ExitMsg",
+    "BatchBackendMsg",
+    "DetokenizeMsg",
+    "BatchTokenizerMsg",
+    "SamplingParams",
+    "Tensor"
+  ],
+  "generator": {
+    "python": "3.12.12",
+    "torch": "2.9.1",
+    "msgpack": "1.2.3",
+    "numpy": "2.5.3"
+  },
+  "cases": [
+    {
+      "name": "base_user_msg",
+      "file": "base_user_msg.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "base",
+      "len": 198,
+      "sha256": "cd4dda1be3eb83905b557a30c5f53a74941ee5d1df2ac5bd7da09fdd00aba93a",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 7,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 12,
+            "len_tokens": 3,
+            "first_ids": [
+              0,
+              7919,
+              15838
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 128
+        }
+      }
+    },
+    {
+      "name": "base_abort_backend_msg",
+      "file": "base_abort_backend_msg.msgpack",
+      "decoder": "backend",
+      "top_type": "AbortBackendMsg",
+      "category": "base",
+      "len": 31,
+      "sha256": "563021f711e279439865073608226aa11cdd56db66689566654de8642d195034",
+      "summary": {
+        "__type__": "AbortBackendMsg",
+        "uid": 7
+      }
+    },
+    {
+      "name": "base_exit_msg",
+      "file": "base_exit_msg.msgpack",
+      "decoder": "backend",
+      "top_type": "ExitMsg",
+      "category": "base",
+      "len": 18,
+      "sha256": "b779160e68c4e9ad7f5fd9d48b715aedd69302e57972b02f74a6280e821845d0",
+      "summary": {
+        "__type__": "ExitMsg"
+      }
+    },
+    {
+      "name": "base_batch_backend_msg",
+      "file": "base_batch_backend_msg.msgpack",
+      "decoder": "backend",
+      "top_type": "BatchBackendMsg",
+      "category": "base",
+      "len": 262,
+      "sha256": "53bfa424efb12b7da144874196c12c1ce1b030606e038118b9bbd55f2352017a",
+      "summary": {
+        "__type__": "BatchBackendMsg",
+        "data": [
+          {
+            "__type__": "UserMsg",
+            "uid": 1,
+            "input_ids": {
+              "__type__": "Tensor",
+              "buffer": {
+                "len_bytes": 12,
+                "len_tokens": 3,
+                "first_ids": [
+                  0,
+                  7919,
+                  15838
+                ]
+              },
+              "dtype": "torch.int32"
+            },
+            "sampling_params": {
+              "__type__": "SamplingParams",
+              "temperature": 0.0,
+              "top_k": -1,
+              "top_p": 1.0,
+              "ignore_eos": false,
+              "max_tokens": 1024
+            }
+          },
+          {
+            "__type__": "AbortBackendMsg",
+            "uid": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "base_detokenize_msg",
+      "file": "base_detokenize_msg.msgpack",
+      "decoder": "tokenizer",
+      "top_type": "DetokenizeMsg",
+      "category": "base",
+      "len": 55,
+      "sha256": "ecfd7e36b8ca9cb49778a54c2a84f3bd95dc5d7d0ec7a109b53f52847c8d90b8",
+      "summary": {
+        "__type__": "DetokenizeMsg",
+        "uid": 7,
+        "next_token": 151645,
+        "finished": true
+      }
+    },
+    {
+      "name": "base_batch_tokenizer_msg",
+      "file": "base_batch_tokenizer_msg.msgpack",
+      "decoder": "tokenizer",
+      "top_type": "BatchTokenizerMsg",
+      "category": "base",
+      "len": 85,
+      "sha256": "3ad7413308c94a86f27bd824d13f54e8fcc61e335b7fa234248b9a87a8c6fadb",
+      "summary": {
+        "__type__": "BatchTokenizerMsg",
+        "data": [
+          {
+            "__type__": "DetokenizeMsg",
+            "uid": 1,
+            "next_token": 5,
+            "finished": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "base_sampling_params",
+      "file": "base_sampling_params.msgpack",
+      "decoder": "backend",
+      "top_type": "SamplingParams",
+      "category": "base",
+      "len": 94,
+      "sha256": "5b28d40366aea1b821ec9e16724cae6b190cbccd6b98f6f552280d139c1bcfa5",
+      "summary": {
+        "__type__": "SamplingParams",
+        "temperature": 0.7,
+        "top_k": 50,
+        "top_p": 0.9,
+        "ignore_eos": true,
+        "max_tokens": 256
+      }
+    },
+    {
+      "name": "base_tensor",
+      "file": "base_tensor.msgpack",
+      "decoder": "backend",
+      "top_type": "Tensor",
+      "category": "base",
+      "len": 56,
+      "sha256": "3df9d1a6e49034fff80e5f885a408fead0b529eba41666cf323a39a9cde727d9",
+      "summary": {
+        "__type__": "Tensor",
+        "buffer": {
+          "len_bytes": 12,
+          "len_tokens": 3,
+          "first_ids": [
+            0,
+            7919,
+            15838
+          ]
+        },
+        "dtype": "torch.int32"
+      }
+    },
+    {
+      "name": "batch_tokenizer_n",
+      "file": "batch_tokenizer_n.msgpack",
+      "decoder": "tokenizer",
+      "top_type": "BatchTokenizerMsg",
+      "category": "batch",
+      "len": 289,
+      "sha256": "5468ae655e9bba33045204c9e228374d5a5fcba090d7b0e03ffcdfc6ccecf24e",
+      "summary": {
+        "__type__": "BatchTokenizerMsg",
+        "data": [
+          {
+            "__type__": "DetokenizeMsg",
+            "uid": 1,
+            "next_token": 5,
+            "finished": false
+          },
+          {
+            "__type__": "DetokenizeMsg",
+            "uid": 2,
+            "next_token": 6,
+            "finished": true
+          },
+          {
+            "__type__": "DetokenizeMsg",
+            "uid": 3,
+            "next_token": 7,
+            "finished": false
+          },
+          {
+            "__type__": "DetokenizeMsg",
+            "uid": 4,
+            "next_token": 8,
+            "finished": true
+          },
+          {
+            "__type__": "DetokenizeMsg",
+            "uid": 5,
+            "next_token": 9,
+            "finished": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "batch_backend_many",
+      "file": "batch_backend_many.msgpack",
+      "decoder": "backend",
+      "top_type": "BatchBackendMsg",
+      "category": "batch",
+      "len": 490,
+      "sha256": "95363db8fc74ff202d7fb99629114ef65ab234f574fc4883ae847922d1ef727c",
+      "summary": {
+        "__type__": "BatchBackendMsg",
+        "data": [
+          {
+            "__type__": "UserMsg",
+            "uid": 10,
+            "input_ids": {
+              "__type__": "Tensor",
+              "buffer": {
+                "len_bytes": 20,
+                "len_tokens": 5,
+                "first_ids": [
+                  0,
+                  7919,
+                  15838,
+                  23757
+                ]
+              },
+              "dtype": "torch.int32"
+            },
+            "sampling_params": {
+              "__type__": "SamplingParams",
+              "temperature": 0.0,
+              "top_k": -1,
+              "top_p": 1.0,
+              "ignore_eos": false,
+              "max_tokens": 16
+            }
+          },
+          {
+            "__type__": "AbortBackendMsg",
+            "uid": 11
+          },
+          {
+            "__type__": "UserMsg",
+            "uid": 12,
+            "input_ids": {
+              "__type__": "Tensor",
+              "buffer": {
+                "len_bytes": 4,
+                "len_tokens": 1,
+                "first_ids": [
+                  0
+                ]
+              },
+              "dtype": "torch.int32"
+            },
+            "sampling_params": {
+              "__type__": "SamplingParams",
+              "temperature": 0.0,
+              "top_k": -1,
+              "top_p": 1.0,
+              "ignore_eos": false,
+              "max_tokens": 1024
+            }
+          },
+          {
+            "__type__": "AbortBackendMsg",
+            "uid": 13
+          }
+        ]
+      }
+    },
+    {
+      "name": "int_uid_127",
+      "file": "int_uid_127.msgpack",
+      "decoder": "backend",
+      "top_type": "AbortBackendMsg",
+      "category": "int",
+      "len": 31,
+      "sha256": "5e6d070390ba7396c9179c778558071ac17301b74728d65cbf23dc8dad76aa90",
+      "summary": {
+        "__type__": "AbortBackendMsg",
+        "uid": 127
+      }
+    },
+    {
+      "name": "int_uid_128",
+      "file": "int_uid_128.msgpack",
+      "decoder": "backend",
+      "top_type": "AbortBackendMsg",
+      "category": "int",
+      "len": 32,
+      "sha256": "531dd38db601d7fa9b63415a0470d912f0bafb606dd6ef89cd508f2eb49e65d2",
+      "summary": {
+        "__type__": "AbortBackendMsg",
+        "uid": 128
+      }
+    },
+    {
+      "name": "int_uid_255",
+      "file": "int_uid_255.msgpack",
+      "decoder": "backend",
+      "top_type": "AbortBackendMsg",
+      "category": "int",
+      "len": 32,
+      "sha256": "1ef226342815672bb5e78e81bfe9ad02c5a80d32c7c4411929bd5789eb4f4f9f",
+      "summary": {
+        "__type__": "AbortBackendMsg",
+        "uid": 255
+      }
+    },
+    {
+      "name": "int_uid_256",
+      "file": "int_uid_256.msgpack",
+      "decoder": "backend",
+      "top_type": "AbortBackendMsg",
+      "category": "int",
+      "len": 33,
+      "sha256": "174e423afffaa1695a5e1d07487f6cf53edc66caa508001a4cbd54df77325f89",
+      "summary": {
+        "__type__": "AbortBackendMsg",
+        "uid": 256
+      }
+    },
+    {
+      "name": "int_uid_65535",
+      "file": "int_uid_65535.msgpack",
+      "decoder": "backend",
+      "top_type": "AbortBackendMsg",
+      "category": "int",
+      "len": 33,
+      "sha256": "90948ba83ba89c0efabd72047e892be64ee6ad2284f6710801d1eb16c9ec1efd",
+      "summary": {
+        "__type__": "AbortBackendMsg",
+        "uid": 65535
+      }
+    },
+    {
+      "name": "int_uid_65536",
+      "file": "int_uid_65536.msgpack",
+      "decoder": "backend",
+      "top_type": "AbortBackendMsg",
+      "category": "int",
+      "len": 35,
+      "sha256": "1a7971eeffa3a15142a920457b471a25252cee79c833e531d30dd387d1151d1d",
+      "summary": {
+        "__type__": "AbortBackendMsg",
+        "uid": 65536
+      }
+    },
+    {
+      "name": "int_uid_4294967296",
+      "file": "int_uid_4294967296.msgpack",
+      "decoder": "backend",
+      "top_type": "AbortBackendMsg",
+      "category": "int",
+      "len": 39,
+      "sha256": "8162014d9b0ee053d527e9f2a4ef7877992bf5164b77faf16e1423f7e7c945df",
+      "summary": {
+        "__type__": "AbortBackendMsg",
+        "uid": 4294967296
+      }
+    },
+    {
+      "name": "int_top_k_neg1",
+      "file": "int_top_k_neg1.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "int",
+      "len": 191,
+      "sha256": "ca2b3416c3628edcd6ac127d562a656dcf06b53b27ffb693f673f8836e06b36f",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "int_top_k_neg32",
+      "file": "int_top_k_neg32.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "int",
+      "len": 191,
+      "sha256": "7aa41f6e1fc026e609d1567635ac232698a56f85b326289f11fc509f40271ec3",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -32,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "int_top_k_neg33",
+      "file": "int_top_k_neg33.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "int",
+      "len": 192,
+      "sha256": "2493ce689dffbaf061360ca0659a42a87e4a9fea886f99963705f74dcebe5172",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -33,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "int_top_k_neg128",
+      "file": "int_top_k_neg128.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "int",
+      "len": 192,
+      "sha256": "1f0976734b60105a82bb5a4c61d0628e91d412820364b0bf28bdb46373bd32ca",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -128,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "int_top_k_neg129",
+      "file": "int_top_k_neg129.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "int",
+      "len": 193,
+      "sha256": "3dd02aaabcb71ef5f52ef35126b06cc785cc63dcc25a7477853e99fb2889f84c",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -129,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "int_max_tokens_65536",
+      "file": "int_max_tokens_65536.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "int",
+      "len": 193,
+      "sha256": "291ec07ea4f6311f2bccb40c050b9c908401bbe21aea94b3d7b6204383df3222",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 65536
+        }
+      }
+    },
+    {
+      "name": "int_next_token_65536",
+      "file": "int_next_token_65536.msgpack",
+      "decoder": "tokenizer",
+      "top_type": "DetokenizeMsg",
+      "category": "int",
+      "len": 55,
+      "sha256": "6c98ea57b242e63d1a620abebe4953e1e351106e5b40847ff4440f41d8173e5d",
+      "summary": {
+        "__type__": "DetokenizeMsg",
+        "uid": 1,
+        "next_token": 65536,
+        "finished": false
+      }
+    },
+    {
+      "name": "float_top_p_0_9",
+      "file": "float_top_p_0_9.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "float",
+      "len": 191,
+      "sha256": "a8668e147915842d51f143722a75b20efdd4d59de4bd06c860c78b72ab171aff",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 0.9,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "float_temperature_1_5",
+      "file": "float_temperature_1_5.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "float",
+      "len": 191,
+      "sha256": "f30809c1e880e47ecbcce8811a45cbc40173a4eb8ecda470846d8e58b2c9b9b6",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 1.5,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "float_temperature_0_1",
+      "file": "float_temperature_0_1.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "float",
+      "len": 191,
+      "sha256": "01728320942403db4a52fcecdff039e85bf7d3424b9f9abff0ed09770181ab59",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.1,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "bool_ignore_eos_true",
+      "file": "bool_ignore_eos_true.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "bool",
+      "len": 191,
+      "sha256": "13b3fd8ec77ab7547659db2c3d33098e1169c59030788a5f72a7d790e8d3227e",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": true,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "bool_finished_false",
+      "file": "bool_finished_false.msgpack",
+      "decoder": "tokenizer",
+      "top_type": "DetokenizeMsg",
+      "category": "bool",
+      "len": 51,
+      "sha256": "523f386783d0327e4536a5e17154a7e2e31b47b106c0e21b69c55fa43aff4358",
+      "summary": {
+        "__type__": "DetokenizeMsg",
+        "uid": 2,
+        "next_token": 9,
+        "finished": false
+      }
+    },
+    {
+      "name": "tensor_len_1",
+      "file": "tensor_len_1.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "tensor",
+      "len": 191,
+      "sha256": "ca2b3416c3628edcd6ac127d562a656dcf06b53b27ffb693f673f8836e06b36f",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 4,
+            "len_tokens": 1,
+            "first_ids": [
+              0
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "tensor_len_63",
+      "file": "tensor_len_63.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "tensor",
+      "len": 439,
+      "sha256": "8a4f0598898d91f20f254935145ff4eaaa557d97079847710c73b877f6708fb6",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 252,
+            "len_tokens": 63,
+            "first_ids": [
+              0,
+              7919,
+              15838,
+              23757
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "tensor_len_64",
+      "file": "tensor_len_64.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "tensor",
+      "len": 444,
+      "sha256": "5dfd7fd0c73e809164a99363eebb30990d07963afd70c5c100c2f0713b8c33f3",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 256,
+            "len_tokens": 64,
+            "first_ids": [
+              0,
+              7919,
+              15838,
+              23757
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "tensor_len_16383",
+      "file": "tensor_len_16383.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "tensor",
+      "len": 65720,
+      "sha256": "ee73c3b29397341cef2ce591e0f8d70eaa1487dabd544d6022c157c7adfe7b7b",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 65532,
+            "len_tokens": 16383,
+            "first_ids": [
+              0,
+              7919,
+              15838,
+              23757
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    },
+    {
+      "name": "tensor_len_16384",
+      "file": "tensor_len_16384.msgpack",
+      "decoder": "backend",
+      "top_type": "UserMsg",
+      "category": "tensor",
+      "len": 65726,
+      "sha256": "05fa3aa713dd6d665d3d62934ccb4d392973133d357fbc9da659083026e25997",
+      "summary": {
+        "__type__": "UserMsg",
+        "uid": 1,
+        "input_ids": {
+          "__type__": "Tensor",
+          "buffer": {
+            "len_bytes": 65536,
+            "len_tokens": 16384,
+            "first_ids": [
+              0,
+              7919,
+              15838,
+              23757
+            ]
+          },
+          "dtype": "torch.int32"
+        },
+        "sampling_params": {
+          "__type__": "SamplingParams",
+          "temperature": 0.0,
+          "top_k": -1,
+          "top_p": 1.0,
+          "ignore_eos": false,
+          "max_tokens": 1024
+        }
+      }
+    }
+  ]
+}
