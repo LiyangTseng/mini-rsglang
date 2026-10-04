@@ -14,6 +14,7 @@ Runs every GPU-only Phase 1 check and prints one PASS/FAIL line per step:
   3. --frontend rust: rsg-server logs the real handshake (max_seq_len, eos_token_id,
      page_size, max_running_req, num_pages, upstream SHA)
   4. kill -9 of the launcher leaves no rsg-server or scheduler process (ps, nvidia-smi)
+     4b. the same check repeated with kill -9 right after the scheduler spawns, before it is ready
   5. scripts/check_upstream.py passes (frozen Python frontend)
 
 Options:
@@ -233,6 +234,50 @@ if step4; then
   record 4 PASS "no rsg-server or scheduler left after kill -9 of the launcher"
 else
   record 4 FAIL "orphan check after kill -9 of the launcher"
+fi
+
+# --- Step 4b: kill -9 of the launcher while the scheduler is still booting (G-01-3) ---
+# Step 4 kills after the handshake, outside the window where the old watchdog missed the
+# launcher's death; this one kills right after "spawned scheduler rank=0".
+step4_early() {
+  local log="$LOG_DIR/rust-mode-early-kill.log" launcher rsg sched deadline pid
+  start_session "$log" "$PYTHON" -m rsglang.launch --frontend rust --model "$MODEL" --port "$PORT" \
+    --rust-bin "$RUST_BIN" --ready-timeout "$TIMEOUT" || return 1
+  launcher=$BG_PID
+  deadline=$((SECONDS + 120))
+  # Poll every 0.1 s: the boot window is only seconds long.
+  until grep -q 'spawned scheduler rank=0 pid=[0-9]*' "$log"; do
+    if ! alive "$launcher"; then echo "early-kill launcher exited before spawning the scheduler (see $log)"; return 1; fi
+    if [ $SECONDS -ge $deadline ]; then echo "no scheduler spawn line within 120 s (see $log)"; return 1; fi
+    sleep 0.1
+  done
+  if grep -q 'backend ready' "$log"; then echo "not an early kill: backend already ready"; return 1; fi
+  rsg="$(grep -o 'spawned rsg-server pid=[0-9]*' "$log" | head -1 | cut -d= -f2)"
+  sched="$(grep -o 'spawned scheduler rank=0 pid=[0-9]*' "$log" | head -1 | cut -d= -f2)"
+  [ -n "$rsg" ] && [ -n "$sched" ] || { echo "child pids not found in $log"; return 1; }
+  kill -9 "$launcher"
+  # The boot window with CUDA torch is unmeasured (a projection): the scheduler exits as soon
+  # as run_scheduler starts, so allow up to 120 s.
+  deadline=$((SECONDS + 120))
+  while [ $SECONDS -lt $deadline ]; do
+    if ! ps -p "$rsg" >/dev/null 2>&1 && ! ps -p "$sched" >/dev/null 2>&1 \
+       && ! gpu_pids | grep -qx -e "$rsg" -e "$sched"; then
+      break
+    fi
+    sleep 1
+  done
+  rm -f /tmp/minisgl_{0..4}.rsg="$launcher"
+  for pid in "$rsg" "$sched"; do
+    if ps -p "$pid" >/dev/null 2>&1; then echo "pid $pid still running 120 s after kill -9 of the launcher"; return 1; fi
+    if gpu_pids | grep -qx "$pid"; then echo "pid $pid still listed by nvidia-smi"; return 1; fi
+  done
+  echo "rsg-server $rsg and scheduler $sched exited after early kill -9 of launcher $launcher"
+}
+
+if [ "$BUILD_OK" = 1 ] && step4_early; then
+  record 4b PASS "no rsg-server or scheduler left after kill -9 of the launcher during scheduler boot"
+else
+  record 4b FAIL "early-kill orphan check (see $LOG_DIR/rust-mode-early-kill.log)"
 fi
 
 # --- Step 5: frozen Python frontend --------------------------------------------
