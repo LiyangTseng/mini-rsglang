@@ -81,3 +81,34 @@ def test_rust_mode_rejects_shell_mode_without_spawning(monkeypatch):
     monkeypatch.setattr(multiprocessing, "Process", no_spawn)
     rc = launch.main(["--frontend", "rust", "--shell-mode", "--model", "M", "--dtype", "bfloat16"])
     assert rc == 2
+
+
+@pytest.mark.parametrize("flag", ["--shell", "--shell-m"])
+def test_rust_mode_rejects_abbreviated_shell_mode_without_spawning(monkeypatch, capsys, flag):
+    import os
+    import signal
+    import subprocess
+    import multiprocessing
+
+    import minisgl.distributed  # noqa: F401  (import before installing guards below)
+    import minisgl.server.args  # noqa: F401
+
+    def no_spawn(*args, **kwargs):
+        raise AssertionError("nothing may be spawned or changed before the shell-mode check")
+
+    monkeypatch.setattr(subprocess, "Popen", no_spawn)
+    monkeypatch.setattr(multiprocessing, "Process", no_spawn)
+    monkeypatch.setattr(os, "setpgid", no_spawn)
+    monkeypatch.setattr(signal, "signal", no_spawn)
+
+    rc = launch.main([
+        "--frontend", "rust",
+        "--rust-bin", sys.executable,
+        flag,
+        "--model", "M",
+        "--dtype", "bfloat16",
+    ])
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "--shell-mode is not supported with --frontend rust" in err
+    assert "rsg-server binary not found" not in err
