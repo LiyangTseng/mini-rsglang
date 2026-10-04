@@ -166,3 +166,6 @@ G-01-7-WR07 and G-01-7-WR08 are closed. Steps 4 and 4b of `scripts/gpu_phase1_ch
 ---
 *Phase: 01-vendored-base-wire-codec*
 *Completed: 2026-10-04*
+
+## Self-Check: PASSED
+All created/modified files found on disk (scripts/gpu_phase1_check.sh, python/tests/test_gpu_check_script.py, 01-REVIEW-DISPOSITION.md, 01-09-SUMMARY.md). All 6 commits confirmed in `git log` (efb181e, c349b33, aa8f3bd, 1497983, 054e9a4, 7050fc9).
