@@ -1,234 +1,119 @@
 ---
 phase: 01-vendored-base-wire-codec
-reviewed: 2026-10-04T04:44:35Z
+reviewed: 2026-10-03T00:00:00Z
 depth: standard
-files_reviewed: 36
+files_reviewed: 6
 files_reviewed_list:
-  - .gitignore
-  - Cargo.toml
-  - UPSTREAM.md
-  - crates/rsg-server/Cargo.toml
-  - crates/rsg-server/src/handshake.rs
-  - crates/rsg-server/src/main.rs
-  - crates/rsg-server/src/transport.rs
-  - crates/rsg-server/tests/cli.rs
-  - crates/rsg-wire/Cargo.toml
-  - crates/rsg-wire/src/lib.rs
-  - crates/rsg-wire/tests/common/mod.rs
-  - crates/rsg-wire/tests/dump.rs
-  - crates/rsg-wire/tests/fixtures.rs
-  - pyproject.toml
-  - python/rsglang/__init__.py
   - python/rsglang/backend.py
-  - python/rsglang/handshake.py
   - python/rsglang/launch.py
-  - python/rsglang/sockets.py
-  - python/rsglang/testing/__init__.py
   - python/rsglang/testing/fake_scheduler.py
-  - python/tests/test_check_upstream.py
-  - python/tests/test_handshake.py
-  - python/tests/test_launch_args.py
   - python/tests/test_launch_rust_e2e.py
-  - python/tests/test_topology.py
-  - python/tests/test_wire_decode.py
-  - requirements-mac.in
-  - rust-toolchain.toml
-  - scripts/bootstrap_mac_env.sh
-  - scripts/check_all.sh
-  - scripts/check_upstream.py
-  - scripts/check_wire_decode.sh
-  - scripts/gen_wire_fixtures.py
+  - python/tests/test_parent_watchdog.py
   - scripts/gpu_phase1_check.sh
-  - vendor/UPSTREAM_SHA
 findings:
-  critical: 1
+  critical: 0
   warning: 5
-  info: 9
-  total: 15
+  info: 4
+  total: 9
 status: issues_found
 ---
 
-# Phase 1: Code Review Report
+# Phase 1: Code Review Report (incremental, after gap-closure plans 01-07 and 01-08)
 
-**Reviewed:** 2026-10-04T04:44:35Z
+**Reviewed:** 2026-10-03
 **Depth:** standard
-**Files Reviewed:** 36
+**Files Reviewed:** 6
 **Status:** issues_found
 
-## Narrative Findings (AI reviewer)
+> **Finding IDs (orchestrator note):** this is an incremental review of the 01-07 and 01-08 gap-closure changes. Its findings are numbered after the previous review (commit 261f8ee: CR-01, WR-01..WR-05, IN-01..IN-09), so IDs stay unique in `01-REVIEW-DISPOSITION.md`. In the Summary, `CR-01` and `WR-02` refer to that previous review. WR-10 restates the previous WR-03, and IN-12 restates the previous IN-08.
 
 ## Summary
 
-I reviewed the Phase 1 sources: the rsg-wire msgpack codec, the rsg-server skeleton (CLI, handshake, ZMQ transport), the Python launcher, scheduler wrapper, socket and handshake helpers, the integrity scripts and the tests.
-
-The wire codec is solid. I checked the encoding rules against upstream `message/utils.py`, `core.py` and `utils/mp.py`: named maps, `__type__` first, f64 floats, `serde_bytes` buffer, and dataclass field order all match. The fixture and decode-check pipeline covers the integer and bin header widths that matter.
-
-Most defects are in the launcher's supervision and shutdown logic:
-
-- **Ctrl-C (CR-01).** A Ctrl-C in a terminal reliably exits with code 1 and prints a failure report. I reproduced this 3 out of 3 times.
-- **Shell-mode guard (WR-01).** The guard can be bypassed by an argparse abbreviation. I reproduced this.
-- **Watchdog race (WR-02).** The parent-death watchdog can miss a launcher that dies early.
-- **Process group (WR-03).** The `setpgid` call detaches the launcher from the terminal's foreground group when it runs under a wrapper.
-- **Handshake schema (WR-04).** The Rust handshake silently accepts a missing `eos_token_id`. I verified this with a serde probe.
-
-Both items in `deferred-items.md` are already known and are not repeated as new findings: the killpg of pipeline siblings and the one unexplained e2e escalation. WR-03 and WR-05 are related process-group issues, but they are different failure modes.
-
-## Critical Issues
-
-### CR-01: Ctrl-C (SIGINT to the whole process group) makes the launcher exit 1 and report a failure
-
-**File:** `python/rsglang/launch.py:232-246` and `python/rsglang/launch.py:261-275`
-**Issue:** An interactive terminal sends SIGINT to the whole foreground process group. When the launcher is started from a shell, it leads that group, and rsg-server and the scheduler ranks are in it too.
-
-1. rsg-server exits 0 within milliseconds (`exit_on_signal`).
-2. The launcher's handler only sets `stop_requested`. Because of PEP 475, `ready_queue.get(timeout=...)` then keeps waiting for the rest of its 0.2 s or 0.5 s timeout.
-3. When the wait returns, both loops run `children()` **before** they re-check `stop_requested`. They see `rsg-server exited with code 0`, call `shutdown(1)`, dump the rsg-server stderr tail as a failure, and exit 1.
-
-I reproduced this 3 out of 3 times with the fake scheduler: `start_new_session=True`, then `os.killpg(pid, SIGINT)` after "handshake sent". Each run printed `rsg-server exited with code 0`, then `exit code 1`, and the process exited with `EXIT 1`.
-
-The same race exists before ready (lines 236-242). The intended contract is that a stop signal exits 0, and the tracer test asserts this for SIGTERM. That test only signals the launcher pid, never the group, so it misses this path. Any harness that stops rust mode the way `gpu_phase1_check.sh` stops python mode (`kill -INT -- -$pgid`) will see a spurious failure.
-
-**Fix:** Re-check the stop flag after every blocking wait and before judging child exits:
-```python
-        try:
-            msg = ready_queue.get(timeout=_SUPERVISE_POLL_S)
-        except queue.Empty:
-            msg = None
-        if stop_requested:
-            return shutdown(0)
-        ...
-```
-Do the same in the ready-wait loop: check `stop_requested` right after the `get` and before the `children()` scan. Add an e2e test that sends SIGINT to the launcher's process group and asserts exit 0.
+The CR-01 fix (re-checking `stop_requested` after each blocking `ready_queue.get` and before reporting a child exit) is logically sound in both the ready-wait and supervise loops, and the shutdown path stays consistent. The WR-02 fix (launcher pid passed at spawn time, PR_SET_PDEATHSIG armed first, then a getppid re-check, then polling) has correct ordering and covers the reparent-before-prctl race. No blockers were found. The remaining defects are robustness gaps: the prctl failure path, a verification script that can report a false PASS on the GPU-orphan check, a startup race in the script's `start_session`, and a unit test that cannot distinguish its intended exit from an import failure.
 
 ## Warnings
 
-### WR-01: The `--shell-mode` rejection can be bypassed by an abbreviation, and rust mode then runs silently with shell-mode limits
+### WR-06: A prctl failure kills the scheduler before the error envelope and for a mere backstop
 
-**File:** `python/rsglang/launch.py:101` and `python/rsglang/launch.py:123`
-**Issue:** The guard is a literal check, `"--shell-mode" in rest`. Upstream's `parse_args` builds its parser with the default `allow_abbrev=True`, so `--shell` or `--shell-m` also turns on shell mode. Line 123 throws away the returned `run_shell` (`server_args, _ = parse_args(rest)`).
-
-Upstream has already rewritten the arguments for shell mode by then. I verified that `parse_args([... "--shell"])` returns `run_shell=True, max_running_req=1, cuda_graph_max_bs=1, silent_output=True`. The run proceeds with one running request and CUDA graphs capped at batch size 1, which would silently corrupt any benchmark.
-**Fix:**
+**File:** `python/rsglang/backend.py:77-80, 100`
+**Issue:** `start_parent_watchdog` is called at `run_scheduler` line 100, outside the `try` that posts `{"kind": "error"}` on the ready queue. If `prctl(PR_SET_PDEATHSIG)` fails (e.g. a seccomp-restricted container), the `OSError` escapes. The launcher then only sees "scheduler exited with code 1 before ready" with no traceback envelope. It also turns a defence-in-depth feature into a hard startup failure, even though the polling thread alone would still protect against a dead launcher.
+**Fix:** Degrade to polling and log, rather than raise:
 ```python
-server_args, run_shell = parse_args(rest)
-if run_shell:
-    _log("--shell-mode is not supported with --frontend rust")
-    return 2
+if sys.platform.startswith("linux"):
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(PR_SET_PDEATHSIG, int(signal.SIGKILL), 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "prctl(PR_SET_PDEATHSIG) failed")
+    except OSError as exc:
+        print(f"rsglang: PDEATHSIG unavailable ({exc}); using polling watchdog only", file=sys.stderr)
 ```
-Keep the cheap literal pre-check if you like, but make the parsed flag authoritative. Also add a test that uses `--shell`.
+Also declare `libc.prctl.argtypes = [ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong]` so the variadic arguments are passed at full width.
 
-### WR-02: The parent watchdog records its parent pid too late and can miss a launcher that has already died, leaving a GPU scheduler orphaned
+### WR-07: `gpu_pids` failures and SIGPIPE turn the GPU-orphan check into a false PASS
 
-**File:** `python/rsglang/backend.py:61` and `python/rsglang/backend.py:75`
-**Issue:** `start_parent_watchdog` reads `parent = os.getppid()` only once `run_scheduler` starts. With the `spawn` start method, that happens after a fresh interpreter has booted and unpickled `ServerArgs`. Unpickling imports `minisgl.server.args` and, through it, torch, which takes seconds.
-
-If the launcher is SIGKILLed in that window, the child has already been reparented to init or a subreaper. `parent` is then recorded as the new parent, `os.getppid() != parent` never becomes true, and the scheduler goes on to load weights and hold the GPU forever. D-12 exists to prevent exactly that orphan. rsg-server is not affected because its stdin-EOF rule covers it.
-**Fix:** Pass the launcher's pid explicitly and compare against it. On Linux you can also set the parent-death signal:
-```python
-# launcher: args=(rank_args, ready_queue, upstream_sha, os.getpid())
-def start_parent_watchdog(launcher_pid: int, poll_interval: float = 1.0):
-    if os.getppid() != launcher_pid:
-        os._exit(1)          # launcher already gone before we started
-    def _watch():
-        while True:
-            time.sleep(poll_interval)
-            if os.getppid() != launcher_pid:
-                os._exit(1)
-    ...
+**File:** `scripts/gpu_phase1_check.sh:97, 219-221, 228, 263-265, 272`
+**Issue:** `gpu_pids` swallows nvidia-smi errors (`2>/dev/null`), so a failing nvidia-smi yields an empty list and `! gpu_pids | grep -qx ...` reports "not on the GPU". Under `set -o pipefail`, `gpu_pids | grep -qx` can also return the SIGPIPE status (141) of the writer when `grep -q` exits early on a match. In `if gpu_pids | grep -qx "$pid"` (lines 228, 272) that makes a pid that is still listed look absent. The `ps -p` checks catch most real orphans, but this check exists specifically to confirm that GPU memory was released, and it can silently pass.
+**Fix:** Capture once and test the captured text:
+```bash
+gpu_pids() { nvidia-smi --query-compute-apps=pid --format=csv,noheader | tr -d ' '; }  # let failure propagate
+on_gpu() { local out; out="$(gpu_pids)" || { echo "nvidia-smi failed" >&2; return 2; }; grep -qx "$1" <<<"$out"; }
 ```
-On Linux, `prctl(PR_SET_PDEATHSIG, SIGKILL)` through ctypes, followed by the same `getppid` re-check, closes the window completely.
+and treat return code 2 as a step failure.
 
-### WR-03: `setpgid(0, 0)` takes the launcher out of the terminal's foreground process group whenever a wrapper starts it, so Ctrl-C never reaches it
+### WR-08: `start_session` has a 0.5 s startup race that can fail a healthy run
+
+**File:** `scripts/gpu_phase1_check.sh:85-92`
+**Issue:** After backgrounding the python-then-`setsid` exec chain, the script sleeps a fixed 0.5 s and then requires `pgid == BG_PID`. If interpreter startup plus `exec setsid` takes longer (cold disk, loaded box), the process still has the script's pgid and the helper wrongly reports "setsid did not exec in place". The failure is also unhandled in `step4_early` (the early return leaves a started session until the EXIT trap).
+**Fix:** Poll until the pgid matches or a timeout elapses:
+```bash
+for _ in $(seq 1 50); do
+  pgid="$(ps -o pgid= -p "$BG_PID" 2>/dev/null | tr -d ' ')"
+  [ "$pgid" = "$BG_PID" ] && break
+  sleep 0.1
+done
+[ "$pgid" = "$BG_PID" ] || { echo "setsid did not exec in place ..." >&2; return 1; }
+```
+
+### WR-09: `test_exits_at_once_when_parent_is_not_the_launcher` cannot tell a watchdog exit from any other exit 1
+
+**File:** `python/tests/test_parent_watchdog.py:27-39`
+**Issue:** The test asserts only `returncode == 1`, no "survived", and elapsed < 5. A child that fails to import `rsglang.backend` (missing install, ImportError, any traceback) also exits 1 within 5 s with no "survived", so the test passes without the watchdog ever running. There is no conftest or sys.path setup, so importability depends on the environment.
+**Fix:** Also assert the child died of the watchdog and not a traceback, e.g. `assert "Traceback" not in result.stderr`, and have the child print a marker (`print('armed', flush=True)`) after `start_parent_watchdog` returns in the `is_the_launcher` variant, or assert the exit happened after the call by writing to a file before `time.sleep(30)`.
+
+### WR-10: `setpgid(0, 0)` moves the launcher out of the terminal's foreground group when run under a wrapper
 
 **File:** `python/rsglang/launch.py:128-129`
-**Issue:** When the launcher is not a group leader, it moves itself and all later children into a new process group. That happens under any wrapper: a bash script run from a terminal, `make`, `time`, and `uv run` or `timeout` depending on whether they forward signals.
-
-The new group is a background group of the same session. A terminal Ctrl-C then goes only to the wrapper's group. A bash script, for example, just keeps waiting for its child, so the launcher, rsg-server and the GPU-holding scheduler keep running with no way to interrupt them from the terminal. Background groups are also stopped by SIGTTOU when they write to a terminal that has `stty tostop` set.
-
-This is the opposite case to the known pipeline item in `deferred-items.md`. That item is about the launcher already leading the group. This one is about it not leading the group. Both come from the same "children share the launcher's group" design, so one decision should cover both.
-**Fix:** Do not move the launcher itself. Start the children in their own new group, either with `process_group=0` / `start_new_session` for rsg-server and an explicit `os.setpgid` in each scheduler's bootstrap, or with one dedicated child group whose pgid the launcher records. Then `killpg` that group, not `os.getpgrp()`. The launcher stays in the terminal's foreground group and receives Ctrl-C normally.
-
-### WR-04: The Rust handshake accepts a line with no `eos_token_id` key, which the documented contract forbids
-
-**File:** `crates/rsg-server/src/handshake.rs:18-26`
-**Issue:** The doc comment says "Every key is required (`eos_token_id` may be `null`)". serde's derive treats a missing `Option<T>` field as `None` even with `deny_unknown_fields`. I verified this with a scratch crate: `{"a":1}` deserializes to `eos_token_id: None`.
-
-A launcher bug that drops the key would therefore be logged as `eos_token_id=null` and accepted, instead of failing with exit 2. `missing_key_is_malformed` only removes `num_pages`, so the test suite does not catch it.
-**Fix:** An explicit `deserialize_with` turns off serde's implicit default for `Option`, so a missing key becomes an error:
-```rust
-#[serde(deserialize_with = "Option::deserialize")]
-pub eos_token_id: Option<u64>,
-```
-Add a unit test that removes `"eos_token_id":...` and expects `Malformed`.
-
-### WR-05: `shutdown()` always re-sends SIGINT to the group, which interrupts upstream's graceful `scheduler.shutdown()` after an external group SIGINT
-
-**File:** `python/rsglang/launch.py:193`
-**Issue:** In the CR-01 scenario, every child has already received one SIGINT. The upstream scheduler is then inside `except KeyboardInterrupt: scheduler.shutdown()`, which runs `torch.cuda.synchronize`, `sync_all_ranks()` (a barrier) and `engine.shutdown()` (`destroy_process_group`).
-
-`shutdown()` then sends a second SIGINT to the group (`os.killpg(os.getpgrp(), SIGINT)`). That raises a new `KeyboardInterrupt` inside the handler, so cleanup is aborted halfway. With TP > 1, ranks that are still in the barrier wait for the 10 s grace period and are then SIGKILLed. Upstream's own launcher sends nothing extra on Ctrl-C.
-**Fix:** Track why shutdown started. If the stop came from a signal the children have already received (a group signal), wait for the grace period first and send SIGINT only to children that are still alive, using per-pid `os.kill` instead of a second group-wide `killpg`. Keep the group signal for launcher-initiated shutdowns, such as a crash or a ready timeout.
+**Issue:** When the launcher is not its own group leader (run via `uv run`, `make`, or as a non-first pipeline member such as `... | tee`), `os.setpgid(0, 0)` creates a new group that is not the terminal's foreground group. A terminal Ctrl-C then reaches the wrapper's group, not the launcher or its children, so the D-12/CR-01 "Ctrl-C exits 0" contract silently does not apply, and the launcher is a background group for tty purposes. The docstring and tests assume the launcher already leads its group (they run it via `Popen`/`setsid`), so this path is untested.
+**Fix:** Document the limitation, or handle it: when stdin/stderr is a tty and the launcher is not the group leader, either refuse with a message ("run the launcher directly or under setsid") or `os.tcsetpgrp(tty_fd, os.getpgrp())` after `setpgid` (with SIGTTOU ignored around the call). Add a test for the wrapped case.
 
 ## Info
 
-### IN-01: Struct-level wire decoders do not validate `__type__`
+### IN-10: Hard-coded Qwen3-specific assertions in a script that accepts `--model`
 
-**File:** `crates/rsg-wire/src/lib.rs:58-64` and `crates/rsg-wire/src/lib.rs:104-112`
-**Issue:** `#[serde(tag = "__type__")]` on a **struct** is honoured when encoding but ignored when decoding. I verified that `decode::<Tensor>` accepts a map tagged `"SamplingParams"` and also a map with no tag, and that `decode::<SamplingParams>` accepts `"XamplingParams"`. The enum variants are validated, as `unknown_type_tag_is_rejected` shows, but the nested `input_ids` and `sampling_params` are not. The byte-exact re-encode fixture tests catch upstream drift, so the impact is limited to how lenient decoding is.
-**Fix:** Write a small custom `Deserialize`, or add a `#[serde(rename = "__type__")] _type: TypeTag<"Tensor">`-style field that checks the value. Alternatively, document that struct tags are not checked.
+**File:** `scripts/gpu_phase1_check.sh:194, 196-197`
+**Issue:** `max_running_req == 256` and `max_seq_len <= 40960` are checked regardless of `--model`, while only the eos check is gated on the default model. Any other model can fail step 3 spuriously.
+**Fix:** Gate these two checks on `[ "$MODEL" = "$DEFAULT_MODEL" ]` as the eos check is, or relax them to sanity bounds.
 
-### IN-02: A stdin read error is reported as "stdin EOF" and exits 3, even for a malformed (non-UTF-8) handshake
+### IN-11: Repeated stop_requested boilerplate in the launch loops
 
-**File:** `crates/rsg-server/src/main.rs:64-66` and `crates/rsg-server/src/main.rs:159-162`
-**Issue:** `lines()` returns `InvalidData` for a non-UTF-8 line. The reader turns that into `StdinEvent::Error`, which logs "launcher went away (stdin EOF)" and exits with `EXIT_STDIN_EOF` (3) instead of `EXIT_BAD_HANDSHAKE` (2). The diagnosis is wrong.
-**Fix:** Before the handshake, map `ErrorKind::InvalidData` to `EXIT_BAD_HANDSHAKE` with a "malformed handshake line" message, and keep exit 3 for real I/O errors and EOF.
+**File:** `python/rsglang/launch.py:233-250, 272-288`
+**Issue:** The same "check stop_requested, then shutdown(0)" pattern is repeated five or six times, which is how CR-01 slipped in originally. A future branch can easily miss one.
+**Fix:** Fold it into a small helper (e.g. `def stopped(): return shutdown(0) if stop_requested else None`) or restructure so every exit decision runs after a single post-`get` check.
 
-### IN-03: The upstream SHA is included separately in two crates
+### IN-12: Test cleanup can signal a reused pid or process group
 
-**File:** `crates/rsg-server/src/handshake.rs:16` and `crates/rsg-wire/src/lib.rs:27`
-**Issue:** rsg-server does not depend on rsg-wire, so both crates `include_str!` `vendor/UPSTREAM_SHA` on their own. The comment says the expected SHA is the one "the Rust wire fixtures were generated from", but rsg-server never reads the codec's constant.
-**Fix:** In a later phase, when rsg-server depends on rsg-wire, use `rsg_wire::UPSTREAM_SHA`.
+**File:** `python/tests/test_launch_rust_e2e.py:122-131`
+**Issue:** `cleanup` calls `os.killpg(self.proc.pid, SIGKILL)` and `os.kill(<child pid>, SIGKILL)` unconditionally, even after the launcher and children have exited and been reaped. A reused pid/pgid would receive SIGKILL. The risk is small but the blast radius on a developer machine is real.
+**Fix:** Only signal when `self.proc.poll() is None`, and for children check liveness and that the pid still belongs to the run's process group (`os.getpgid(pid) == self.proc.pid`) before killing.
 
-### IN-04: Socket-suffix validation and unlinking have small gaps
+### IN-13: The slow-boot test's `sitecustomize` can shadow an existing one and relies on `sys.orig_argv`
 
-**File:** `python/rsglang/sockets.py:17-35`
-**Issue:**
-- `_SUFFIX_RE.match` with `$` accepts a trailing `"\n"`.
-- `unlink_run_sockets` tolerates only `FileNotFoundError`. A stale `/tmp/minisgl_*` file owned by another user, for example left by an earlier `sudo` run with a reused pid, raises `PermissionError` from the `finally` in `run_rust_mode`. That hides the real return code or exception.
-**Fix:** Use `_SUFFIX_RE.fullmatch(suffix)`. Catch `PermissionError` in the unlink loop and log it.
-
-### IN-05: The `--rust-log` default always overrides the user's `RUST_LOG`
-
-**File:** `python/rsglang/launch.py:60-61` and `python/rsglang/launch.py:148`
-**Issue:** The default is the literal `"info"`, so an exported `RUST_LOG=debug` is silently replaced.
-**Fix:** `default=None`, and set `RUST_LOG` only when `--rust-log` is given (or when `RUST_LOG` is unset).
-
-### IN-06: `resolve_rust_bin` prefers a possibly stale release build, and its error message is misleading
-
-**File:** `python/rsglang/launch.py:65-78`
-**Issue:** If `target/release/rsg-server` exists, it wins over a freshly built `target/debug/rsg-server`. The handshake SHA check does not detect code staleness. When an explicit `--rust-bin` path is missing, the message still says "run: cargo build -p rsg-server".
-**Fix:** Log which binary was chosen. Name the explicit path in the error. Consider picking the newer of the two by mtime.
-
-### IN-07: The rsg-server CLI tests wait a fixed 100 ms for the stderr drain thread
-
-**File:** `crates/rsg-server/tests/cli.rs:140-141`
-**Issue:** The assertions on `s.stderr()` right after `wait_exit` (for example `contains("handshake rejected")`) rely on a sleep. That can flake under parallel `cargo test` load.
-**Fix:** Keep the drain thread's `JoinHandle` in `Server` and join it after the child exits. The pipe reaches EOF once the process is gone.
-
-### IN-08: The e2e cleanup signals pids and pgids after they may have been reaped
-
-**File:** `python/tests/test_launch_rust_e2e.py:114-128`
-**Issue:** `os.killpg(self.proc.pid, SIGKILL)` and `os.kill(pid, SIGKILL)` run on remembered ids after the processes have usually exited and been reaped. If the pid is reused, the test kills an unrelated process or group.
-**Fix:** Signal only while `self.proc.poll() is None`. For children, check that the process still belongs to the run's group (`os.getpgid(pid) == self.proc.pid`) before killing it.
-
-### IN-09: `bootstrap_mac_env.sh --relock` hardcodes Apple Silicon
-
-**File:** `scripts/bootstrap_mac_env.sh:30-31`
-**Issue:** `--python-platform aarch64-apple-darwin` produces a lock that is wrong for Intel Macs.
-**Fix:** Derive the platform from `uname -m`, or document that only arm64 is supported.
+**File:** `python/tests/test_launch_rust_e2e.py:298-306`
+**Issue:** Prepending a `sitecustomize.py` directory to PYTHONPATH shadows any site-provided `sitecustomize` (e.g. coverage or venv hooks) in every Python subprocess of the run. `sys.orig_argv` also needs Python 3.10, which matches `requires-python >=3.10` but leaves no margin. A missing marker would make the test pass vacuously, because the window would not be widened and the kill might land after boot.
+**Fix:** Have the `sitecustomize` touch a marker file in `tmp_path` when it sleeps, and assert the marker exists before killing the launcher, so the test fails loudly if the widening did not take effect.
 
 ---
 
-_Reviewed: 2026-10-04T04:44:35Z_
+_Reviewed: 2026-10-03_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
