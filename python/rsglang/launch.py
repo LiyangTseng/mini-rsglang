@@ -265,11 +265,17 @@ def _run_rust_mode(ns: argparse.Namespace, rest: List[str], rust_bin: Path, suff
             msg = ready_queue.get(timeout=_SUPERVISE_POLL_S)
         except queue.Empty:
             msg = None
+        # A group signal also reaches the children, so their exits are part of the stop
+        # (PEP 475 retries the interrupted get to its full timeout).
+        if stop_requested:
+            return shutdown(0)
         if msg is not None and msg.get("kind") == "error":
             _log(f"scheduler rank {msg.get('rank')} failed:\n{msg.get('traceback', '')}")
             return shutdown(1)
         for name, code in children():
             if code is not None:
+                if stop_requested:
+                    return shutdown(0)
                 report_errors(1.0)
                 _log(f"{name} exited with code {code}")
                 return shutdown(1)
