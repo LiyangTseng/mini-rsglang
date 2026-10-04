@@ -236,3 +236,36 @@ echo "rc=$rc"
 """
     result = _bash(snippet, tmp_path, STUB_SETSID_MODE="detach")
     assert _rc(result) == 0, result.stderr
+
+
+# --- pdeathsig_degraded (G-01-7-WR06-CHECK) --------------------------------------
+
+
+def test_pdeathsig_degraded_detects_the_fallback_line(tmp_path):
+    log = tmp_path / "rust-mode.log"
+    log.write_text(
+        "spawned rsg-server pid=111\n"
+        "spawned scheduler rank=0 pid=222\n"
+        "rsglang: PDEATHSIG unavailable ([Errno 1] Operation not permitted); "
+        "using the polling watchdog only\n"
+        "handshake received: upstream_sha=abc\n"
+    )
+    result = _bash(f'rc=0; pdeathsig_degraded "{log}" || rc=$?; echo "rc=$rc"', tmp_path)
+    assert _rc(result) == 0, result.stderr
+
+
+def test_pdeathsig_degraded_passes_a_clean_log(tmp_path):
+    log = tmp_path / "rust-mode.log"
+    log.write_text(
+        "spawned rsg-server pid=111\n"
+        "spawned scheduler rank=0 pid=222\n"
+        "handshake received: upstream_sha=abc\n"
+    )
+    result = _bash(f'rc=0; pdeathsig_degraded "{log}" || rc=$?; echo "rc=$rc"', tmp_path)
+    assert _rc(result) == 1, result.stderr
+
+
+def test_pdeathsig_degraded_on_missing_log(tmp_path):
+    log = tmp_path / "does-not-exist.log"
+    result = _bash(f'rc=0; pdeathsig_degraded "{log}" || rc=$?; echo "rc=$rc"', tmp_path)
+    assert _rc(result) == 1, result.stderr
