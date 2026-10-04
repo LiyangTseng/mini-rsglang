@@ -40,9 +40,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. For each of the 7 upstream message types, the bytes the Rust codec produces equal golden fixtures exported from upstream's Python encoder, checked by a test that runs on the Mac.
   5. Every message the Rust codec emits decodes through upstream's real Python decoder (`cls(**kwargs)`) without error.
 
-**Plans:** 8/11 plans executed
+**Plans:** 9/12 plans executed
 
 Plans:
+- [ ] 01-12-PLAN.md
+
 **Wave 1**
 - [x] 01-01-PLAN.md — Vendor mini-sglang @ 9a91cfa with UPSTREAM.md; package-legitimacy gate; hash-pinned Mac env bootstrap (wave 1)
 - [x] 01-02-PLAN.md — Cargo workspace + rsg-server skeleton: CLI roles, stdin handshake, SHA refusal, exit codes (wave 1)
@@ -62,7 +64,7 @@ Plans:
 - [x] 01-08-PLAN.md — G-01-3 / WR-02: launcher pid passed explicitly to the scheduler watchdog plus Linux PR_SET_PDEATHSIG; early kill -9 leaves no orphan; GPU check step 4b (wave 5)
 
 **Wave 6** *(gap closure; blocked on Wave 5 completion)*
-- [ ] 01-09-PLAN.md — G-01-7-WR07 / WR-08: GPU-orphan check cannot false-PASS (nvidia-smi failure, SIGPIPE under pipefail); start_session polls for setsid and cleans up on failure; Mac tests with stubbed nvidia-smi/setsid (wave 6)
+- [x] 01-09-PLAN.md — G-01-7-WR07 / WR-08: GPU-orphan check cannot false-PASS (nvidia-smi failure, SIGPIPE under pipefail); start_session polls for setsid and cleans up on failure; Mac tests with stubbed nvidia-smi/setsid (wave 6)
 
 **Wave 7** *(gap closure; blocked on Wave 6 completion)*
 - [ ] 01-10-PLAN.md — G-01-7-WR06 / WR-09: prctl failure degrades to the polling watchdog and watchdog startup failures reach the launcher as an error envelope; watchdog exit test proves the watchdog caused the exit (wave 7)
@@ -164,7 +166,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Vendored Base & Wire Codec | 8/11 | In Progress|  |
+| 1. Vendored Base & Wire Codec | 9/12 | In Progress|  |
 | 2. Python Frontend Baseline Profile | 0/TBD | Not started | - |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
