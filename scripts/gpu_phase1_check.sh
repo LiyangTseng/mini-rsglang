@@ -12,7 +12,8 @@ Runs every GPU-only Phase 1 check and prints one PASS/FAIL line per step:
   1. cargo build --release -p rsg-server
   2. --frontend python serves a chat completion (unmodified Python frontend)
   3. --frontend rust: rsg-server logs the real handshake (max_seq_len, eos_token_id,
-     page_size, max_running_req, num_pages, upstream SHA)
+     page_size, max_running_req, num_pages, upstream SHA) and the scheduler armed
+     PDEATHSIG (no "PDEATHSIG unavailable" in the log)
   4. kill -9 of the launcher leaves no rsg-server or scheduler process (ps, nvidia-smi)
      4b. the same check repeated with kill -9 right after the scheduler spawns, before it is ready
   5. scripts/check_upstream.py passes (frozen Python frontend)
@@ -111,6 +112,11 @@ on_gpu() {  # on_gpu <pid> -> 0 listed, 1 not listed, 2 nvidia-smi failed
   out="$(gpu_pids)" || { echo "nvidia-smi failed" >&2; return 2; }
   grep -qx "$1" <<<"$out"
 }
+
+# The scheduler prints this when prctl(PR_SET_PDEATHSIG) failed and it fell back to
+# the polling watchdog (01-10, WR-06); verification treats that as a failure (plan A).
+# Normalize to 0/1: grep returns 2 (not 0 or 1) on a missing/unreadable log.
+pdeathsig_degraded() { grep -qF 'PDEATHSIG unavailable' "$1" 2>/dev/null && return 0; return 1; }
 
 wait_no_orphans() {  # wait_no_orphans <timeout_s> <pid>... -> 0 all gone and unlisted
   local timeout="$1"; shift
@@ -249,6 +255,10 @@ step3() {
   done
   RSG_PID="$(grep -o 'spawned rsg-server pid=[0-9]*' "$log" | head -1 | cut -d= -f2)"
   SCHED_PID="$(grep -o 'spawned scheduler rank=0 pid=[0-9]*' "$log" | head -1 | cut -d= -f2)"
+  if pdeathsig_degraded "$log"; then
+    echo "scheduler fell back to the polling watchdog: PDEATHSIG unavailable (see $log)"
+    return 1
+  fi
   echo "$line"
   sha="$(cat vendor/UPSTREAM_SHA)"
   v="$(check_field "$line" upstream_sha)" && [ "$v" = "$sha" ] || { echo "upstream_sha mismatch (want $sha)"; return 1; }
