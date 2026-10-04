@@ -23,6 +23,9 @@ pub struct Handshake {
     pub handshake_version: u32,
     pub upstream_sha: String,
     pub max_seq_len: u64,
+    // An explicit deserialize_with turns off serde's implicit missing-means-None
+    // handling for Option, so the key itself is required while an explicit null stays allowed.
+    #[serde(deserialize_with = "Option::deserialize")]
     pub eos_token_id: Option<u64>,
     pub page_size: u64,
     pub max_running_req: u64,
@@ -163,6 +166,18 @@ mod tests {
             parse_handshake(&l, SHA),
             Err(HandshakeError::Malformed(_))
         ));
+    }
+
+    #[test]
+    fn missing_eos_key_is_malformed() {
+        let l = line(SHA, "151645").replace("\"eos_token_id\":151645,", "");
+        let err = parse_handshake(&l, SHA).unwrap_err();
+        match err {
+            HandshakeError::Malformed(msg) => {
+                assert!(msg.contains("eos_token_id"), "{msg}");
+            }
+            other => panic!("expected Malformed, got {other:?}"),
+        }
     }
 
     #[test]

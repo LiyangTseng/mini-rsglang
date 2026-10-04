@@ -45,7 +45,7 @@ findings:
     title: "Ctrl-C (SIGINT to the whole process group) makes the launcher exit 1 and report a failure"
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The `--shell-mode` rejection can be bypassed by an abbreviation, and rust mode then runs silently with shell-mode limits"
   - id: WR-02
     severity: warning
@@ -57,7 +57,7 @@ findings:
     title: "`setpgid(0, 0)` takes the launcher out of the terminal's foreground process group whenever a wrapper starts it, so Ctrl-C never reaches it"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The Rust handshake accepts a line with no `eos_token_id` key, which the documented contract forbids"
   - id: WR-05
     severity: warning
@@ -99,7 +99,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 15
+open: 13
 total: 24
 recorded: 2026-10-04T06:24:13.231Z
 ---
@@ -118,10 +118,10 @@ recorded: 2026-10-04T06:24:13.231Z
 | IN-12 | info | open | - |
 | IN-13 | info | open | - |
 | CR-01 | critical | fixed | 01-07-PLAN.md (gap G-01-2): stop re-checked after every ready_queue.get and before each child-state-driven shutdown(1) (not in the current review) |
-| WR-01 | warning | open | - (not in the current review) |
+| WR-01 | warning | fixed | 01-11-PLAN.md (gap G-01-7-WR01): parsed run_shell from upstream parse_args is authoritative; --shell/--shell-m exit 2 (not in the current review) |
 | WR-02 | warning | fixed | 01-08-PLAN.md (gap G-01-3): launcher pid passed explicitly, immediate getppid re-check, PR_SET_PDEATHSIG on Linux (not in the current review) |
 | WR-03 | warning | deferred | deferred to Phase 7 (benchmark harness launches the launcher under wrappers; same issue as WR-10) — UAT test 7, 2026-10-03 |
-| WR-04 | warning | open | - (not in the current review) |
+| WR-04 | warning | fixed | 01-11-PLAN.md (gap G-01-7-WR04): eos_token_id required via deserialize_with = Option::deserialize; missing key exits 2 (not in the current review) |
 | WR-05 | warning | deferred | deferred to Phase 6 (graceful upstream scheduler.shutdown on the real GPU backend; intentionally left unchanged by 01-07) — UAT test 7, 2026-10-03 |
 | IN-01 | info | open | - (not in the current review) |
 | IN-02 | info | open | - (not in the current review) |
