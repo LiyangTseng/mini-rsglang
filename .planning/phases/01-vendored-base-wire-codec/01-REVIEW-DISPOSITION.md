@@ -21,7 +21,7 @@ findings:
     title: "`test_exits_at_once_when_parent_is_not_the_launcher` cannot tell a watchdog exit from any other exit 1"
   - id: WR-10
     severity: warning
-    disposition: open
+    disposition: deferred
     title: "`setpgid(0, 0)` moves the launcher out of the terminal's foreground group when run under a wrapper"
   - id: IN-10
     severity: info
@@ -53,7 +53,7 @@ findings:
     title: "The parent watchdog records its parent pid too late and can miss a launcher that has already died, leaving a GPU scheduler orphaned"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: deferred
     title: "`setpgid(0, 0)` takes the launcher out of the terminal's foreground process group whenever a wrapper starts it, so Ctrl-C never reaches it"
   - id: WR-04
     severity: warning
@@ -61,7 +61,7 @@ findings:
     title: "The Rust handshake accepts a line with no `eos_token_id` key, which the documented contract forbids"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: deferred
     title: "`shutdown()` always re-sends SIGINT to the group, which interrupts upstream's graceful `scheduler.shutdown()` after an external group SIGINT"
   - id: IN-01
     severity: info
@@ -99,7 +99,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 22
+open: 19
 total: 24
 recorded: 2026-10-04T06:24:13.231Z
 ---
@@ -112,7 +112,7 @@ recorded: 2026-10-04T06:24:13.231Z
 | WR-07 | warning | open | - |
 | WR-08 | warning | open | - |
 | WR-09 | warning | open | - |
-| WR-10 | warning | open | - |
+| WR-10 | warning | deferred | deferred to Phase 7 (same issue as WR-03) — UAT test 7, 2026-10-03 |
 | IN-10 | info | open | - |
 | IN-11 | info | open | - |
 | IN-12 | info | open | - |
@@ -120,9 +120,9 @@ recorded: 2026-10-04T06:24:13.231Z
 | CR-01 | critical | fixed | 01-07-PLAN.md (gap G-01-2): stop re-checked after every ready_queue.get and before each child-state-driven shutdown(1) (not in the current review) |
 | WR-01 | warning | open | - (not in the current review) |
 | WR-02 | warning | fixed | 01-08-PLAN.md (gap G-01-3): launcher pid passed explicitly, immediate getppid re-check, PR_SET_PDEATHSIG on Linux (not in the current review) |
-| WR-03 | warning | open | - (not in the current review) |
+| WR-03 | warning | deferred | deferred to Phase 7 (benchmark harness launches the launcher under wrappers; same issue as WR-10) — UAT test 7, 2026-10-03 |
 | WR-04 | warning | open | - (not in the current review) |
-| WR-05 | warning | open | - (not in the current review) |
+| WR-05 | warning | deferred | deferred to Phase 6 (graceful upstream scheduler.shutdown on the real GPU backend; intentionally left unchanged by 01-07) — UAT test 7, 2026-10-03 |
 | IN-01 | info | open | - (not in the current review) |
 | IN-02 | info | open | - (not in the current review) |
 | IN-03 | info | open | - (not in the current review) |

@@ -1,18 +1,14 @@
 ---
-status: testing
+status: partial
 phase: 01-vendored-base-wire-codec
 source: [01-VERIFICATION.md]
 started: 2026-10-04T04:55:00Z
-updated: 2026-10-04T06:30:48Z
+updated: 2026-10-04T06:39:11Z
 ---
 
 ## Current Test
 
-number: 6
-name: Run the Linux-only parent-death watchdog test
-expected: |
-  On any Linux machine (no GPU needed): `.venv/bin/python -m pytest python/tests/test_parent_watchdog.py::test_linux_arms_pdeathsig_sigkill -q` passes (PR_GET_PDEATHSIG == SIGKILL)
-awaiting: user response
+[testing paused — 2 items outstanding (tests 1 and 6 blocked on a Linux machine)]
 
 ## Tests
 
@@ -44,20 +40,25 @@ result: pass
 
 ### 6. Run the Linux-only parent-death watchdog test
 expected: On any Linux machine (no GPU needed), `.venv/bin/python -m pytest python/tests/test_parent_watchdog.py::test_linux_arms_pdeathsig_sigkill -q` passes. It is skipped on macOS, so the prctl(PR_SET_PDEATHSIG) branch from 01-08 is unverified until then.
-result: [pending]
+result: blocked
+blocked_by: physical-device
+reason: "blocked. no linux machine yet. I can let other collaborators contineu on that after opening draft PR"
 
 ### 7. Triage the open code-review warnings in 01-REVIEW-DISPOSITION.md
 expected: Record fixed / deferred / skipped for WR-06..WR-10 (new incremental review) and the earlier WR-01, WR-03, WR-04, WR-05. Settle WR-07 (the GPU-orphan check can false-PASS) and WR-08 (the start_session race can false-FAIL) before trusting gpu_phase1_check.sh steps 4/4b.
-result: [pending]
+result: issue
+reported: "修 WR-01, WR-04, WR-06, WR-07, WR-08, WR-09；延後 WR-03, WR-05, WR-10"
+severity: major
+triage: "fix WR-01, WR-04, WR-06, WR-07, WR-08, WR-09 (gaps G-01-7-WR01..WR09 below); defer WR-03/WR-10 to Phase 7 and WR-05 to Phase 6 (recorded in 01-REVIEW-DISPOSITION.md)"
 
 ## Summary
 
 total: 7
 passed: 4
-issues: 0
-pending: 2
+issues: 1
+pending: 0
 skipped: 0
-blocked: 1
+blocked: 2
 
 ## Gaps
 
@@ -105,3 +106,94 @@ blocked: 1
     - "Mac unit test: subprocess calls start_parent_watchdog(launcher_pid=<not its parent>) and must exit 1 promptly; Linux-only skipif test for PR_GET_PDEATHSIG == SIGKILL"
     - "Add an early-kill variant to gpu_phase1_check.sh step 4 (kill -9 right after 'spawned scheduler rank=0')"
   debug_session: .planning/debug/wr02-watchdog-late-ppid.md
+
+- gap_id: G-01-7-WR01
+  truth: "rust mode rejects shell mode however it is spelled: the parsed run_shell flag from upstream parse_args is authoritative, so `--shell` / `--shell-m` abbreviations exit 2 instead of silently running with max_running_req=1, cuda_graph_max_bs=1 (WR-01 in the first 01-REVIEW.md, commit 261f8ee)"
+  status: failed
+  reason: "User reported: 修 WR-01"
+  severity: major
+  test: 7
+  root_cause: "python/rsglang/launch.py guards with a literal `\"--shell-mode\" in rest` (L101) and discards run_shell (`server_args, _ = parse_args(rest)`, L123); upstream argparse uses allow_abbrev=True. Line numbers from the first review; re-locate before editing."
+  artifacts:
+    - path: "python/rsglang/launch.py"
+      issue: "literal pre-check + discarded run_shell"
+  missing:
+    - "`server_args, run_shell = parse_args(rest)`; if run_shell: log and return 2"
+    - "test that passes `--shell` with --frontend rust and expects exit 2"
+  debug_session: ""
+
+- gap_id: G-01-7-WR04
+  truth: "The rsg-server handshake rejects a line with no `eos_token_id` key as Malformed (exit 2); only an explicit null is accepted (WR-04 in the first 01-REVIEW.md)"
+  status: failed
+  reason: "User reported: 修 WR-04"
+  severity: major
+  test: 7
+  root_cause: "crates/rsg-server/src/handshake.rs:18-26: serde derive treats a missing Option<T> field as None even with deny_unknown_fields"
+  artifacts:
+    - path: "crates/rsg-server/src/handshake.rs"
+      issue: "eos_token_id: Option<u64> gets an implicit default"
+  missing:
+    - "#[serde(deserialize_with = \"Option::deserialize\")] on eos_token_id"
+    - "unit test removing the eos_token_id key expects Malformed"
+  debug_session: ""
+
+- gap_id: G-01-7-WR06
+  truth: "A failing prctl(PR_SET_PDEATHSIG) does not kill the scheduler: it logs and degrades to the polling watchdog, and any startup failure still reaches the launcher as an error envelope (WR-06 in 01-REVIEW.md)"
+  status: failed
+  reason: "User reported: 修 WR-06"
+  severity: major
+  test: 7
+  root_cause: "python/rsglang/backend.py:77-80,100: start_parent_watchdog is called outside the try that posts {kind: error}; an OSError from prctl escapes; prctl argtypes not declared for variadic args"
+  artifacts:
+    - path: "python/rsglang/backend.py"
+      issue: "prctl failure is fatal and bypasses the error envelope"
+  missing:
+    - "wrap prctl in try/except OSError, log to stderr, keep the polling thread"
+    - "declare libc.prctl.argtypes as five c_int/c_ulong args"
+    - "test (Mac-runnable, e.g. monkeypatched prctl failure) that the watchdog still arms and the scheduler keeps running"
+  debug_session: ""
+
+- gap_id: G-01-7-WR07
+  truth: "gpu_phase1_check.sh's GPU-orphan check cannot false-PASS: an nvidia-smi failure is a step failure, and a listed pid is never reported absent because of SIGPIPE under pipefail (WR-07 in 01-REVIEW.md)"
+  status: failed
+  reason: "User reported: 修 WR-07"
+  severity: major
+  test: 7
+  root_cause: "scripts/gpu_phase1_check.sh:97,219-221,228,263-265,272: gpu_pids swallows nvidia-smi errors (2>/dev/null) and `gpu_pids | grep -qx` can return 141 under pipefail"
+  artifacts:
+    - path: "scripts/gpu_phase1_check.sh"
+      issue: "gpu_pids / grep -q pipeline"
+  missing:
+    - "gpu_pids lets failure propagate; on_gpu captures output once and greps a here-string; return 2 on nvidia-smi failure treated as step failure"
+    - "Mac-runnable check with a stubbed nvidia-smi on PATH (failing stub -> step fails; stub listing the pid -> detected)"
+  debug_session: ""
+
+- gap_id: G-01-7-WR08
+  truth: "gpu_phase1_check.sh's start_session does not fail a healthy run on slow startup: it polls up to a timeout for pgid == BG_PID, and step4_early cleans up its session on that failure (WR-08 in 01-REVIEW.md)"
+  status: failed
+  reason: "User reported: 修 WR-08"
+  severity: major
+  test: 7
+  root_cause: "scripts/gpu_phase1_check.sh:85-92: fixed `sleep 0.5` then a one-shot pgid check; early return in step4_early leaves the session running until the EXIT trap"
+  artifacts:
+    - path: "scripts/gpu_phase1_check.sh"
+      issue: "start_session fixed-sleep race; step4_early early return"
+  missing:
+    - "poll pgid every 0.1 s for up to ~5 s"
+    - "step4_early stops its session when start_session fails"
+  debug_session: ""
+
+- gap_id: G-01-7-WR09
+  truth: "test_exits_at_once_when_parent_is_not_the_launcher passes only when the watchdog itself caused the exit, not on an import error or any other exit 1 (WR-09 in 01-REVIEW.md)"
+  status: failed
+  reason: "User reported: 修 WR-09"
+  severity: major
+  test: 7
+  root_cause: "python/tests/test_parent_watchdog.py:27-39 asserts only returncode == 1, no 'survived', elapsed < 5"
+  artifacts:
+    - path: "python/tests/test_parent_watchdog.py"
+      issue: "assertions cannot distinguish a watchdog exit from a traceback"
+  missing:
+    - "child prints an 'armed' marker after start_parent_watchdog returns; assert the marker is present and 'Traceback' not in stderr"
+    - "mutation check: break the import or the watchdog and confirm the test fails"
+  debug_session: ""
