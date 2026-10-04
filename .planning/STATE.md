@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Vendored Base & Wire Codec
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-10-04T03:03:20.640Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-10-04T03:10:24.634Z"
 last_activity: 2026-10-03
 last_activity_desc: Phase 01 execution started
-state_head: 4f612e4066586f78c629702676de933eb205576f
+state_head: 5464c1197c583b69ffa4b70df91bb16ef6a4edbe
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 ## Current Position
 
 Phase: 01 (Vendored Base & Wire Codec) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-10-03 — Phase 01 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 6 min | 2 tasks | 9 files |
 | Phase 01 P01 | 14 min | 3 tasks | 128 files |
 | Phase 01 P03 | 5 min | 2 tasks | 8 files |
+| Phase 01 P04 | 5 min | 2 tasks | 41 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Launcher SIGINT/SIGTERM stop handlers are installed before any child spawns, so a stop during the readiness wait tears down the whole process group
 - [Phase 01]: Scheduler process: a KeyboardInterrupt after the ready point ends quietly; before it, an error envelope with the traceback goes to the launcher
 - [Phase 01]: Python mode (--frontend python) execs python -m minisgl; the launcher never imports minisgl or parses upstream args in python mode
+- [Phase 01]: rsg-wire uses rmp-serde to_vec_named with derived internally tagged serde types; all 34 golden fixtures pass byte-for-byte, so no rmpv fallback is needed
+- [Phase 01]: gen_wire_fixtures.py pins minisgl to vendor/mini-sglang/python (exit 2 otherwise); --check diffs fixture bytes and manifest keys except the generator versions block
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-04T03:03:12.056Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-10-04T03:10:24.618Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None

@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. For each of the 7 upstream message types, the bytes the Rust codec produces equal golden fixtures exported from upstream's Python encoder, checked by a test that runs on the Mac.
   5. Every message the Rust codec emits decodes through upstream's real Python decoder (`cls(**kwargs)`) without error.
 
-**Plans:** 3/6 plans executed
+**Plans:** 4/6 plans executed
 
 Plans:
 **Wave 1**
@@ -49,7 +49,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 01-03-PLAN.md — Tracer: `python -m rsglang.launch --frontend rust` end to end on the Mac (fake scheduler on upstream queues + real rsg-server); `--frontend python` passthrough (wave 2)
-- [ ] 01-04-PLAN.md — rsg-wire codec + golden fixtures from upstream's encoder for all 8 wire tags and boundaries (wave 2)
+- [x] 01-04-PLAN.md — rsg-wire codec + golden fixtures from upstream's encoder for all 8 wire tags and boundaries (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-05-PLAN.md — Launcher failure contract (D-12), seam unit tests, GPU verification script with end-of-phase human check (wave 3)
@@ -149,7 +149,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Vendored Base & Wire Codec | 3/6 | In Progress|  |
+| 1. Vendored Base & Wire Codec | 4/6 | In Progress|  |
 | 2. Python Frontend Baseline Profile | 0/TBD | Not started | - |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
