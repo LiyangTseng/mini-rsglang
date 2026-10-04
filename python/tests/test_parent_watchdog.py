@@ -30,14 +30,19 @@ def test_exits_at_once_when_parent_is_not_the_launcher():
     program = (
         "import sys, time\n"
         "from rsglang.backend import start_parent_watchdog\n"
+        "print('calling', flush=True)\n"
         "start_parent_watchdog(int(sys.argv[1]), poll_interval=0.1)\n"
+        "print('returned', flush=True)\n"
         "time.sleep(30)\n"
         "print('survived')\n"
     )
     # The child's parent is this process, so this process's own parent is never its parent.
     result, elapsed = _run_child(program, os.getppid())
     assert result.returncode == 1, result.stderr
+    assert "calling" in result.stdout
+    assert "returned" not in result.stdout
     assert "survived" not in result.stdout
+    assert "Traceback" not in result.stderr
     assert elapsed < 5
 
 
@@ -46,12 +51,15 @@ def test_stays_alive_while_parent_is_the_launcher():
         "import sys, time\n"
         "from rsglang.backend import start_parent_watchdog\n"
         "start_parent_watchdog(int(sys.argv[1]), poll_interval=0.1)\n"
+        "print('armed', flush=True)\n"
         "time.sleep(0.5)\n"
         "print('survived')\n"
     )
     result, _ = _run_child(program, os.getpid())
     assert result.returncode == 0, result.stderr
+    assert "armed" in result.stdout
     assert "survived" in result.stdout
+    assert "Traceback" not in result.stderr
 
 
 @pytest.mark.parametrize("mode", ["prctl-fails", "cdll-fails"])
