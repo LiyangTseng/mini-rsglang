@@ -42,6 +42,9 @@ class FakeScheduler:
         if self.mode == "crash_before_ready":
             raise RuntimeError("fake scheduler crash before ready")
         if self.mode == "hang_before_ready":
+            status_dir = os.environ.get(STATUS_DIR_ENV)
+            if status_dir:  # lets a test signal while the scheduler is inside __init__
+                (Path(status_dir) / "hang_entered").touch()
             while True:  # until a signal (the launcher's SIGINT) ends it
                 time.sleep(0.5)
         self.args = args

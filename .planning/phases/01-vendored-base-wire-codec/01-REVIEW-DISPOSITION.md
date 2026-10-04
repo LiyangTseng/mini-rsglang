@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "Ctrl-C (SIGINT to the whole process group) makes the launcher exit 1 and report a failure"
   - id: WR-01
     severity: warning
@@ -63,7 +63,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 15
+open: 14
 total: 15
 recorded: 2026-10-04T04:46:01.408Z
 ---
@@ -72,7 +72,7 @@ recorded: 2026-10-04T04:46:01.408Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
+| CR-01 | critical | fixed | 01-07-PLAN.md (gap G-01-2): stop re-checked after every ready_queue.get and before each child-state-driven shutdown(1) |
 | WR-01 | warning | open | - |
 | WR-02 | warning | open | - |
 | WR-03 | warning | open | - |

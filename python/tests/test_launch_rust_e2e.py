@@ -177,11 +177,53 @@ def test_rust_mode_handshake_reaches_rsg_server(launcher, tmp_path):
     assert not sock1.exists()
 
 
-# --- D-12 failure contract: every failure exits non-zero, prints its cause, leaves no child ---
-
-
 def _gone(pid: int, timeout: float) -> bool:
     return _wait_until(lambda: not _alive(pid), timeout)
+
+
+# --- D-12 stop contract: a group SIGINT (terminal Ctrl-C) tears the run down and exits 0 ---
+
+
+def _group_sigint_clean_stop(run: LauncherRun) -> None:
+    children = run.pids()
+    assert {"rsg-server", "scheduler"} <= set(children), run.text()
+
+    # The launcher leads its own process group, so this reaches the launcher, rsg-server
+    # and the scheduler at once, exactly like a terminal Ctrl-C.
+    os.killpg(run.proc.pid, signal.SIGINT)
+
+    assert run.finish(30) == 0, run.text()
+    # The scheduler child's inherited stderr may print a KeyboardInterrupt traceback, so
+    # only the launcher's own lines are judged.
+    own = [line for line in run.lines if line.startswith("rsglang.launch:")]
+    assert "rsglang.launch: exit code 0" in own, run.text()
+    for bad in ("exited with code", "failed", "lines of rsg-server stderr", "escalating to SIGKILL"):
+        assert not any(bad in line for line in own), f"launcher reported {bad!r}\n{run.text()}"
+    for name, pid in children.items():
+        assert _gone(pid, 15), f"{name} pid={pid} still alive\n{run.text()}"
+    assert not any(path.exists() for path in sockets.run_socket_paths(f".rsg={run.proc.pid}"))
+
+
+def test_group_sigint_after_ready_exits_0(make_launcher):
+    run = make_launcher()
+    run.wait_for("backend ready; handshake sent", 90)
+    _group_sigint_clean_stop(run)
+
+
+def test_group_sigint_while_scheduler_boots_exits_0(make_launcher):
+    run = make_launcher()
+    run.wait_for("spawned scheduler rank=0", 30)
+    _group_sigint_clean_stop(run)  # lands while the scheduler is still booting its interpreter
+
+
+def test_group_sigint_while_scheduler_hangs_exits_0(make_launcher, tmp_path):
+    run = make_launcher(mode="hang_before_ready")
+    run.wait_for("spawned scheduler rank=0", 30)
+    assert _wait_until((tmp_path / "hang_entered").exists, 60), run.text()
+    _group_sigint_clean_stop(run)  # the scheduler's KeyboardInterrupt envelope reaches the launcher
+
+
+# --- D-12 failure contract: every failure exits non-zero, prints its cause, leaves no child ---
 
 
 def test_scheduler_crash_before_ready(make_launcher):
