@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -34,6 +35,27 @@ def _write_stub(tmp_path: Path, name: str, body: str) -> Path:
     bin_dir.mkdir(exist_ok=True)
     stub = bin_dir / name
     stub.write_text(f"#!/bin/bash\n{body}\n")
+    stub.chmod(0o755)
+    return stub
+
+
+def _write_setsid_stub(tmp_path: Path) -> Path:
+    """Write a stub `setsid` that execs in place like util-linux setsid does for a
+    non-leader, after an optional delay (STUB_SETSID_DELAY) and an optional skip of
+    os.setsid() (STUB_SETSID_MODE=never, default "detach")."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    stub = bin_dir / "setsid"
+    stub.write_text(
+        f"#!{sys.executable}\n"
+        "import os, sys, time\n"
+        "delay = float(os.environ.get('STUB_SETSID_DELAY', '0'))\n"
+        "mode = os.environ.get('STUB_SETSID_MODE', 'detach')\n"
+        "time.sleep(delay)\n"
+        "if mode == 'detach':\n"
+        "    os.setsid()\n"
+        "os.execvp(sys.argv[1], sys.argv[1:])\n"
+    )
     stub.chmod(0o755)
     return stub
 
@@ -150,3 +172,67 @@ wait "$p" 2>/dev/null || true
     result = _bash(snippet, tmp_path)
     assert _rc(result) == 1, result.stderr
     assert "still running" in result.stdout + result.stderr
+
+
+# --- start_session ---------------------------------------------------------------
+
+
+def test_start_session_waits_for_slow_setsid(tmp_path):
+    # The old fixed half-second wait returned 1 here.
+    _write_setsid_stub(tmp_path)
+    snippet = """
+rc=0; start_session "$TMPDIR/log.txt" sleep 30 || rc=$?
+echo "rc=$rc"
+echo "pid=$BG_PID"
+pgid="$(ps -o pgid= -p "$BG_PID" 2>/dev/null | tr -d ' ')"
+echo "pgid=$pgid"
+"""
+    result = _bash(snippet, tmp_path, STUB_SETSID_DELAY="1.5", STUB_SETSID_MODE="detach")
+    assert _rc(result) == 0, result.stderr
+    pid_match = re.search(r"^pid=(\d+)$", result.stdout, re.MULTILINE)
+    pgid_match = re.search(r"^pgid=(\d+)$", result.stdout, re.MULTILINE)
+    assert pid_match and pgid_match, result.stdout
+    assert pid_match.group(1) == pgid_match.group(1), result.stdout
+
+
+def test_start_session_kills_what_it_started_when_setsid_never_detaches(tmp_path):
+    _write_setsid_stub(tmp_path)
+    snippet = """
+rc=0; start_session "$TMPDIR/log.txt" sleep 30 || rc=$?
+echo "rc=$rc"
+if kill -0 "$BG_PID" 2>/dev/null; then echo "alive"; else echo "dead"; fi
+"""
+    result = _bash(snippet, tmp_path, STUB_SETSID_MODE="never")
+    assert _rc(result) == 1, result.stderr
+    assert "setsid did not exec in place" in result.stderr, result.stderr
+    assert "dead" in result.stdout, result.stdout
+
+
+def test_start_session_fast_path(tmp_path):
+    _write_setsid_stub(tmp_path)
+    snippet = """
+rc=0; start_session "$TMPDIR/log.txt" sleep 30 || rc=$?
+echo "rc=$rc"
+echo "pid=$BG_PID"
+pgid="$(ps -o pgid= -p "$BG_PID" 2>/dev/null | tr -d ' ')"
+echo "pgid=$pgid"
+"""
+    start = time.monotonic()
+    result = _bash(snippet, tmp_path, STUB_SETSID_DELAY="0", STUB_SETSID_MODE="detach")
+    elapsed = time.monotonic() - start
+    assert _rc(result) == 0, result.stderr
+    pid_match = re.search(r"^pid=(\d+)$", result.stdout, re.MULTILINE)
+    pgid_match = re.search(r"^pgid=(\d+)$", result.stdout, re.MULTILINE)
+    assert pid_match and pgid_match, result.stdout
+    assert pid_match.group(1) == pgid_match.group(1), result.stdout
+    assert elapsed < 4, elapsed
+
+
+def test_start_session_leaves_an_exited_process_to_the_caller(tmp_path):
+    _write_setsid_stub(tmp_path)
+    snippet = """
+rc=0; start_session "$TMPDIR/log.txt" true || rc=$?
+echo "rc=$rc"
+"""
+    result = _bash(snippet, tmp_path, STUB_SETSID_MODE="detach")
+    assert _rc(result) == 0, result.stderr
