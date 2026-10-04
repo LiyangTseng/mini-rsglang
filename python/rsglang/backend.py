@@ -10,6 +10,8 @@ from __future__ import annotations
 import importlib
 import logging
 import os
+import threading
+import time
 import traceback
 from typing import TYPE_CHECKING, Any, Callable, Dict
 
@@ -49,7 +51,28 @@ def extract_handshake(scheduler: Any, args: ServerArgs, upstream_sha: str) -> Di
     }
 
 
+def start_parent_watchdog(poll_interval: float = 1.0) -> threading.Thread:
+    """Exit this process as soon as its parent (the launcher) is gone (D-12 backstop).
+
+    The Python twin of rsg-server's stdin-EOF rule: a SIGKILLed launcher cannot
+    leak a GPU-holding scheduler. os._exit skips cleanup on purpose; the parent
+    that would coordinate a clean exit no longer exists.
+    """
+    parent = os.getppid()
+
+    def _watch() -> None:
+        while True:
+            time.sleep(poll_interval)
+            if os.getppid() != parent:
+                os._exit(1)
+
+    thread = threading.Thread(target=_watch, name="rsglang-parent-watchdog", daemon=True)
+    thread.start()
+    return thread
+
+
 def run_scheduler(args: ServerArgs, ready_queue: mp.Queue, upstream_sha: str) -> None:
+    start_parent_watchdog()  # first: covers a launcher that dies during a long startup
     rank = args.tp_info.rank
     passed_ready = False
     try:

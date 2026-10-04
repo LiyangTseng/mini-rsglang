@@ -26,12 +26,24 @@ FAKE_EOS_TOKEN_ID = 151645
 FAKE_NUM_PAGES = 1024
 FACTORY_PATH = "rsglang.testing.fake_scheduler:FakeScheduler"
 STATUS_DIR_ENV = "RSGLANG_FAKE_STATUS_DIR"
+# Failure modes for the launcher's D-12 tests: ok (default), crash_before_ready,
+# hang_before_ready, crash_after_ready.
+MODE_ENV = "RSGLANG_FAKE_MODE"
+_MODES = ("ok", "crash_before_ready", "hang_before_ready", "crash_after_ready")
 
 _PEER_TIMEOUT_MS = 10_000
 
 
 class FakeScheduler:
     def __init__(self, args: ServerArgs):
+        self.mode = os.environ.get(MODE_ENV) or "ok"
+        if self.mode not in _MODES:
+            raise ValueError(f"{MODE_ENV}={self.mode!r}: expected one of {_MODES}")
+        if self.mode == "crash_before_ready":
+            raise RuntimeError("fake scheduler crash before ready")
+        if self.mode == "hang_before_ready":
+            while True:  # until a signal (the launcher's SIGINT) ends it
+                time.sleep(0.5)
         self.args = args
         self.engine = SimpleNamespace(max_seq_len=FAKE_MAX_SEQ_LEN, num_pages=FAKE_NUM_PAGES)
         self.eos_token_id = FAKE_EOS_TOKEN_ID
@@ -70,6 +82,9 @@ class FakeScheduler:
             probe.close()
 
     def run_forever(self) -> None:
+        if self.mode == "crash_after_ready":
+            time.sleep(1.0)
+            raise RuntimeError("fake scheduler crash after ready")
         if not self.args.tp_info.is_primary():
             while True:
                 time.sleep(0.05)

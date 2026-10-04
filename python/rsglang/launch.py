@@ -17,9 +17,11 @@ import queue
 import signal
 import subprocess
 import sys
+import threading
 import time
+from collections import deque
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence
+from typing import Callable, Deque, List, Optional, Sequence
 
 from . import handshake, sockets
 
@@ -29,8 +31,18 @@ _SUPERVISE_POLL_S = 0.2
 _READY_POLL_S = 0.5
 
 
+def _write_stderr(text: str) -> None:
+    # A closed or broken stderr (e.g. a pipeline reader that already exited) must
+    # never abort supervision or shutdown halfway.
+    try:
+        sys.stderr.write(text)
+        sys.stderr.flush()
+    except (OSError, ValueError):
+        pass
+
+
 def _log(msg: str) -> None:
-    print(f"{_PREFIX} {msg}", file=sys.stderr, flush=True)
+    _write_stderr(f"{_PREFIX} {msg}\n")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -76,6 +88,15 @@ def exec_python_frontend(rest: Sequence[str], execv: Callable = os.execv) -> int
     return 0  # only reached when execv is a test recorder
 
 
+def _pump_rsg_stderr(stream, tail: Deque[str]) -> None:
+    """Forward rsg-server's stderr live as '[rsg-server] <line>' and keep a tail for failures."""
+    for raw in iter(stream.readline, b""):
+        line = raw.decode("utf-8", errors="replace").rstrip("\n")
+        tail.append(line)
+        _write_stderr(f"[rsg-server] {line}\n")
+    stream.close()
+
+
 def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
     if "--shell-mode" in rest:
         _log("--shell-mode is not supported with --frontend rust")
@@ -83,7 +104,15 @@ def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
     rust_bin = resolve_rust_bin(ns.rust_bin)
     if rust_bin is None:
         return 2
+    suffix = f".rsg={os.getpid()}"
+    try:
+        return _run_rust_mode(ns, rest, rust_bin, suffix)
+    finally:
+        # Every exit path the launcher survives; a group SIGKILL cleans up before it fires.
+        sockets.unlink_run_sockets(suffix)
 
+
+def _run_rust_mode(ns: argparse.Namespace, rest: List[str], rust_bin: Path, suffix: str) -> int:
     import multiprocessing as mp
 
     from minisgl.distributed import DistributedInfo
@@ -92,7 +121,6 @@ def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
     from . import backend
 
     server_args, _ = parse_args(rest)
-    suffix = f".rsg={os.getpid()}"
     server_args = dataclasses.replace(server_args, _unique_suffix=suffix)  # D-06
     sockets.unlink_run_sockets(suffix)
 
@@ -116,9 +144,14 @@ def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
     rust = subprocess.Popen(
         [str(rust_bin), *sockets.rust_cli_args(server_args)],
         stdin=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         env={**os.environ, "RUST_LOG": ns.rust_log},
     )
     _log(f"spawned rsg-server pid={rust.pid}")
+    rust_tail: Deque[str] = deque(maxlen=200)
+    pump = threading.Thread(target=_pump_rsg_stderr, args=(rust.stderr, rust_tail),
+                            name="rsg-server-stderr", daemon=True)
+    pump.start()
 
     mp.set_start_method("spawn", force=True)
     ready_queue = mp.Queue()
@@ -141,6 +174,17 @@ def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
         for p in ranks:
             yield p.name, p.exitcode
 
+    def report_errors(timeout: float) -> None:
+        """Print every scheduler error envelope that arrives within `timeout` seconds."""
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                msg = ready_queue.get(timeout=max(0.0, deadline - time.monotonic()))
+            except queue.Empty:
+                return
+            if msg.get("kind") == "error":
+                _log(f"scheduler rank {msg.get('rank')} failed:\n{msg.get('traceback', '')}")
+
     def shutdown(code: int) -> int:
         # Only now: ignored dispositions are inherited across exec.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -156,19 +200,29 @@ def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
             pass
         for p in ranks:
             p.join(max(0.0, deadline - time.monotonic()))
-        if rust.poll() is None:
-            rust.kill()
-            rust.wait()
-        for p in ranks:
-            if p.is_alive():
-                p.kill()
-                p.join()
+        if rust.poll() is not None:
+            pump.join(timeout=2.0)  # collect rsg-server's last lines for the tail
+        if code != 0:
+            lines = list(rust_tail)
+            _log(f"--- last {len(lines)} lines of rsg-server stderr ---")
+            for line in lines:
+                _write_stderr(f"{line}\n")
+            _log("--- end ---")
+        sockets.unlink_run_sockets(suffix)
+        if rust.poll() is None or any(p.is_alive() for p in ranks):
+            _log("escalating to SIGKILL for the process group")
+            for stream in (sys.stdout, sys.stderr):
+                try:
+                    stream.flush()
+                except (OSError, ValueError):
+                    pass
+            # Ends the launcher too: its exit status is the SIGKILL status, non-zero.
+            os.killpg(os.getpgrp(), signal.SIGKILL)
         if rust.stdin is not None:
             try:
                 rust.stdin.close()
             except BrokenPipeError:
                 pass
-        sockets.unlink_run_sockets(suffix)
         _log(f"exit code {code}")
         return code
 
@@ -183,6 +237,7 @@ def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
         except queue.Empty:
             for name, code in children():
                 if code is not None:
+                    report_errors(1.0)
                     _log(f"{name} exited with code {code} before ready")
                     return shutdown(1)
             if time.monotonic() >= deadline:
@@ -206,11 +261,18 @@ def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
     while True:
         if stop_requested:
             return shutdown(0)
+        try:
+            msg = ready_queue.get(timeout=_SUPERVISE_POLL_S)
+        except queue.Empty:
+            msg = None
+        if msg is not None and msg.get("kind") == "error":
+            _log(f"scheduler rank {msg.get('rank')} failed:\n{msg.get('traceback', '')}")
+            return shutdown(1)
         for name, code in children():
             if code is not None:
+                report_errors(1.0)
                 _log(f"{name} exited with code {code}")
                 return shutdown(1)
-        time.sleep(_SUPERVISE_POLL_S)
 
 
 def main(argv: Optional[Sequence[str]] = None, *, execv: Callable = os.execv) -> int:
