@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Vendored Base & Wire Codec
-status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-10-04T03:58:09.267Z"
+status: verifying
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-10-04T04:09:13.806Z"
 last_activity: 2026-10-03
 last_activity_desc: Phase 01 execution started
-state_head: eca0f5c014e20b765cd5c04105138bbc8b69fb97
+state_head: 5979a9d36818cb6fb0a77afe3c63b8b02d2ad93e
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 
 Phase: 01 (Vendored Base & Wire Codec) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-03 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P03 | 5 min | 2 tasks | 8 files |
 | Phase 01 P04 | 5 min | 2 tasks | 41 files |
 | Phase 01 P05 | 44 min | 3 tasks | 7 files |
+| Phase 01 P06 | 8 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,10 @@ Recent decisions affecting current work:
 - [Phase 01]: Launcher supervise loop reads scheduler error envelopes after ready so crashes print the traceback
 - [Phase 01]: Scheduler wrapper runs a getppid watchdog (os._exit(1)) so kill -9 of the launcher leaves no scheduler
 - [Phase 01]: GPU check script restores SIGINT before exec: non-interactive shells start background jobs with SIGINT ignored
+- [Phase 01]: check_upstream.py verifies the fetched upstream commit root tree against KNOWN_TREES before use (T-01-17); exit 2 on mismatch
+- [Phase 01]: check_upstream.py adds UPSTREAM_SHA_INVALID, OFFLINE_UNSUPPORTED and TREE_HASH_MISMATCH categories; a parse error or invalid SHA stops the check before any fetch
+- [Phase 01]: test_wire_decode.py skips without DUMP_DIR inside the full suite; check_wire_decode.sh sets RSGLANG_REQUIRE_DUMP=1 so the gate cannot pass by skipping
+- [Phase 01]: scripts/check_all.sh [--offline] is the Phase 1 Mac gate: cargo tests, pytest, fixture freshness, WIRE-02 decode, check_upstream.py
 
 ### Pending Todos
 
@@ -109,6 +114,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-04T03:58:09.251Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-10-04T04:09:13.789Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None
