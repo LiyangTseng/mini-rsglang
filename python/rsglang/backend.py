@@ -7,9 +7,12 @@ unmodified upstream `minisgl.scheduler:Scheduler`; no vendored file is patched.
 
 from __future__ import annotations
 
+import ctypes
 import importlib
 import logging
 import os
+import signal
+import sys
 import threading
 import time
 import traceback
@@ -24,6 +27,7 @@ if TYPE_CHECKING:
 
 SCHEDULER_FACTORY_ENV = "RSGLANG_SCHEDULER_FACTORY"
 DEFAULT_SCHEDULER_FACTORY = "minisgl.scheduler:Scheduler"
+PR_SET_PDEATHSIG = 1  # <linux/prctl.h>
 
 
 def resolve_scheduler_factory() -> Callable[[Any], Any]:
@@ -62,7 +66,18 @@ def start_parent_watchdog(launcher_pid: int, poll_interval: float = 1.0) -> thre
     os.getppid() read here: under the spawn start method this runs seconds after
     the child started, and a launcher killed in that window has already
     reparented the child, so a value read now can be init or a subreaper.
+
+    Order matters: on Linux arm PR_SET_PDEATHSIG(SIGKILL) first, then re-check the
+    parent (covers a launcher that died before the prctl), then poll (the only
+    mechanism on macOS, a backstop on Linux). PDEATHSIG fires when the thread that
+    forked this child dies, here the launcher's main thread (p.start() in
+    _run_rust_mode), which lives as long as the launcher. spawn has no preexec
+    hook, so it can only be armed after exec, here.
     """
+    if sys.platform.startswith("linux"):
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(PR_SET_PDEATHSIG, int(signal.SIGKILL), 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "prctl(PR_SET_PDEATHSIG) failed")
     if os.getppid() != launcher_pid:  # the launcher died while this child was booting
         os._exit(1)
 
