@@ -67,8 +67,13 @@ def resolve_rust_bin(explicit: Optional[str]) -> Optional[Path]:
 
 
 def exec_python_frontend(rest: Sequence[str], execv: Callable = os.execv) -> int:
-    _log("--frontend python is not implemented yet")
-    return 2
+    """Replace this process with upstream's launcher: the frozen baseline, zero overhead (D-05).
+
+    Upstream's own launch_server parses the forwarded args; the launcher never does.
+    """
+    argv = [sys.executable, "-m", "minisgl", *rest]
+    execv(sys.executable, argv)
+    return 0  # only reached when execv is a test recorder
 
 
 def run_rust_mode(ns: argparse.Namespace, rest: List[str]) -> int:
