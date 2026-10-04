@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. For each of the 7 upstream message types, the bytes the Rust codec produces equal golden fixtures exported from upstream's Python encoder, checked by a test that runs on the Mac.
   5. Every message the Rust codec emits decodes through upstream's real Python decoder (`cls(**kwargs)`) without error.
 
-**Plans:** 8/8 plans executed
+**Plans:** 8/11 plans executed
 
 Plans:
 **Wave 1**
@@ -60,6 +60,15 @@ Plans:
 
 **Wave 5** *(gap closure; blocked on Wave 4 completion)*
 - [x] 01-08-PLAN.md — G-01-3 / WR-02: launcher pid passed explicitly to the scheduler watchdog plus Linux PR_SET_PDEATHSIG; early kill -9 leaves no orphan; GPU check step 4b (wave 5)
+
+**Wave 6** *(gap closure; blocked on Wave 5 completion)*
+- [ ] 01-09-PLAN.md — G-01-7-WR07 / WR-08: GPU-orphan check cannot false-PASS (nvidia-smi failure, SIGPIPE under pipefail); start_session polls for setsid and cleans up on failure; Mac tests with stubbed nvidia-smi/setsid (wave 6)
+
+**Wave 7** *(gap closure; blocked on Wave 6 completion)*
+- [ ] 01-10-PLAN.md — G-01-7-WR06 / WR-09: prctl failure degrades to the polling watchdog and watchdog startup failures reach the launcher as an error envelope; watchdog exit test proves the watchdog caused the exit (wave 7)
+
+**Wave 8** *(gap closure; blocked on Wave 7 completion)*
+- [ ] 01-11-PLAN.md — G-01-7-WR04 / WR-01: rsg-server rejects a handshake without eos_token_id (exit 2); rust mode rejects abbreviated --shell-mode via the parsed run_shell flag (wave 8)
 
 ### Phase 2: Python Frontend Baseline Profile
 
@@ -155,7 +164,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Vendored Base & Wire Codec | 8/8 | In Progress|  |
+| 1. Vendored Base & Wire Codec | 8/11 | In Progress|  |
 | 2. Python Frontend Baseline Profile | 0/TBD | Not started | - |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
