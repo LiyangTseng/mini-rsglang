@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rsglang"
+version = "0.1.0"
+description = "Python launcher and helpers that run the vendored mini-sglang backend with either frontend"
+requires-python = ">=3.10"
+# The runtime environment comes from the vendored backend's install:
+# requirements-mac.txt on the Mac, the full upstream install on the GPU box.
+dependencies = []
+
+[tool.setuptools]
+package-dir = {"" = "python"}
+
+[tool.setuptools.packages.find]
+where = ["python"]
+include = ["rsglang*"]
+
+[tool.uv]
+# Never let `uv run` lock or sync this project (it would pull upstream's CUDA deps).
+managed = false
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+norecursedirs = ["vendor", "target", ".venv", "fixtures", ".git", ".planning", ".claude", ".agents"]
+markers = ["slow: spawns processes or builds binaries"]
+addopts = ["--strict-markers"]
