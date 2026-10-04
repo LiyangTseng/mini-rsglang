@@ -7,9 +7,12 @@ unmodified upstream `minisgl.scheduler:Scheduler`; no vendored file is patched.
 
 from __future__ import annotations
 
+import ctypes
 import importlib
 import logging
 import os
+import signal
+import sys
 import threading
 import time
 import traceback
@@ -24,6 +27,7 @@ if TYPE_CHECKING:
 
 SCHEDULER_FACTORY_ENV = "RSGLANG_SCHEDULER_FACTORY"
 DEFAULT_SCHEDULER_FACTORY = "minisgl.scheduler:Scheduler"
+PR_SET_PDEATHSIG = 1  # <linux/prctl.h>
 
 
 def resolve_scheduler_factory() -> Callable[[Any], Any]:
@@ -51,19 +55,36 @@ def extract_handshake(scheduler: Any, args: ServerArgs, upstream_sha: str) -> Di
     }
 
 
-def start_parent_watchdog(poll_interval: float = 1.0) -> threading.Thread:
-    """Exit this process as soon as its parent (the launcher) is gone (D-12 backstop).
+def start_parent_watchdog(launcher_pid: int, poll_interval: float = 1.0) -> threading.Thread:
+    """Exit this process as soon as the launcher is gone (D-12 backstop).
 
     The Python twin of rsg-server's stdin-EOF rule: a SIGKILLed launcher cannot
     leak a GPU-holding scheduler. os._exit skips cleanup on purpose; the parent
     that would coordinate a clean exit no longer exists.
+
+    The launcher pid comes from the launcher at spawn time, never from
+    os.getppid() read here: under the spawn start method this runs seconds after
+    the child started, and a launcher killed in that window has already
+    reparented the child, so a value read now can be init or a subreaper.
+
+    Order matters: on Linux arm PR_SET_PDEATHSIG(SIGKILL) first, then re-check the
+    parent (covers a launcher that died before the prctl), then poll (the only
+    mechanism on macOS, a backstop on Linux). PDEATHSIG fires when the thread that
+    forked this child dies, here the launcher's main thread (p.start() in
+    _run_rust_mode), which lives as long as the launcher. spawn has no preexec
+    hook, so it can only be armed after exec, here.
     """
-    parent = os.getppid()
+    if sys.platform.startswith("linux"):
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(PR_SET_PDEATHSIG, int(signal.SIGKILL), 0, 0, 0) != 0:
+            raise OSError(ctypes.get_errno(), "prctl(PR_SET_PDEATHSIG) failed")
+    if os.getppid() != launcher_pid:  # the launcher died while this child was booting
+        os._exit(1)
 
     def _watch() -> None:
         while True:
             time.sleep(poll_interval)
-            if os.getppid() != parent:
+            if os.getppid() != launcher_pid:
                 os._exit(1)
 
     thread = threading.Thread(target=_watch, name="rsglang-parent-watchdog", daemon=True)
@@ -71,8 +92,12 @@ def start_parent_watchdog(poll_interval: float = 1.0) -> threading.Thread:
     return thread
 
 
-def run_scheduler(args: ServerArgs, ready_queue: mp.Queue, upstream_sha: str) -> None:
-    start_parent_watchdog()  # first: covers a launcher that dies during a long startup
+def run_scheduler(
+    args: ServerArgs, ready_queue: mp.Queue, upstream_sha: str, launcher_pid: int
+) -> None:
+    # First: the watchdog compares against the launcher pid passed at spawn time, so a
+    # launcher that died during this child's boot is noticed at once.
+    start_parent_watchdog(launcher_pid)
     rank = args.tp_info.rank
     passed_ready = False
     try:

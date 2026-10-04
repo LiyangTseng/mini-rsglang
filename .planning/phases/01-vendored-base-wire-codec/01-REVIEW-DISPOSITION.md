@@ -13,7 +13,7 @@ findings:
     title: "The `--shell-mode` rejection can be bypassed by an abbreviation, and rust mode then runs silently with shell-mode limits"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The parent watchdog records its parent pid too late and can miss a launcher that has already died, leaving a GPU scheduler orphaned"
   - id: WR-03
     severity: warning
@@ -63,7 +63,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 14
+open: 13
 total: 15
 recorded: 2026-10-04T04:46:01.408Z
 ---
@@ -74,7 +74,7 @@ recorded: 2026-10-04T04:46:01.408Z
 |---------|----------|-------------|--------|
 | CR-01 | critical | fixed | 01-07-PLAN.md (gap G-01-2): stop re-checked after every ready_queue.get and before each child-state-driven shutdown(1) |
 | WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-02 | warning | fixed | 01-08-PLAN.md (gap G-01-3): launcher pid passed explicitly, immediate getppid re-check, PR_SET_PDEATHSIG on Linux |
 | WR-03 | warning | open | - |
 | WR-04 | warning | open | - |
 | WR-05 | warning | open | - |
