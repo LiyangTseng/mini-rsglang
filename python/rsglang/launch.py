@@ -235,8 +235,16 @@ def _run_rust_mode(ns: argparse.Namespace, rest: List[str], rust_bin: Path, suff
         try:
             msg = ready_queue.get(timeout=_READY_POLL_S)
         except queue.Empty:
+            msg = None
+        # A group signal also reaches the children, so their exits are part of the stop
+        # (PEP 475 retries the interrupted get to its full timeout).
+        if stop_requested:
+            return shutdown(0)
+        if msg is None:
             for name, code in children():
                 if code is not None:
+                    if stop_requested:
+                        return shutdown(0)
                     report_errors(1.0)
                     _log(f"{name} exited with code {code} before ready")
                     return shutdown(1)
@@ -254,6 +262,8 @@ def _run_rust_mode(ns: argparse.Namespace, rest: List[str], rust_bin: Path, suff
         rust.stdin.write(handshake.encode_handshake_line(payload))
         rust.stdin.flush()  # stdin stays open: closing it means shutdown
     except BrokenPipeError:
+        if stop_requested:
+            return shutdown(0)
         _log(f"rsg-server exited with code {rust.poll()} before the handshake was sent")
         return shutdown(1)
     _log("backend ready; handshake sent to rsg-server")
