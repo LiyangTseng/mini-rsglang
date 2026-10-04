@@ -1,8 +1,8 @@
 ---
 phase: 01-vendored-base-wire-codec
-verified: 2026-10-04T04:51:24Z
+verified: 2026-10-04T08:00:00Z
 status: human_needed
-score: 45/49 must-haves verified
+score: 58/62 must-haves verified
 covered_files:
   - .planning/phases/01-vendored-base-wire-codec/01-01-PLAN.md
   - .planning/phases/01-vendored-base-wire-codec/01-01-SUMMARY.md
@@ -16,6 +16,10 @@ covered_files:
   - .planning/phases/01-vendored-base-wire-codec/01-05-SUMMARY.md
   - .planning/phases/01-vendored-base-wire-codec/01-06-PLAN.md
   - .planning/phases/01-vendored-base-wire-codec/01-06-SUMMARY.md
+  - .planning/phases/01-vendored-base-wire-codec/01-07-PLAN.md
+  - .planning/phases/01-vendored-base-wire-codec/01-07-SUMMARY.md
+  - .planning/phases/01-vendored-base-wire-codec/01-08-PLAN.md
+  - .planning/phases/01-vendored-base-wire-codec/01-08-SUMMARY.md
   - Cargo.toml
   - UPSTREAM.md
   - crates/rsg-server/Cargo.toml
@@ -41,6 +45,7 @@ covered_files:
   - python/tests/test_handshake.py
   - python/tests/test_launch_args.py
   - python/tests/test_launch_rust_e2e.py
+  - python/tests/test_parent_watchdog.py
   - python/tests/test_topology.py
   - python/tests/test_wire_decode.py
   - requirements-mac.in
@@ -53,9 +58,19 @@ covered_files:
   - scripts/gen_wire_fixtures.py
   - scripts/gpu_phase1_check.sh
   - vendor/UPSTREAM_SHA
-covered_digest: "v2:sha256:6c93343d8df3673ecce367801e74929bd3f232c3c5ce4d98289167ee830a7aca"
-behavior_unverified: 2
+covered_digest: "v2:sha256:818d57c143fbeaa5a6873fe1d7221af4a6633db6ec6f3455f05ec31512de6222"
+behavior_unverified: 3
 overrides_applied: 0
+re_verification:
+  previous_status: human_needed
+  previous_score: 45/49
+  gaps_closed:
+    - "G-01-2 / CR-01: group SIGINT to the rust-mode launcher exits 0 with no failure report (plan 01-07)"
+    - "G-01-3 / WR-02: scheduler watchdog cannot miss an early-killed launcher (plan 01-08, Mac-verifiable part)"
+    - "01-01 package-approval ordering: human-attested in 01-UAT.md test 5 (pass)"
+    - "01-03 judgment-tier prohibition: human-confirmed in 01-UAT.md test 4 (pass)"
+  gaps_remaining: []
+  regressions: []
 behavior_unverified_items:
   - truth: "ROADMAP SC2 (GPU half): on the GPU machine --frontend python serves a chat completion through the unmodified Python frontend, and --frontend rust starts the same real backend plus rsg-server"
     test: "On the Linux GPU box run `bash scripts/gpu_phase1_check.sh` (steps 1-3)"
@@ -65,230 +80,215 @@ behavior_unverified_items:
     test: "Same run, step 3 output line and step 5"
     expected: "'handshake received' line with upstream_sha=9a91cfa..., max_running_req=256, num_pages>1, max_seq_len in 1..40960, page_size 1 or 64, eos_token_id=151645 for Qwen3-0.6B; step 5 check_upstream.py PASS"
     why_human: "extract_handshake reads scheduler.engine.max_seq_len / engine.num_pages / cache_manager.page_size / eos_token_id; attribute names were checked against upstream source, but the real values only exist after a CUDA engine init"
+  - truth: "01-08: on Linux start_parent_watchdog arms prctl(PR_SET_PDEATHSIG, SIGKILL) first (raises OSError if prctl fails), then does the getppid re-check"
+    test: "On a Linux box run `.venv/bin/python -m pytest python/tests/test_parent_watchdog.py -k pdeathsig` and `bash scripts/gpu_phase1_check.sh` steps 4 and 4b"
+    expected: "test_linux_arms_pdeathsig_sigkill passes (PR_GET_PDEATHSIG == 9); step 4b PASS (no rsg-server or scheduler left, and not listed by nvidia-smi, after kill -9 of the launcher right after 'spawned scheduler rank=0')"
+    why_human: "The prctl branch is guarded by sys.platform.startswith('linux'); on this macOS machine that branch never executes and its unit test is skipped. The portable half (immediate getppid re-check plus polling thread) is proven by test and by mutation (below)"
 human_verification:
-  - test: "Run `bash scripts/gpu_phase1_check.sh` on the Linux GPU box (after `uv venv --python=3.12 && uv pip install -e vendor/mini-sglang && uv pip install -e .`, build-essential present)"
-    expected: "ALL PASS: step 1 release build, step 2 python-mode chat completion, step 3 real handshake values, step 4 no orphan after kill -9 of the launcher, step 5 check_upstream.py"
-    why_human: "ROADMAP criteria 2 and 3 are GPU-only; this script is the planned end-of-phase human check (01-05 Task 3, WINDOWS.md entry 1)"
-  - test: "Decide the disposition of code-review finding CR-01 (group SIGINT / Ctrl-C makes the rust-mode launcher exit 1 with a failure report)"
-    expected: "Either fix now (re-check stop_requested right after each ready_queue.get and before scanning children, plus an e2e test that SIGINTs the launcher's process group and asserts exit 0) or mark it deferred in 01-REVIEW-DISPOSITION.md with a target phase"
-    why_human: "Reproduced by the verifier (exit 1, 'rsg-server exited with code 0', failure tail printed; children and sockets were still cleaned up). It violates no Phase 1 must-have, but it will mislabel every interactive or harness-driven stop as a failure from Phase 3 onward"
-  - test: "Decide the disposition of WR-02 (parent watchdog records getppid() only after the spawned child has booted and unpickled ServerArgs)"
-    expected: "Either pass the launcher pid explicitly (plus PR_SET_PDEATHSIG on Linux) or accept/defer it in 01-REVIEW-DISPOSITION.md"
-    why_human: "01-05 truth 'SIGKILL of the launcher alone leaves no orphan' is proven by test only after ready; a kill -9 during the first seconds of scheduler boot can leave a GPU-holding orphan. Narrow window, judgment call on timing"
-  - test: "Review the judgment-tier prohibition from 01-03: rust mode runs the byte-identical upstream Scheduler and the handshake is not produced by patching vendored code"
-    expected: "Agree with the non-authoritative verifier verdict: holds (see Prohibitions table)"
-    why_human: "unverified-prohibition — human review recommended (judgment tier, ADR-550 D4)"
-  - test: "Confirm the 01-01 process truth: no Python package was installed before you approved the PyPI names and pins"
-    expected: "You recall approving 'approve (use appropriate virtual environemnt such as uv ...)' before the .venv was built"
-    why_human: "A past human act; nothing in the codebase can prove ordering"
+  - test: "On the Linux GPU box run `bash scripts/gpu_phase1_check.sh` (after `uv venv --python=3.12 && uv pip install -e vendor/mini-sglang && uv pip install -e .`, build-essential present). UAT test 1 is currently `blocked` because no Linux GPU is available; run it on any GPU machine (a colleague or a rented box) from a pushed branch"
+    expected: "ALL PASS: step 1 release build, step 2 python-mode chat completion, step 3 real handshake values, step 4 no orphan after kill -9 of the launcher, step 4b no orphan after an early kill -9 during scheduler boot, step 5 check_upstream.py"
+    why_human: "ROADMAP criteria 2 and 3 and the Linux-only PR_SET_PDEATHSIG branch need CUDA, nvidia-smi and Linux"
+  - test: "Run the Linux-only unit test: `pytest python/tests/test_parent_watchdog.py::test_linux_arms_pdeathsig_sigkill` on any Linux machine (no GPU needed)"
+    expected: "1 passed (PR_GET_PDEATHSIG reports SIGKILL = 9)"
+    why_human: "Skipped on macOS by design"
+  - test: "Triage the five open warnings from the incremental review (WR-06 prctl failure is fatal and posts no error envelope; WR-07 gpu_pids/SIGPIPE can false-PASS the GPU orphan check; WR-08 0.5 s start_session race; WR-09 weak assertion in test_exits_at_once_...; WR-10 setpgid under wrappers) and record fixed/deferred in 01-REVIEW-DISPOSITION.md. Also decide WR-01 and WR-04 from the earlier review"
+    expected: "Each is marked fixed or deferred with a target phase. WR-07 and WR-08 matter before the GPU run, since they can make the GPU script report a wrong verdict"
+    why_human: "Policy call; none defeats a Phase 1 must-have (see Anti-Patterns)"
 ---
 
 # Phase 1: Vendored Base & Wire Codec Verification Report
 
 **Phase Goal:** The repo holds a pinned, attributed copy of mini-sglang. One launch command runs the shared backend with either frontend, and the backend reports a readiness handshake. The Rust msgpack codec is byte-exact with upstream for all 7 message types.
-**Verified:** 2026-10-04T04:51:24Z
+**Verified:** 2026-10-04T08:00:00Z
 **Status:** human_needed
-**Re-verification:** No (initial verification)
+**Re-verification:** Yes. After gap closure plans 01-07 (G-01-2 / CR-01) and 01-08 (G-01-3 / WR-02).
 
 ## Goal Achievement
 
-Everything that can be checked on the Mac holds. I checked it myself instead of trusting the summaries. The remaining items are the GPU run, which was always planned as a human step, two code-review findings that need a decision, and two human-attested items. None of the 15 review findings makes a must-have false. CR-01 is real (I reproduced it), but no Phase 1 truth covers it.
+Everything that can run on the Mac holds, and both UAT gaps are closed in code and tests. I re-ran the phase gate and then mutation-checked the two new regression suites, so the green results are not just the tests agreeing with themselves. What remains is the GPU/Linux run that was always a human step, plus triage of five advisory review warnings. No must-have is FAILED.
+
+### Re-verification of the two UAT gaps
+
+**G-01-2 / CR-01 (group SIGINT exits 0): CLOSED.**
+- Code: `python/rsglang/launch.py` re-checks `stop_requested` after every `ready_queue.get` in both loops (ready-wait lines ~238-243, supervise lines ~278-281). It also re-checks before each child-state-driven `shutdown(1)`: the children scan in both loops, and the handshake `BrokenPipeError` branch. The error-envelope branches run after the post-get check. `shutdown()` still sends its group SIGINT unchanged (WR-05 stays separate, as the plan required).
+- Tests: `test_group_sigint_after_ready_exits_0`, `..._while_scheduler_boots_exits_0` and `..._while_scheduler_hangs_exits_0` each call `os.killpg(run.proc.pid, SIGINT)`. They assert exit 0, `rsglang.launch: exit code 0`, none of "exited with code" / "failed" / "lines of rsg-server stderr" / "escalating to SIGKILL", children gone and the five sockets removed.
+- Mutation check (mine): I swapped in the pre-fix `launch.py` from commit c69a4f3, with only the `os.getpid()` spawn argument added so it still runs. All 3 group-SIGINT tests failed. I restored the file and confirmed byte equality with `diff`. The tests do discriminate the bug.
+- Failure paths are not regressed: the crash-before-ready, ready-timeout, crash-after-ready and rsg-server-death tests still assert non-zero exit and a printed cause. All pass.
+
+**G-01-3 / WR-02 (launcher killed early leaves no orphan): CLOSED for everything checkable on a Mac; the Linux prctl branch is human-verification.**
+- Code: `launch.py` passes `os.getpid()` as the 4th `mp.Process` argument. `backend.run_scheduler(args, ready_queue, upstream_sha, launcher_pid)` calls `start_parent_watchdog(launcher_pid)` as its first statement. The watchdog arms PDEATHSIG on Linux, then does an immediate `os.getppid() != launcher_pid` check followed by `os._exit(1)`, then starts a polling thread that compares against `launcher_pid`. No getppid value is read late any more.
+- Tests: `test_launcher_sigkill_during_scheduler_boot_leaves_no_orphans` widens the boot window with a test-only `sitecustomize`, kills the launcher pid right after "spawned scheduler rank=0", and asserts that both children disappear and no sockets remain. `test_parent_watchdog.py` has the wrong-parent-exits-1 test, the right-parent-stays-alive test and a Linux-only PDEATHSIG test (skipped here).
+- Mutation check (mine): I changed the watchdog to read `os.getppid()` at call time again, which is the old bug. The early-kill e2e test failed with "scheduler pid=26687 orphaned", and the wrong-parent unit test failed with a timeout. I restored the file and confirmed byte equality. The window is real and the tests catch it. I also killed the stray scheduler this mutation left behind.
+- Not provable here: the `prctl(PR_SET_PDEATHSIG)` branch. It is `sys.platform.startswith("linux")`-gated, and its test is skipped on macOS. This is the third behavior-unverified item, and the Linux GPU script has the matching step 4b.
 
 ### Observable Truths: ROADMAP Success Criteria (the contract)
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| SC1 | Repo contains mini-sglang @ 9a91cfa with MIT LICENSE + copyright; UPSTREAM.md names the commit and lists every modified vendored file | ✓ VERIFIED | `git rev-parse HEAD:vendor/mini-sglang` = `git write-tree --prefix=vendor/mini-sglang/` = `02d3e4ad…`. I ran `scripts/check_upstream.py` online: it cloned github.com/sgl-project/mini-sglang, checked the root tree of 9a91cfa against KNOWN_TREES, `git archive`d it, and compared 121 paths, with 0 listed modifications. LICENSE reads "Copyright (c) 2026 sgl-project". UPSTREAM.md has the full SHA and an empty `## Modified files` table, which is correct because 0 files differ. |
-| SC2 | On GPU, `--frontend python` serves a chat completion via the unmodified frontend; `--frontend rust` starts the same backend plus the Rust skeleton | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Mac half verified: `test_rust_mode_handshake_reaches_rsg_server` passed when I ran it on its own (7.9 s). Python mode `execv`s `python -m minisgl <args>` (launch.py:81-88, 7 tests in test_launch_args.py), and the vendored `__main__.py` calls upstream `launch_server`. GPU half not run: `scripts/gpu_phase1_check.sh` steps 2-3. |
-| SC3 | Backend reports max_seq_len, eos_token_id, page_size, max_running_req at readiness; Rust logs them; Python frontend unchanged against same backend code | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | `backend.extract_handshake` reads `scheduler.engine.max_seq_len`, `engine.num_pages`, `cache_manager.page_size` and `eos_token_id`. I checked these names against upstream `scheduler/scheduler.py:47-70` and `engine/engine.py:55-67`. rsg-server main.rs:144-152 logs all values at "handshake received". The vendored tree is pristine, so both modes run identical backend code. Real values need the GPU run (step 3). |
-| SC4 | For each of the 7 upstream message types, Rust codec bytes equal golden fixtures from upstream's Python encoder, checked on the Mac | ✓ VERIFIED | `cargo test --workspace` passed: rsg-wire lib has 10 tests and the fixtures suite has 6. `every_fixture_roundtrips_byte_exact` and `hand_built_cases_match_fixtures` pass over 34 committed fixtures. `all_type_tags_covered` asserts a `base_` case for all 8 tags. `gen_wire_fixtures.py --check` passed: it regenerated the fixtures through the vendored `serialize_type` + `msgpack.packb(use_bin_type=True)` and byte-diffed them. |
-| SC5 | Every message the Rust codec emits decodes through upstream's real Python decoder (cls(**kwargs)) | ✓ VERIFIED | `scripts/check_wire_decode.sh`: the Rust `dump` test wrote 34 hand-built encodings, then pytest ran 37 tests. Each frame decodes through `BaseBackendMsg.decoder` / `BaseTokenizerMsg.decoder`, re-encodes to identical bytes, and equals the committed fixture. The negative control (extra key → TypeError) passes. |
+| SC1 | Repo contains mini-sglang @ 9a91cfa with MIT LICENSE + copyright; UPSTREAM.md names the commit and lists every modified vendored file | ✓ VERIFIED | `check_upstream.py --offline` in this run: "tree 02d3e4ad… matches pristine 9a91cfa, 0 listed modifications". `git status` shows no changes under `vendor/`. The prior online check cloned GitHub and compared 121 paths. |
+| SC2 | On GPU, `--frontend python` serves a chat completion via the unmodified frontend; `--frontend rust` starts the same backend plus the Rust skeleton | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Mac half verified: the rust-mode tracer e2e passed in this run. Python mode `execv`s `python -m minisgl` (7 tests in test_launch_args.py). GPU half needs `scripts/gpu_phase1_check.sh` steps 2-3. |
+| SC3 | Backend reports max_seq_len, eos_token_id, page_size, max_running_req at readiness; Rust logs them; Python frontend unchanged against same backend code | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | `extract_handshake` reads the engine and cache_manager attributes (names checked against upstream source in the first verification); rsg-server logs all values. The vendored tree is pristine, so both modes run the same backend code. Real values need a CUDA engine init. |
+| SC4 | For each of the 7 upstream message types, Rust codec bytes equal golden fixtures from upstream's Python encoder, checked on the Mac | ✓ VERIFIED | In this run's `cargo test --workspace`, rsg-wire passed 10 lib tests and 6 fixture tests. `gen_wire_fixtures.py --check` passed (fixtures regenerate byte-identically through the vendored `serialize_type`). |
+| SC5 | Every message the Rust codec emits decodes through upstream's real Python decoder (cls(**kwargs)) | ✓ VERIFIED | `check_wire_decode.sh`: Rust dump test passed, then 37 pytest tests passed, including the extra-key negative control. |
 
-### Observable Truths: PLAN must_haves (merged, grouped by plan)
+### Observable Truths: PLAN must_haves
 
-| Plan | Truth (abridged) | Status | Evidence |
-|------|------------------|--------|----------|
-| 01-01 | vendor tree = upstream root tree 02d3e4ad | ✓ VERIFIED | write-tree and online check_upstream (above) |
-| 01-01 | whole repo vendored; tests/core/test_scheduler.py, benchmark/online/bench_simple.py exist; .dockerignore symlink | ✓ VERIFIED | `ls` and `ls -la` (symlink → .gitignore) |
-| 01-01 | LICENSE is upstream MIT with copyright | ✓ VERIFIED | `head vendor/mini-sglang/LICENSE` |
-| 01-01 | UPSTREAM.md names URL + full SHA + parseable empty table | ✓ VERIFIED | file read; check_upstream parses it (a parse error would exit 1) |
-| 01-01 | No package installed before human approval | ? UNCERTAIN | Past human act, recorded only in 01-01-SUMMARY. Listed as a human item. |
-| 01-01 | .venv (3.12) imports minisgl.{message,core,utils,scheduler,server.args}, rsglang, no CUDA pkgs, minisgl resolves to vendored tree | ✓ VERIFIED | Python 3.12.12. `minisgl.__path__` = vendor/mini-sglang/python/minisgl (namespace pkg), also from cwd=/tmp. flashinfer/sgl_kernel absent. |
-| 01-02 | rsg-server takes the 6 CLI flags and binds/connects per role | ✓ VERIFIED | main.rs:28-47, 119-135; transport tests (3) passed |
-| 01-02 | reads one JSON line, logs "handshake received" with all 6 values | ✓ VERIFIED | main.rs:140-152; cli tests (9) passed |
-| 01-02 | exit 2 on SHA mismatch (both SHAs), malformed JSON, unknown fields, version≠1 | ✓ VERIFIED | handshake.rs (deny_unknown_fields, version and SHA checks); 8 unit tests and the cli tests passed. See WR-04 under Anti-Patterns: a *missing* eos key is accepted. |
-| 01-02 | exit 3 on stdin EOF before/after handshake | ✓ VERIFIED | main.rs:159-166, 177-184; cli tests |
-| 01-02 | exit 0 on SIGINT/SIGTERM; never sends on backend socket | ✓ VERIFIED | main.rs:90-93, 127-129 (`_transport` never used to send); cli tests |
-| 01-02 | vendor/UPSTREAM_SHA single source, compiled in | ✓ VERIFIED | include_str! in handshake.rs:16 and lib.rs:27; `sha_single_source`, `expected_sha_is_vendor_file` pass |
-| 01-03 | Mac e2e: launcher + FakeScheduler + rsg-server logs 4096/151645/16/8/1024/SHA | ✓ VERIFIED | Ran the single named e2e test; it passed |
-| 01-03 | rsg-server spawned first and "awaiting handshake" before "handshake sent" (D-10) | ✓ VERIFIED | launch.py:143-170; e2e asserts the index ordering |
-| 01-03 | Rust binds _1; scheduler connects with upstream ZmqPushQueue; ZMQ_IMMEDIATE probe sees the peer (D-07) | ✓ VERIFIED | sockets.py:39-46; fake_scheduler.py:55-82; e2e asserts the `detok_peer_connected` marker |
-| 01-03 | suffix `.rsg=<pid>`; only this run's 5 sockets unlinked at start/exit | ✓ VERIFIED | launch.py:107-112, 125, 211; test_topology decoy test; no `/tmp/minisgl_*` left after my CR-01 repro |
-| 01-03 | SIGTERM to launcher exits 0, no children left | ✓ VERIFIED | e2e test asserts `wait()==0`, children dead, sockets gone |
-| 01-03 | `--frontend python` execs `python -m minisgl` with upstream args unchanged, launcher flags removed | ✓ VERIFIED | launch.py:81-88, 278-282; test_launch_args (7) passed |
-| 01-04 | "7 types" pinned to the 7 cls(**kwargs) classes; standalone base_ case for all 8 tags | ✓ VERIFIED | WIRE_TYPE_TAGS; manifest type_tags; `all_type_tags_covered`. See the interpretation note below. |
-| 01-04 | decode→encode and hand-built encode both equal fixture bytes for every case | ✓ VERIFIED | fixtures.rs tests passed |
-| 01-04 | fixtures generated by upstream serialize_type on the Mac; `--check` regenerates and byte-diffs | ✓ VERIFIED | gen_wire_fixtures.py pins sys.path to vendored tree (exits 2 otherwise); `--check` passed in check_all |
-| 01-04 | UPSTREAM_SHA == manifest == vendor file | ✓ VERIFIED | `sha_single_source` passed; manifest upstream_sha = 9a91cfa… |
-| 01-04 | integer and bin8/16/32 width boundaries byte-identical | ✓ VERIFIED | 34 cases include uid 127/128/255/256/65535/65536/2^32, top_k -1/-32/-33/-128/-129, tensor 63/64/16383/16384 |
-| 01-04 | ExitMsg = 81a85f…; 1-entry batch and 1-token tensor match | ✓ VERIFIED | base_exit_msg, base_batch_tokenizer_msg, tensor_len_1 fixtures; lib known-answer tests |
-| 01-04 | whole-frame byte equality: str keys, float64, bin buffer, 'torch.int32' | ✓ VERIFIED | lib.rs types (f64, serde_bytes, TENSOR_DTYPE_INT32); float fixtures pass |
-| 01-04 | `__type__` first, then dataclass field order; batch order kept | ✓ VERIFIED | Byte equality implies key order; `test_batch_decode_keeps_element_order` passed |
-| 01-05 | rust_endpoints roles with real parse_args (bind for num_tokenizer 0, connect for 2) | ✓ VERIFIED | test_topology.py passed in the full pytest run (59 passed) |
-| 01-05 | extract_handshake uses cache_manager.page_size / engine.max_seq_len; contract bytes; eos None → null | ✓ VERIFIED | backend.py:38-51; test_handshake.py passed |
-| 01-05 | scheduler crash before ready → traceback, killpg, non-zero, rsg-server gone | ✓ VERIFIED | `test_scheduler_crash_before_ready` passed |
-| 01-05 | never-ready → "backend not ready after <t> s", non-zero, all children gone | ✓ VERIFIED | `test_ready_timeout` passed |
-| 01-05 | rsg-server dies after handshake → stderr tail, stop scheduler, non-zero | ✓ VERIFIED | `test_rsg_server_death_triggers_shutdown` passed |
-| 01-05 | SIGKILL of the launcher leaves no orphan (stdin EOF + watchdog ≤20 s) | ✓ VERIFIED (post-ready path) | `test_launcher_sigkill_leaves_no_orphans` passed. Caveat WR-02: if the launcher is killed during the child's spawn bootstrap, before `start_parent_watchdog` reads getppid, the scheduler can be orphaned. Listed as a human decision. |
-| 01-05 | unlink_run_sockets leaves another suffix's file untouched | ✓ VERIFIED | test_topology decoy test |
-| 01-05 | gpu_phase1_check.sh automates GPU checks for SC2/SC3 and is signed off by a human | ? UNCERTAIN | The script is substantive: 5 steps, grep-based field checks, setsid/SIG_DFL handling. Sign-off is pending (human item 1). |
-| 01-06 | check_upstream diffs vs pristine; fails on unlisted differing/added/removed | ✓ VERIFIED | test_check_upstream (24) passed; online run OK |
-| 01-06 | Tier A/C never; Tier B only with "yes" | ✓ VERIFIED | tier tests passed |
-| 01-06 | modified = bytes/symlink-ness/target/exec bit | ✓ VERIFIED | symlink-replacement and exec-bit tests passed |
-| 01-06 | empty table parses to 0 entries; missing header is a parse failure; STALE_LISTING | ✓ VERIFIED | parse-error and stale tests passed |
-| 01-06 | violations sorted by path | ✓ VERIFIED | `test_violations_print_sorted_by_path` |
-| 01-06 | (backstop) never writes under vendor/; per-run temp dir; interrupted/concurrent run leaves vendored tree unchanged | ✓ VERIFIED | `test_check_never_writes_under_vendor` passed. I also observed the behavior directly: two concurrent online runs plus a third, then three runs killed with SIGTERM at 0.3/0.7/1.2 s. `git status --porcelain --ignored vendor/` was unchanged and the tree was still 02d3e4ad. (The killed runs left their `check_upstream-*` temp dirs in $TMPDIR. I removed them; see Info.) |
-| 01-06 | every Rust-emitted case decodes via upstream decoder and re-encodes identically | ✓ VERIFIED | check_wire_decode.sh: 37 passed |
-| 01-06 | boundary cases, empty ExitMsg and 1-entry batches round-trip; batch order kept | ✓ VERIFIED | parametrized over all 34 cases |
-| 01-06 | upstream decoder rejects extra key (negative control) | ✓ VERIFIED | `test_upstream_decoder_rejects_extra_key` |
-| 01-06 | check_wire_decode.sh one command; check_all.sh runs all 5 steps | ✓ VERIFIED | I ran `bash scripts/check_all.sh` (online): exit 0, "check_all: OK" |
+Plans 01-01 to 01-06 are unchanged since the first verification. I re-ran the gate that exercises them, so their statuses stand, with three updates marked below. The full per-truth evidence for them is in the first report; summary here:
 
-**Score:** 45/49 truths verified (5 roadmap + 44 plan). 2 are present but behavior-unverified (SC2 and SC3 GPU halves). 2 are UNCERTAIN and attested by a human (01-01 approval ordering, 01-05 GPU sign-off).
+| Plan | Truths | Status | Evidence |
+|------|--------|--------|----------|
+| 01-01 (vendoring, env) | 8 | ✓ 8 VERIFIED | The package-approval-ordering truth moved from ? UNCERTAIN to VERIFIED: the user confirmed it in 01-UAT.md test 5 (pass). Tree hash, LICENSE, UPSTREAM.md, .venv imports unchanged. |
+| 01-02 (rsg-server) | 7 | ✓ 7 VERIFIED | `cargo test --workspace`: rsg-server 11 + 9 tests pass |
+| 01-03 (launcher, e2e) | 7 | ✓ 7 VERIFIED | e2e and topology tests pass in the 65-passed pytest run |
+| 01-04 (codec, fixtures) | 9 | ✓ 9 VERIFIED | fixtures suite; `--check` fresh |
+| 01-05 (failure contract, GPU script) | 7 | ✓ 6 VERIFIED, ? 1 UNCERTAIN | "SIGKILL of the launcher leaves no orphan" is now verified without the old caveat (see 01-08). The truth that the GPU script is signed off by a human is still pending: UAT test 1 is `blocked` (no Linux GPU). |
+| 01-06 (check_upstream, WIRE-02) | 11 | ✓ 11 VERIFIED | check_upstream tests, decode tests |
+| 01-07 (CR-01, G-01-2) | 6 | ✓ 6 VERIFIED | Details below |
+| 01-08 (WR-02, G-01-3) | 7 | ✓ 6 VERIFIED, ⚠️ 1 PRESENT_BEHAVIOR_UNVERIFIED | Details below |
 
-**Interpretation note (SC4, "7 message types"):** upstream `message/*.py` defines 10 concrete classes. The phase pins "7" to the 6 scheduler-boundary messages plus `SamplingParams` (RESEARCH A1), and the fixtures also cover `Tensor`. `TokenizeMsg`, `AbortMsg`, `UserReply` and `BatchFrontendMsg` are internal to the Python frontend that rsg-server replaces, and Rust never puts them on a wire, so I accept this reading. If "7" was meant as the 7 non-batch classes across all modules (UserMsg, AbortBackendMsg, ExitMsg, DetokenizeMsg, TokenizeMsg, AbortMsg, UserReply), then three of them have no fixtures. Both the project's CLAUDE.md wire table and the architecture support the boundary reading.
+**01-07 truths**
+
+| Truth | Status | Evidence |
+|-------|--------|----------|
+| Group SIGINT after "handshake sent" exits 0 with a clean report | ✓ VERIFIED | `test_group_sigint_after_ready_exits_0` passed; fails against the pre-fix launcher (mutation) |
+| Group SIGINT while the scheduler boots exits 0 (children-scan branch) | ✓ VERIFIED | `..._while_scheduler_boots_exits_0` passed; fails on mutation |
+| Group SIGINT while the scheduler hangs pre-ready exits 0 (error-envelope branch) | ✓ VERIFIED | `..._while_scheduler_hangs_exits_0` passed; fails on mutation. `hang_entered` marker exists in fake_scheduler.py and is used by the test. |
+| stop_requested re-checked after every get and before each child-state shutdown(1) (both loops, BrokenPipe branch) | ✓ VERIFIED | Read in launch.py (see above) |
+| Real failures still reported; pid-only SIGTERM tracer still exits 0 | ✓ VERIFIED | The 4 failure tests and the tracer passed in the gate and in my 12-test re-run |
+| 01-REVIEW-DISPOSITION.md records CR-01 fixed | ✓ VERIFIED | Row `CR-01 | critical | fixed` present |
+
+**01-08 truths**
+
+| Truth | Status | Evidence |
+|-------|--------|----------|
+| kill -9 of the launcher during scheduler boot leaves no scheduler | ✓ VERIFIED | `test_launcher_sigkill_during_scheduler_boot_leaves_no_orphans` passed; fails on mutation (orphaned) |
+| Launcher passes `os.getpid()` to every rank; watchdog compares against it | ✓ VERIFIED | launch.py `args=(rank_args, ready_queue, upstream_sha, os.getpid())`; backend.py `_watch` compares `os.getppid() != launcher_pid` |
+| `start_parent_watchdog(launcher_pid)` exits 1 at once on the wrong parent, stays alive on the right one | ✓ VERIFIED | Both unit tests passed; the wrong-parent test fails on mutation |
+| Linux: PDEATHSIG armed first, OSError on prctl failure, then getppid re-check; polling stays | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Code present and ordered correctly (backend.py). Branch is not executable on macOS and its test is skipped. Human item. |
+| Post-handshake kill -9 test and all other e2e tests, including the group-SIGINT tests, still pass | ✓ VERIFIED | `test_launcher_sigkill_leaves_no_orphans` passed. e2e + watchdog files: 12 passed, 1 skipped. |
+| `gpu_phase1_check.sh` has early-kill step 4b | ✓ VERIFIED (exists, substantive) | Lines 239-281: waits for 'spawned scheduler rank=0', refuses if "backend ready" already appeared, `kill -9` of the launcher, checks ps and nvidia-smi for both pids. Not executed (no GPU). |
+| Disposition records WR-02 fixed | ✓ VERIFIED | Row `WR-02 | warning | fixed` present |
+
+**Score:** 58/62 verified (5 roadmap + 57 plan truths). 3 are present but behavior-unverified (SC2, SC3, and the Linux PDEATHSIG branch). 1 is UNCERTAIN: the pending human sign-off of the GPU script (UAT test 1).
+
+**Interpretation note (SC4, "7 message types"):** unchanged from the first verification. "7" is read as the 6 scheduler-boundary messages plus `SamplingParams`, with `Tensor` also covered. `TokenizeMsg`, `AbortMsg`, `UserReply` and `BatchFrontendMsg` are internal to the Python frontend that rsg-server replaces and never cross the wire from Rust.
 
 ### Prohibitions
 
 | Plan | Prohibition | Tier | Disposition |
 |------|-------------|------|-------------|
-| 01-01 | Vendored LICENSE / copyright never removed or altered | test | ✓ VERIFIED. Enforcement is wired: LICENSE is in TIER_A, and the `LICENSE_MISSING` check is in check_upstream.py:287-290. `test_license_attribution_removed_fails` passes. |
-| 01-06 | Tier A frozen frontend never modified, even when listed | test | ✓ VERIFIED. `test_tier_a_edit_fails_even_when_listed` and `test_tier_a_directory_edit_fails` pass. The online check is clean. |
-| 01-03 | Rust mode runs the byte-identical upstream Scheduler; the handshake is not produced by patching vendored code | judgment | Non-authoritative LLM verdict: holds. `DEFAULT_SCHEDULER_FACTORY = "minisgl.scheduler:Scheduler"`. The handshake is read in `python/rsglang/backend.py`, which is outside vendor/. The vendored tree is pristine. **unverified-prohibition — human review recommended.** One note: the `RSGLANG_SCHEDULER_FACTORY` env seam can swap the class. The GPU script does not set it. |
+| 01-01 | Vendored LICENSE / copyright never removed or altered | test | ✓ VERIFIED. Enforced by the `LICENSE_MISSING` check and its test. |
+| 01-06 | Tier A frozen frontend never modified | test | ✓ VERIFIED. Tier A tests pass; the offline check is clean. |
+| 01-03 | Rust mode runs the byte-identical upstream Scheduler; the handshake is not produced by patching vendored code | judgment | Resolved by a human: UAT test 4 recorded `pass`. My own verdict agrees (default factory `minisgl.scheduler:Scheduler`, handshake read in `python/rsglang/backend.py`, vendored tree pristine). |
 
 ### Required Artifacts
 
 | Artifact | Status | Details |
 |----------|--------|---------|
-| vendor/mini-sglang/ (+LICENSE) | ✓ VERIFIED | pristine tree, 121 paths |
-| UPSTREAM.md | ✓ VERIFIED | SHA, tiers, table header exact |
-| vendor/UPSTREAM_SHA | ✓ VERIFIED | 9a91cfafe754aa85daee49998176275667eb58f2 |
-| Cargo.toml / rust-toolchain.toml | ✓ VERIFIED | workspace builds and tests on 1.99.0 |
-| pyproject.toml / requirements-mac.{in,txt} / scripts/bootstrap_mac_env.sh | ✓ VERIFIED | .venv works; pytest never collects vendor/ |
-| crates/rsg-server/src/{main,handshake,transport}.rs + tests/cli.rs | ✓ VERIFIED | substantive, wired, 20 tests pass |
-| crates/rsg-wire/src/lib.rs + tests/{fixtures,dump,common} | ✓ VERIFIED | substantive; 17 tests pass |
-| fixtures/wire/*.msgpack + manifest.json | ✓ VERIFIED | 34 cases, fresh per `--check` |
-| python/rsglang/{launch,backend,handshake,sockets}.py, testing/fake_scheduler.py | ✓ VERIFIED | wired. launch → backend.run_scheduler and encode_handshake_line; backend → minisgl.scheduler:Scheduler |
-| scripts/{gen_wire_fixtures,check_upstream}.py, check_wire_decode.sh, check_all.sh | ✓ VERIFIED | all run green |
-| scripts/gpu_phase1_check.sh | ✓ VERIFIED (exists, substantive) | not executed (no GPU) |
+| vendor/mini-sglang/ (+LICENSE), UPSTREAM.md, vendor/UPSTREAM_SHA | ✓ VERIFIED | pristine tree, SHA single-sourced |
+| Cargo.toml, rust-toolchain.toml, crates/rsg-server/*, crates/rsg-wire/* | ✓ VERIFIED | cargo gate green |
+| fixtures/wire/*.msgpack + manifest.json | ✓ VERIFIED | 34 cases, fresh |
+| python/rsglang/{launch,backend,handshake,sockets}.py, testing/fake_scheduler.py | ✓ VERIFIED | substantive and wired; launch → backend.run_scheduler(…, os.getpid()) → start_parent_watchdog(launcher_pid) |
+| python/tests/test_launch_rust_e2e.py, test_parent_watchdog.py | ✓ VERIFIED | new tests present, run, and fail under mutation |
+| scripts/{gen_wire_fixtures,check_upstream}.py, check_wire_decode.sh, check_all.sh | ✓ VERIFIED | gate green |
+| scripts/gpu_phase1_check.sh (incl. step 4b) | ✓ VERIFIED (exists, substantive) | not executed (no GPU) |
 
 ### Key Link Verification
 
 | From | To | Via | Status |
 |------|----|-----|--------|
-| launch.py | backend.run_scheduler | `mp.Process(target=backend.run_scheduler, ...)` (launch.py:162-164) | ✓ WIRED |
-| launch.py | rsg-server | `subprocess.Popen` with `rust_cli_args`, `stdin.write(encode_handshake_line(payload))` (launch.py:144-149, 254) | ✓ WIRED |
+| launch.py | backend.run_scheduler | `mp.Process(target=backend.run_scheduler, args=(rank_args, ready_queue, upstream_sha, os.getpid()))` | ✓ WIRED |
+| backend.run_scheduler | start_parent_watchdog | first statement, `start_parent_watchdog(launcher_pid)` | ✓ WIRED |
+| launch.py `_request_stop` | `shutdown(0)` | `stop_requested` re-checked after each get and before each child-driven `shutdown(1)` | ✓ WIRED |
+| launch.py | rsg-server | `subprocess.Popen` + `encode_handshake_line` on stdin | ✓ WIRED |
 | backend.py | upstream Scheduler | `DEFAULT_SCHEDULER_FACTORY = "minisgl.scheduler:Scheduler"` | ✓ WIRED |
-| sockets.py | upstream ServerArgs | `backend_create_detokenizer_link`, `zmq_*_addr` | ✓ WIRED |
-| rsg-server main.rs | handshake.rs / transport.rs | `parse_handshake(..., EXPECTED_UPSTREAM_SHA)`, `ZmqTransport::open` | ✓ WIRED |
-| handshake.rs, lib.rs | vendor/UPSTREAM_SHA | `include_str!("../../../vendor/UPSTREAM_SHA")` | ✓ WIRED |
-| gen_wire_fixtures.py | upstream message/utils.py | `msgpack.packb(serialize_type(obj), use_bin_type=True)` | ✓ WIRED |
-| tests/fixtures.rs | manifest.json | `common::manifest()` cases | ✓ WIRED |
-| check_wire_decode.sh | tests/dump.rs | `DUMP_DIR=… cargo test -p rsg-wire --test dump` | ✓ WIRED |
-| test_wire_decode.py | upstream decoders | `BaseBackendMsg.decoder` / `BaseTokenizerMsg.decoder` | ✓ WIRED |
-| check_all.sh | check_upstream.py, gen_wire_fixtures --check | steps 3 and 5 | ✓ WIRED |
-| gpu_phase1_check.sh | rsglang.launch | steps 2 and 3 | ✓ WIRED |
+| rsg-server | vendor/UPSTREAM_SHA | `include_str!` | ✓ WIRED |
+| gen_wire_fixtures.py | upstream `serialize_type` | `msgpack.packb(serialize_type(obj), use_bin_type=True)` | ✓ WIRED |
+| check_wire_decode.sh | tests/dump.rs → test_wire_decode.py | dump dir → pytest | ✓ WIRED |
+| gpu_phase1_check.sh step 4b | `rsglang.launch --frontend rust` | `start_session`, polls log for 'spawned scheduler rank=0', `kill -9` | ✓ WIRED |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data | Source | Real data | Status |
 |----------|------|--------|-----------|--------|
-| rsg-server "handshake received" log | max_seq_len, eos, page_size, max_running_req, num_pages, sha | stdin line ← launcher ← ready_queue ← `extract_handshake(scheduler, …)` ← constructed scheduler object | Mac: FakeScheduler constants. GPU: real engine attributes (names checked against upstream) | ✓ FLOWING on Mac; GPU pending |
+| rsg-server "handshake received" log | max_seq_len, eos, page_size, max_running_req, num_pages, sha | stdin ← launcher ← ready_queue ← `extract_handshake(scheduler, …)` | Mac: FakeScheduler constants; GPU: real engine attributes | ✓ FLOWING on Mac; GPU pending |
 | Golden fixtures | msgpack bytes | vendored upstream `serialize_type` | yes (`--check` regenerates) | ✓ FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Phase gate (single full run) | `bash scripts/check_all.sh` (online) | exit 0. Cargo: 11+9+10+1+6 passed. Pytest: 59 passed, 36 skipped (dump-dependent; run in step 4). Fixtures fresh. Decode: 37 passed. check_upstream: 121 paths OK | ✓ PASS |
-| Rust-mode tracer | `pytest python/tests/test_launch_rust_e2e.py::test_rust_mode_handshake_reaches_rsg_server` | 1 passed in 7.93 s | ✓ PASS |
-| check_upstream under concurrency / interruption | 3 concurrent online runs, 3 SIGTERM-interrupted runs | vendor/ status and tree hash unchanged | ✓ PASS |
-| CR-01 reproduction (Ctrl-C to the group) | `os.killpg(launcher, SIGINT)` after "handshake sent" (FakeScheduler) | `rsg-server exited with code 0` → failure tail → `exit code 1`. No leftover processes or sockets | ✗ confirms CR-01 (no must-have covers it; see below) |
-| GPU checks | `scripts/gpu_phase1_check.sh` | not run (Mac, no CUDA) | ? SKIP → human |
+| Phase gate, single full run | `bash scripts/check_all.sh --offline` | exit 0. Cargo: 11+9+10+1+6 passed. Pytest: 65 passed, 37 skipped (dump-dependent plus the Linux-only test; the dump-dependent ones run in step 4). Fixtures fresh. Decode: 37 passed. check_upstream: tree matches 9a91cfa | ✓ PASS |
+| Gap-closure suites, re-run after mutation restore | `pytest python/tests/test_launch_rust_e2e.py python/tests/test_parent_watchdog.py` | 12 passed, 1 skipped (Linux PDEATHSIG) in 50 s | ✓ PASS |
+| Mutation: pre-fix CR-01 launcher | the 3 group-SIGINT tests | 3 failed | ✓ tests discriminate |
+| Mutation: old late-getppid watchdog | early-kill e2e + wrong-parent unit test | both failed (orphaned; timeout) | ✓ tests discriminate |
+| Restoration check | `diff` of launch.py and backend.py against saved copies; `git status` for vendor, python, scripts, crates | identical; clean | ✓ no stray edits |
+| GPU / Linux checks | `scripts/gpu_phase1_check.sh`, PDEATHSIG unit test | not run (macOS, no CUDA) | ? SKIP → human |
 
 ### Probe Execution
 
-No `scripts/*/tests/probe-*.sh` exists, and no plan declares one. Step 7c: N/A.
+No `scripts/*/tests/probe-*.sh` exists and no plan declares one. Step 7c: N/A.
 
 ### Requirements Coverage
 
 | Requirement | Source Plan(s) | Description | Status | Evidence |
 |-------------|----------------|-------------|--------|----------|
-| BASE-01 | 01-01, 01-06 | vendored @ 9a91cfa with LICENSE; UPSTREAM.md records commit and modified files | ✓ SATISFIED | SC1 evidence |
-| BASE-02 | 01-02, 01-03, 01-05 | one launch command for `--frontend python` / `--frontend rust` | ✓ SATISFIED on Mac / ? NEEDS HUMAN on GPU | launcher + tests; GPU steps 2-3 |
+| BASE-01 | 01-01, 01-06 | vendored @ 9a91cfa with LICENSE; UPSTREAM.md records commit and modified files | ✓ SATISFIED | SC1 |
+| BASE-02 | 01-02, 01-03, 01-05, 01-07, 01-08 | one launch command for `--frontend python` / `--frontend rust` | ✓ SATISFIED on Mac / ? NEEDS HUMAN on GPU | launcher, tests, closed G-01-2 and G-01-3; GPU steps 2-3, 4, 4b |
 | BASE-03 | 01-02, 01-03, 01-05 | backend readiness handshake (4 values); both frontends use same backend code | ✓ SATISFIED on Mac / ? NEEDS HUMAN on GPU | e2e handshake test; GPU step 3 |
-| WIRE-01 | 01-04, 01-06 | byte-identical codec for all 7 types via golden fixtures | ✓ SATISFIED | SC4 evidence |
-| WIRE-02 | 01-06 | every Rust message decodes through the real Python decoder | ✓ SATISFIED | SC5 evidence |
+| WIRE-01 | 01-04, 01-06 | byte-identical codec for all 7 types via golden fixtures | ✓ SATISFIED | SC4 |
+| WIRE-02 | 01-06 | every Rust message decodes through the real Python decoder | ✓ SATISFIED | SC5 |
 
-No orphaned requirements. REQUIREMENTS.md maps exactly these 5 IDs to Phase 1, and every one is claimed by a plan. Note: REQUIREMENTS.md already shows BASE-02 and BASE-03 as `[x] Complete`, but their GPU halves have not been verified yet.
+No orphaned requirements: REQUIREMENTS.md maps exactly BASE-01/02/03 and WIRE-01/02 to Phase 1 (WIRE-03 and others belong to later phases), and every ID is claimed by a plan. REQUIREMENTS.md already ticks BASE-02/03 as Complete although their GPU halves are unrun. That is a tracking optimism, not a code gap.
 
 ### Anti-Patterns Found
 
-No TBD/FIXME/XXX debt markers. The only match is the `mktemp …XXXXXX` template in gpu_phase1_check.sh:55. No TODO/HACK, `todo!()` or `unimplemented!()` in phase sources.
+No TBD/FIXME/XXX debt markers in `python/rsglang`, `python/tests` or `scripts/gpu_phase1_check.sh` (the only grep hit is the `mktemp …XXXXXX` template). No TODO/HACK, `todo!()` or `unimplemented!()` in phase sources.
 
-Code-review findings, re-weighed against the must-haves:
+The incremental review (01-REVIEW.md: 0 critical, 5 warning, 4 info) is advisory. None of it makes a must-have false:
 
 | Finding | File | Severity here | Defeats a must-have? |
 |---------|------|---------------|----------------------|
-| CR-01 group SIGINT → launcher exit 1 + failure report | python/rsglang/launch.py:236-242, 264-275 | ⚠️ Warning (human decision) | No. Reproduced. The 01-03 truth covers SIGTERM to the launcher pid only, which passes. D-12 says "if any child exits … exit non-zero", which the observed behavior literally satisfies. Children and sockets are still cleaned up. It does break the D-12 intent that a stop signal exits 0, and any Phase 3+ harness that stops rust mode by group signal will see spurious failures. No later phase in ROADMAP covers it, so it cannot be deferred by roadmap. |
-| WR-01 `--shell` abbreviation bypasses the shell-mode guard | launch.py:101, 123 | ⚠️ Warning | No in Phase 1. Silently sets max_running_req=1 and would corrupt Phase 7 benchmarks. |
-| WR-02 watchdog getppid read late | backend.py:61, 75 | ⚠️ Warning (human decision) | Partially. The 01-05 no-orphan truth holds on the tested post-ready path but not during child boot. |
-| WR-03 setpgid detaches launcher from foreground group under wrappers | launch.py:128-129 | ⚠️ Warning | No. The GPU script uses setsid. Related to the open deferred-items pipeline entry. |
-| WR-04 missing `eos_token_id` key accepted by Rust | crates/rsg-server/src/handshake.rs:25 | ⚠️ Warning | No. The 01-02 truth lists malformed JSON, unknown fields and version. The Python side always sends all 7 keys (`encode_handshake_line` enforces this). The doc comment's "every key is required" is still false. |
-| WR-05 shutdown re-SIGINTs the group during upstream graceful shutdown | launch.py:193 | ⚠️ Warning | No in Phase 1. Matters for TP>1 on GPU. |
-| IN-01..IN-09 | various | ℹ️ Info | No |
-| (new) check_upstream.py leaves its `check_upstream-*` temp dir in $TMPDIR when killed by SIGTERM | scripts/check_upstream.py:308 | ℹ️ Info | No. vendor/ is untouched, which is what the truth claims. |
-| (known) 1-in-~110 unexplained e2e escalation | deferred-items.md | ℹ️ Info | No |
+| WR-06 prctl failure is fatal and posts no error envelope | backend.py:77-80, 100 | ⚠️ Warning | No. The 01-08 truth literally says the watchdog "raises OSError if prctl fails". It is a robustness choice only a seccomp-restricted Linux container would hit. |
+| WR-07 `gpu_pids` errors swallowed and SIGPIPE under pipefail can false-PASS the GPU orphan check | gpu_phase1_check.sh | ⚠️ Warning | No on the Mac. It can make step 4/4b report a wrong verdict on the GPU box, so fix it before the GPU run. |
+| WR-08 `start_session` fixed 0.5 s sleep can fail a healthy run | gpu_phase1_check.sh:85-92 | ⚠️ Warning | No. A false FAIL, not a false PASS. |
+| WR-09 wrong-parent unit test asserts only exit 1 | test_parent_watchdog.py:27-39 | ⚠️ Warning | No. My mutation shows it does fail on the old behavior; an import failure would pass it vacuously. |
+| WR-10 / earlier WR-03 `setpgid(0,0)` detaches the launcher from the terminal foreground group under wrappers | launch.py | ⚠️ Warning | No. Tests and the GPU script start the launcher as its own group leader. A terminal Ctrl-C under `uv run` may not reach it. |
+| Earlier WR-01 (`--shell` abbreviation), WR-04 (missing eos key accepted), WR-05 (shutdown re-SIGINTs the group) | launch.py, handshake.rs | ⚠️ Warning | No in Phase 1 (unchanged from the first report) |
+| IN-10..IN-13 and IN-01..IN-09 | various | ℹ️ Info | No. IN-13 (sitecustomize might not widen the window) is answered by my mutation run: the early-kill test fails on the old code, so the window is real. |
+| Residual window in CR-01 fix | launch.py | ℹ️ Info | A signal landing between the last `stop_requested` read and `shutdown(1)` is a microsecond window; the plan accepted it. |
+| Known 1-in-~110 unexplained e2e escalation | deferred-items.md | ℹ️ Info | Not seen in this run (two full e2e passes plus the gate). |
+
+01-REVIEW-DISPOSITION.md shows CR-01 and WR-02 as `fixed` and 22 other rows `open`. Nothing there blocks the phase.
 
 ### Human Verification Required
 
-#### 1. GPU end-of-phase check (ROADMAP SC2 and SC3)
-**Test:** On the Linux GPU box, run `bash scripts/gpu_phase1_check.sh` after the documented setup.
-**Expected:** ALL PASS across the five steps: release build, python-mode chat completion, real handshake line (sha, max_running_req=256, num_pages>1, max_seq_len 1..40960, page_size 1 or 64, eos 151645), no orphan after kill -9, and check_upstream.
-**Why human:** Needs CUDA and the real upstream Scheduler.
+#### 1. GPU end-of-phase check (ROADMAP SC2 and SC3, plus the Linux PDEATHSIG branch)
+**Test:** On a Linux GPU box run `bash scripts/gpu_phase1_check.sh` after the documented setup. You asked in UAT test 1 what to do without a Linux GPU. The planned answer is to commit and push the branch, then have someone with a GPU (or a rented box) run it. Per this report the Mac work is finished, so that handoff is a reasonable next step.
+**Expected:** ALL PASS across steps 1, 2, 3, 4, 4b and 5. Handshake line: sha 9a91cfa…, max_running_req=256, num_pages>1, max_seq_len in 1..40960, page_size 1 or 64, eos 151645.
+**Why human:** Needs CUDA, nvidia-smi and Linux.
 
-#### 2. CR-01 disposition
-**Test:** Decide whether to fix now or defer with a target phase in 01-REVIEW-DISPOSITION.md.
-**Expected:** The fix re-checks `stop_requested` right after each `ready_queue.get()` and before the `children()` scan, and adds an e2e test that SIGINTs the process group and asserts exit 0.
-**Why human:** Policy call. No must-have covers it, but it is reproducible.
+#### 2. Linux-only watchdog unit test
+**Test:** `pytest python/tests/test_parent_watchdog.py::test_linux_arms_pdeathsig_sigkill` on any Linux machine (no GPU needed).
+**Expected:** 1 passed.
+**Why human:** Skipped on macOS by design.
 
-#### 3. WR-02 disposition
-**Test:** Decide whether to pass the launcher pid to `start_parent_watchdog` (plus PR_SET_PDEATHSIG on Linux) now, or defer it.
-**Expected:** Either the fix, or a recorded deferral.
-**Why human:** The orphan only happens in a narrow boot window. Whether to accept that is a judgment call.
-
-#### 4. Judgment-tier prohibition (01-03)
-**Test:** Confirm that rust mode runs the unmodified upstream Scheduler and that the handshake comes from the launcher-side wrapper.
-**Expected:** Agreement with the verifier verdict above.
-**Why human:** unverified-prohibition — human review recommended.
-
-#### 5. Package-approval ordering (01-01)
-**Test:** Confirm you approved the PyPI pins before anything was installed.
-**Expected:** Yes.
-**Why human:** A past human act.
+#### 3. Review-warning triage
+**Test:** Record fixed or deferred for WR-06..WR-10 (and WR-01, WR-04) in 01-REVIEW-DISPOSITION.md. Do WR-07 and WR-08 first, because they change how trustworthy the GPU script's verdict is.
+**Expected:** No `open` warning without a decision.
+**Why human:** Policy call; none defeats a Phase 1 must-have.
 
 ### Gaps Summary
 
-There are no blocking gaps. All Mac-verifiable parts of the goal hold, and I checked them against the code rather than the summaries:
-- The vendored tree is byte-identical to GitHub's 9a91cfa (online diff).
-- The Rust codec matches upstream's encoder byte-for-byte on 34 fixtures, covering all 8 tags and every width boundary.
-- Every Rust-emitted frame passes upstream's real `cls(**kwargs)` decoder.
-- The one-command launcher delivers the readiness handshake end to end on the Mac using upstream's real ZMQ queues.
+No blocking gaps. Compared with the first verification:
+- CR-01 (group SIGINT exit 1) is fixed and covered by 3 e2e tests that fail on the pre-fix launcher.
+- WR-02 (early-killed launcher leaves a scheduler orphan) is fixed on the portable path and covered by an e2e test and unit tests that fail on the old watchdog. The Linux PDEATHSIG layer is present but only a Linux run can prove it.
+- Human items 4 and 5 from the first report (judgment prohibition, package-approval ordering) are now human-confirmed in UAT.
+- The remaining items are the GPU/Linux run and warning triage. Neither is a code gap on the Mac.
 
-What remains:
-- **The planned GPU run** for SC2 and SC3.
-- **Two review findings that need a disposition.** CR-01 (Ctrl-C reports a failure) is reproducible, but no must-have covers it. WR-02 (watchdog boot window) weakens the 01-05 no-orphan truth outside its tested path. All 15 review findings are still `open` in the disposition ledger. I recommend resolving CR-01 and WR-01 before Phase 3 and Phase 7 respectively, because both affect harness behavior later.
+01-UAT.md still says `diagnosed` with tests 2 and 3 as `issue`. It should be updated to resolved, and test 1 stays `blocked` until a Linux GPU run happens.
 
 ---
 
-_Verified: 2026-10-04T04:51:24Z_
+_Verified: 2026-10-04T08:00:00Z_
 _Verifier: Claude (gsd-verifier)_

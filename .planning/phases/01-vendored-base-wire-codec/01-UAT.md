@@ -1,34 +1,38 @@
 ---
-status: diagnosed
+status: testing
 phase: 01-vendored-base-wire-codec
 source: [01-VERIFICATION.md]
 started: 2026-10-04T04:55:00Z
-updated: 2026-10-04T06:00:00Z
+updated: 2026-10-04T06:30:48Z
 ---
 
 ## Current Test
 
-[testing paused — 1 items outstanding]
+number: 6
+name: Run the Linux-only parent-death watchdog test
+expected: |
+  On any Linux machine (no GPU needed): `.venv/bin/python -m pytest python/tests/test_parent_watchdog.py::test_linux_arms_pdeathsig_sigkill -q` passes (PR_GET_PDEATHSIG == SIGKILL)
+awaiting: user response
 
 ## Tests
 
 ### 1. Run `bash scripts/gpu_phase1_check.sh` on the Linux GPU box
-expected: ALL PASS on steps 1-5 (covers the GPU halves of ROADMAP criteria 2 and 3; WINDOWS.md entry 1)
+expected: ALL PASS on steps 1-5 plus the early-kill step 4b added by 01-08 (covers the GPU halves of ROADMAP criteria 2 and 3; WINDOWS.md entry 1)
 result: blocked
 blocked_by: physical-device
 reason: "手上沒有linux gpu怎麼辦? 我現在在mac 我應該要先commit 然後讓其他人在Linux machine上面測試？"
 
 ### 2. Decide the disposition of code-review finding CR-01 (group SIGINT / Ctrl-C makes the rust-mode launcher exit 1 with a failure report)
 expected: Either fix now (re-check stop_requested right after each ready_queue.get and before scanning children, plus an e2e test that SIGINTs the launcher's process group and asserts exit 0), or mark it deferred in 01-REVIEW-DISPOSITION.md with a target phase
-result: issue
+result: pass
 reported: "修"
-severity: major
+resolution: "Fixed by 01-07 (gap G-01-2); re-verified 2026-10-03 in 01-VERIFICATION.md, including a mutation check where the pre-fix code fails the new tests"
 
 ### 3. Decide the disposition of WR-02 (parent watchdog records getppid() only after the scheduler child has booted)
 expected: Either pass the launcher pid explicitly (plus PR_SET_PDEATHSIG on Linux), or accept/defer it in 01-REVIEW-DISPOSITION.md
-result: issue
+result: pass
 reported: "修"
-severity: major
+resolution: "Fixed by 01-08 (gap G-01-3); re-verified 2026-10-03 in 01-VERIFICATION.md, including a mutation check where the pre-fix code fails the new tests"
 
 ### 4. Review the judgment-tier prohibition from 01-03: rust mode runs the byte-identical upstream Scheduler and the handshake is not produced by patching vendored code
 expected: Agree with the verifier's non-authoritative verdict that it holds (see the Prohibitions table in 01-VERIFICATION.md)
@@ -38,12 +42,20 @@ result: pass
 expected: Confirmed. The session record shows the 01-01 package gate was approved ("approve (use ... uv ...)") before the lock was installed into the project .venv
 result: pass
 
+### 6. Run the Linux-only parent-death watchdog test
+expected: On any Linux machine (no GPU needed), `.venv/bin/python -m pytest python/tests/test_parent_watchdog.py::test_linux_arms_pdeathsig_sigkill -q` passes. It is skipped on macOS, so the prctl(PR_SET_PDEATHSIG) branch from 01-08 is unverified until then.
+result: [pending]
+
+### 7. Triage the open code-review warnings in 01-REVIEW-DISPOSITION.md
+expected: Record fixed / deferred / skipped for WR-06..WR-10 (new incremental review) and the earlier WR-01, WR-03, WR-04, WR-05. Settle WR-07 (the GPU-orphan check can false-PASS) and WR-08 (the start_session race can false-FAIL) before trusting gpu_phase1_check.sh steps 4/4b.
+result: [pending]
+
 ## Summary
 
-total: 5
-passed: 2
-issues: 2
-pending: 0
+total: 7
+passed: 4
+issues: 0
+pending: 2
 skipped: 0
 blocked: 1
 
@@ -51,7 +63,8 @@ blocked: 1
 
 - gap_id: G-01-2
   truth: "Group SIGINT (Ctrl-C) to the rust-mode launcher's process group exits 0 without a failure report: stop_requested is re-checked right after each ready_queue.get and before scanning children, and an e2e test SIGINTs the launcher's process group and asserts exit 0 (CR-01 in 01-REVIEW.md)"
-  status: failed
+  status: resolved
+  resolved_by: 01-07-PLAN.md
   reason: "User reported: 修 (fix CR-01 now rather than defer)"
   severity: major
   test: 2
@@ -70,7 +83,8 @@ blocked: 1
 
 - gap_id: G-01-3
   truth: "The parent-death watchdog cannot miss a launcher that dies early: the launcher pid is passed explicitly to the scheduler child (not read via getppid() after boot), plus PR_SET_PDEATHSIG on Linux, so kill -9 of the launcher never leaves an orphaned scheduler (WR-02 in 01-REVIEW.md)"
-  status: failed
+  status: resolved
+  resolved_by: 01-08-PLAN.md
   reason: "User reported: 修 (fix WR-02 now rather than defer)"
   severity: major
   test: 3
