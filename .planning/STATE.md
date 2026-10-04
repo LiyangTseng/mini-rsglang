@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Vendored Base & Wire Codec
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-10-04T02:55:23.517Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-10-04T03:03:20.640Z"
 last_activity: 2026-10-03
 last_activity_desc: Phase 01 execution started
-state_head: e817254489c8ca927c217ebf8112da85469cc9af
+state_head: 4f612e4066586f78c629702676de933eb205576f
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 ## Current Position
 
 Phase: 01 (Vendored Base & Wire Codec) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-10-03 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P02 | 6 min | 2 tasks | 9 files |
 | Phase 01 P01 | 14 min | 3 tasks | 128 files |
+| Phase 01 P03 | 5 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase 01]: rsg-server exit-code contract: 0 signal, 1 startup failure, 2 bad handshake, 3 stdin EOF
 - [Phase 01]: Mac dev env is a project-local uv-managed .venv synced from the sha256-hashed requirements-mac.txt; never install into system/user Python
 - [Phase 01]: Human package gate approved torch 2.9.1, numpy 2.5.3, msgpack 1.2.3, pyzmq 27.2.0, transformers 4.57.3, pytest 9.1.1, setuptools/wheel, their transitive deps, and crate thiserror 2.0.21
+- [Phase 01]: Launcher SIGINT/SIGTERM stop handlers are installed before any child spawns, so a stop during the readiness wait tears down the whole process group
+- [Phase 01]: Scheduler process: a KeyboardInterrupt after the ready point ends quietly; before it, an error envelope with the traceback goes to the launcher
+- [Phase 01]: Python mode (--frontend python) execs python -m minisgl; the launcher never imports minisgl or parses upstream args in python mode
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-04T02:55:23.500Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-10-04T03:03:12.056Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None

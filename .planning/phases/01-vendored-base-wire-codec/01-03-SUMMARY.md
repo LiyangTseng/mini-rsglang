@@ -179,3 +179,9 @@ None. No external service configuration is required.
 ---
 *Phase: 01-vendored-base-wire-codec*
 *Completed: 2026-10-04*
+
+## Self-Check: PASSED
+
+- All 8 key files present on disk.
+- Commits d82d264, 818ee07, cc0c2f7 present in git log.
+- `.venv/bin/python -m pytest python/tests/test_launch_rust_e2e.py python/tests/test_launch_args.py -q` -> 8 passed; vendor tree hash 02d3e4ad... unchanged.
