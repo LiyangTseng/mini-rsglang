@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. For each of the 7 upstream message types, the bytes the Rust codec produces equal golden fixtures exported from upstream's Python encoder, checked by a test that runs on the Mac.
   5. Every message the Rust codec emits decodes through upstream's real Python decoder (`cls(**kwargs)`) without error.
 
-**Plans:** 6/8 plans executed
+**Plans:** 7/8 plans executed
 
 Plans:
 **Wave 1**
@@ -56,7 +56,7 @@ Plans:
 - [x] 01-06-PLAN.md — check_upstream.py frozen-tier gate, WIRE-02 decode check, check_all.sh phase gate (wave 3)
 
 **Wave 4** *(gap closure)*
-- [ ] 01-07-PLAN.md — G-01-2 / CR-01: group SIGINT (Ctrl-C) to the rust-mode launcher exits 0 with no failure report; stop re-checked after every ready_queue.get (wave 4)
+- [x] 01-07-PLAN.md — G-01-2 / CR-01: group SIGINT (Ctrl-C) to the rust-mode launcher exits 0 with no failure report; stop re-checked after every ready_queue.get (wave 4)
 
 **Wave 5** *(gap closure; blocked on Wave 4 completion)*
 - [ ] 01-08-PLAN.md — G-01-3 / WR-02: launcher pid passed explicitly to the scheduler watchdog plus Linux PR_SET_PDEATHSIG; early kill -9 leaves no orphan; GPU check step 4b (wave 5)
@@ -155,7 +155,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Vendored Base & Wire Codec | 6/6 | In Progress|  |
+| 1. Vendored Base & Wire Codec | 7/8 | In Progress|  |
 | 2. Python Frontend Baseline Profile | 0/TBD | Not started | - |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
