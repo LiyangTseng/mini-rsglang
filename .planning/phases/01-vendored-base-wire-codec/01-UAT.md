@@ -197,3 +197,18 @@ blocked: 2
     - "child prints an 'armed' marker after start_parent_watchdog returns; assert the marker is present and 'Traceback' not in stderr"
     - "mutation check: break the import or the watchdog and confirm the test fails"
   debug_session: "none - root cause from 01-REVIEW.md, re-verified in code at b15a8fd during UAT"
+
+- gap_id: G-01-7-WR06-CHECK
+  truth: "A passing gpu_phase1_check.sh step 3 proves PR_SET_PDEATHSIG armed: step 3 fails when the scheduler logged 'PDEATHSIG unavailable' (fell back to the polling watchdog), while 01-10's degrade-to-polling runtime behavior stays"
+  status: failed
+  reason: "User chose plan A on 2026-10-04 after comparing 01-08 (prctl failure aborts) with 01-10 (prctl failure degrades): keep the degrade, but make the GPU check fail if it triggered"
+  severity: minor
+  test: 7
+  root_cause: "01-10 makes a prctl failure non-fatal, so a GPU run that reaches the handshake no longer proves PDEATHSIG armed; nothing in scripts/gpu_phase1_check.sh looks for the degrade line"
+  artifacts:
+    - path: "scripts/gpu_phase1_check.sh"
+      issue: "step3 does not check rust-mode.log for 'PDEATHSIG unavailable'"
+  missing:
+    - "pdeathsig_degraded <log> helper above the source guard; step3 returns 1 when it matches"
+    - "Mac tests on fixture logs with and without the line"
+  debug_session: "none - design decision from the 01-08 vs 01-10 review in the UAT session"
