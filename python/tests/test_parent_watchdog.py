@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+import queue
 import signal
 import subprocess
 import sys
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -50,6 +52,70 @@ def test_stays_alive_while_parent_is_the_launcher():
     result, _ = _run_child(program, os.getpid())
     assert result.returncode == 0, result.stderr
     assert "survived" in result.stdout
+
+
+@pytest.mark.parametrize("mode", ["prctl-fails", "cdll-fails"])
+def test_prctl_failure_degrades_to_polling(mode):
+    program = (
+        "import ctypes, errno, sys, threading, time, types\n"
+        "import rsglang.backend as backend\n"
+        "calls = []\n"
+        "if sys.argv[2] == 'prctl-fails':\n"
+        "    def _prctl(*a):\n"
+        "        calls.append(a)\n"
+        "        ctypes.set_errno(errno.EPERM)\n"
+        "        return -1\n"
+        "    def _cdll(*a, **kw):\n"
+        "        return types.SimpleNamespace(prctl=_prctl)\n"
+        "    ctypes.CDLL = _cdll\n"
+        "else:\n"
+        "    def _cdll(*a, **kw):\n"
+        "        raise OSError(errno.ENOENT, 'no libc')\n"
+        "    ctypes.CDLL = _cdll\n"
+        "sys.platform = 'linux'\n"
+        "backend.start_parent_watchdog(int(sys.argv[1]), poll_interval=0.1)\n"
+        "print('armed')\n"
+        "names = [t.name for t in threading.enumerate() if t.is_alive()]\n"
+        "if 'rsglang-parent-watchdog' in names:\n"
+        "    print('polling')\n"
+        "if sys.argv[2] == 'prctl-fails':\n"
+        "    print('CALLS:' + repr(calls))\n"
+        "    print('ARGTYPES_LEN:' + str(len(_prctl.argtypes) if hasattr(_prctl, 'argtypes') else -1))\n"
+        "time.sleep(0.5)\n"
+        "print('survived')\n"
+    )
+    result, _ = _run_child(program, os.getpid(), mode)
+    assert result.returncode == 0, result.stderr
+    assert "armed" in result.stdout
+    assert "polling" in result.stdout
+    assert "survived" in result.stdout
+    assert "PDEATHSIG unavailable" in result.stderr
+    assert "Traceback" not in result.stderr
+    if mode == "prctl-fails":
+        calls_line = next(line for line in result.stdout.splitlines() if line.startswith("CALLS:"))
+        argtypes_line = next(
+            line for line in result.stdout.splitlines() if line.startswith("ARGTYPES_LEN:")
+        )
+        assert calls_line == "CALLS:[(1, " + str(int(signal.SIGKILL)) + ", 0, 0, 0)]"
+        assert argtypes_line == "ARGTYPES_LEN:5"
+
+
+def test_watchdog_startup_failure_reaches_launcher_as_error_envelope(monkeypatch):
+    import rsglang.backend as backend
+
+    def _raise(*args, **kwargs):
+        raise RuntimeError("watchdog setup failed")
+
+    monkeypatch.setattr(backend, "start_parent_watchdog", _raise)
+    q: "queue.Queue[dict]" = queue.Queue()
+    args = SimpleNamespace(tp_info=SimpleNamespace(rank=0))
+    with pytest.raises(RuntimeError, match="watchdog setup failed"):
+        backend.run_scheduler(args, q, "sha", os.getpid())
+    envelope = q.get_nowait()
+    assert envelope["kind"] == "error"
+    assert envelope["rank"] == 0
+    assert "watchdog setup failed" in envelope["traceback"]
+    assert q.empty()
 
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="PR_SET_PDEATHSIG is Linux-only")
