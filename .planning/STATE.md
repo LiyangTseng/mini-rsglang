@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 1
+current_phase: 01
 current_phase_name: Vendored Base & Wire Codec
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-10-03T08:52:16.676Z"
-last_activity: 2026-10-02
-last_activity_desc: Roadmap created (7 phases, 28/28 v1 requirements mapped)
-state_head: 480d56440d029c9cd3ff54adcf8dcf75f6b1c0d2
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-10-04T02:48:19.402Z"
+last_activity: 2026-10-03
+last_activity_desc: Phase 01 execution started
+state_head: 3da12c9598c52d69d94be39c4754febd4d1064ed
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-02)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 1: Vendored Base & Wire Codec
+**Current focus:** Phase 01 — Vendored Base & Wire Codec
 
 ## Current Position
 
-Phase: 1 (Vendored Base & Wire Codec) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
+Phase: 01 (Vendored Base & Wire Codec) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-10-02 — Roadmap created (7 phases, 28/28 v1 requirements mapped)
+Last activity: 2026-10-03 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,6 +52,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P02 | 6 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,8 @@ Recent decisions affecting current work:
 - [Roadmap]: There is one minimal Rust mock scheduler only: no Python mock, no Python contract oracle, no Mac A/B rehearsal phase.
 - [Roadmap]: Phase 2 (BENCH-01 profiling) runs on the GPU machine in parallel with Mac work. It informs benchmark design but does not gate the project.
 - [Roadmap]: Phase 4 (tokenizer parity) does not depend on the transport and can run alongside Phase 3.
+- [Phase 01]: rsg-server toolchain stays on Rust 1.99.0: zmq-sys bundled libzmq builds on it (A2 confirmed)
+- [Phase 01]: rsg-server exit-code contract: 0 signal, 1 startup failure, 2 bad handshake, 3 stdin EOF
 
 ### Pending Todos
 
@@ -87,6 +94,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T07:35:39.810Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-vendored-base-wire-codec/01-CONTEXT.md
+Last session: 2026-10-04T02:48:19.388Z
+Stopped at: Completed 01-02-PLAN.md
+Resume file: None
