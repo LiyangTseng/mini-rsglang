@@ -128,3 +128,12 @@ Phase 01 gap closure complete; ready for phase re-verification. This was the LAS
 ---
 *Phase: 01-vendored-base-wire-codec*
 *Completed: 2026-10-04*
+
+## Self-Check: PASSED
+
+- FOUND: scripts/gpu_phase1_check.sh
+- FOUND: python/tests/test_gpu_check_script.py
+- FOUND: .planning/phases/01-vendored-base-wire-codec/01-12-SUMMARY.md
+- FOUND commit: cd8c57b (test(01-12): add failing tests for pdeathsig_degraded)
+- FOUND commit: 11df2d4 (feat(01-12): fail step 3 when the scheduler degraded to the polling watchdog)
+- FOUND commit: 760ab7d (docs(01-12): complete gap closure plan)
