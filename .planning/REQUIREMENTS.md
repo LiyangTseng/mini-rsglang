@@ -8,8 +8,8 @@
 ### Base
 
 - [ ] **BASE-01**: mini-sglang @ `9a91cfa` is vendored into the repo with its MIT LICENSE and copyright notice; `UPSTREAM.md` records the source commit and every modified file
-- [ ] **BASE-02**: One launch command starts the shared backend with either `--frontend python` (frozen original) or `--frontend rust`
-- [ ] **BASE-03**: The backend reports a readiness handshake to the frontend (max_seq_len, eos_token_id, page_size, max_running_req); both frontends use the same backend code
+- [x] **BASE-02**: One launch command starts the shared backend with either `--frontend python` (frozen original) or `--frontend rust`
+- [x] **BASE-03**: The backend reports a readiness handshake to the frontend (max_seq_len, eos_token_id, page_size, max_running_req); both frontends use the same backend code
 
 ### Wire Protocol
 
@@ -92,8 +92,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BASE-01 | Phase 1 | Pending |
-| BASE-02 | Phase 1 | Pending |
-| BASE-03 | Phase 1 | Pending |
+| BASE-02 | Phase 1 | Complete |
+| BASE-03 | Phase 1 | Complete |
 | WIRE-01 | Phase 1 | Pending |
 | WIRE-02 | Phase 1 | Pending |
 | BENCH-01 | Phase 2 | Pending |
