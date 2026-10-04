@@ -106,7 +106,10 @@ impl Server {
             }
             if Instant::now() > deadline {
                 let _ = self.child.kill();
-                panic!("timed out waiting for {needle:?}; stderr:\n{}", self.stderr());
+                panic!(
+                    "timed out waiting for {needle:?}; stderr:\n{}",
+                    self.stderr()
+                );
             }
             thread::sleep(Duration::from_millis(20));
         }
@@ -136,9 +139,9 @@ impl Server {
         };
         // Let the stderr drain thread catch up with the final lines.
         thread::sleep(Duration::from_millis(100));
-        status.code().unwrap_or_else(|| {
-            panic!("killed by signal: {status:?}; stderr:\n{}", self.stderr())
-        })
+        status
+            .code()
+            .unwrap_or_else(|| panic!("killed by signal: {status:?}; stderr:\n{}", self.stderr()))
     }
 }
 

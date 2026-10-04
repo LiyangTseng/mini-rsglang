@@ -4,11 +4,23 @@
 mod handshake;
 mod transport;
 
+use std::io::BufRead;
+
 use clap::Parser;
-use tokio::signal::unix::{SignalKind, signal};
+use tokio::signal::unix::{Signal, SignalKind, signal};
+use tokio::sync::mpsc;
 use tracing_subscriber::EnvFilter;
 
 use transport::{Endpoint, Role, ZmqTransport};
+
+/// SIGINT or SIGTERM.
+const EXIT_OK: i32 = 0;
+/// Socket or signal-handler setup failed.
+const EXIT_STARTUP: i32 = 1;
+/// Malformed handshake, unsupported version or upstream SHA mismatch.
+const EXIT_BAD_HANDSHAKE: i32 = 2;
+/// stdin closed before or after the handshake: the launcher went away (D-12).
+const EXIT_STDIN_EOF: i32 = 3;
 
 /// Static configuration, passed by the launcher at spawn (D-11).
 #[derive(Parser, Debug)]
@@ -34,6 +46,52 @@ struct Cli {
     run_id: String,
 }
 
+/// What the stdin reader thread reports.
+enum StdinEvent {
+    Line(String),
+    Eof,
+    Error(String),
+}
+
+/// Read stdin on a dedicated OS thread: tokio's stdin is a blocking read that
+/// cannot be cancelled and would hang runtime shutdown (RESEARCH Pattern 5).
+fn spawn_stdin_reader() -> mpsc::Receiver<StdinEvent> {
+    let (tx, rx) = mpsc::channel(16);
+    std::thread::spawn(move || {
+        for line in std::io::stdin().lock().lines() {
+            let event = match line {
+                Ok(line) => StdinEvent::Line(line),
+                Err(e) => {
+                    let _ = tx.blocking_send(StdinEvent::Error(e.to_string()));
+                    return;
+                }
+            };
+            if tx.blocking_send(event).is_err() {
+                return;
+            }
+        }
+        let _ = tx.blocking_send(StdinEvent::Eof);
+    });
+    rx
+}
+
+fn install_signal(kind: SignalKind, name: &str) -> Signal {
+    match signal(kind) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("failed to install {name} handler: {e}");
+            std::process::exit(EXIT_STARTUP);
+        }
+    }
+}
+
+/// Exit without running destructors, so no zmq context term or blocked stdin
+/// read can hang shutdown (sockets use linger 0).
+fn exit_on_signal(name: &str) -> ! {
+    tracing::info!("received {name}; exiting");
+    std::process::exit(EXIT_OK);
+}
+
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();
@@ -55,6 +113,9 @@ async fn main() {
         "rsg-server starting"
     );
 
+    let mut sigint = install_signal(SignalKind::interrupt(), "SIGINT");
+    let mut sigterm = install_signal(SignalKind::terminate(), "SIGTERM");
+
     let backend = Endpoint {
         addr: cli.backend_addr.clone(),
         role: cli.backend_role,
@@ -63,25 +124,67 @@ async fn main() {
         addr: cli.detok_addr.clone(),
         role: cli.detok_role,
     };
+    // Kept alive until process exit. Phase 1 never sends on it: nothing may
+    // reach the scheduler before the handshake (D-10), and the skeleton sends nothing.
     let _transport = match ZmqTransport::open(&backend, &detok) {
         Ok(t) => t,
         Err(e) => {
             tracing::error!("failed to open sockets: {e:#}");
-            std::process::exit(1);
+            std::process::exit(EXIT_STARTUP);
         }
     };
     tracing::info!("sockets ready");
 
-    let mut sigterm = match signal(SignalKind::terminate()) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::error!("failed to install SIGTERM handler: {e}");
-            std::process::exit(1);
-        }
-    };
+    let mut stdin = spawn_stdin_reader();
+    tracing::info!("awaiting handshake on stdin");
     tokio::select! {
-        _ = tokio::signal::ctrl_c() => tracing::info!("received SIGINT; exiting"),
-        _ = sigterm.recv() => tracing::info!("received SIGTERM; exiting"),
+        event = stdin.recv() => match event {
+            Some(StdinEvent::Line(line)) => {
+                match handshake::parse_handshake(&line, handshake::EXPECTED_UPSTREAM_SHA) {
+                    Ok(hs) => tracing::info!(
+                        max_seq_len = hs.max_seq_len,
+                        eos_token_id = %hs.eos_display(),
+                        page_size = hs.page_size,
+                        max_running_req = hs.max_running_req,
+                        num_pages = hs.num_pages,
+                        upstream_sha = %hs.upstream_sha,
+                        "handshake received"
+                    ),
+                    Err(e) => {
+                        tracing::error!("handshake rejected: {e}");
+                        std::process::exit(EXIT_BAD_HANDSHAKE);
+                    }
+                }
+            }
+            Some(StdinEvent::Error(e)) => {
+                tracing::error!("launcher went away (stdin EOF) before handshake: {e}");
+                std::process::exit(EXIT_STDIN_EOF);
+            }
+            Some(StdinEvent::Eof) | None => {
+                tracing::error!("launcher went away (stdin EOF) before handshake");
+                std::process::exit(EXIT_STDIN_EOF);
+            }
+        },
+        _ = sigint.recv() => exit_on_signal("SIGINT"),
+        _ = sigterm.recv() => exit_on_signal("SIGTERM"),
     }
-    std::process::exit(0);
+
+    tracing::info!("idle until SIGINT/SIGTERM or stdin EOF");
+    loop {
+        tokio::select! {
+            event = stdin.recv() => match event {
+                Some(StdinEvent::Line(_)) => tracing::warn!("ignoring unexpected stdin line"),
+                Some(StdinEvent::Error(e)) => {
+                    tracing::error!("launcher went away (stdin EOF): {e}");
+                    std::process::exit(EXIT_STDIN_EOF);
+                }
+                Some(StdinEvent::Eof) | None => {
+                    tracing::error!("launcher went away (stdin EOF)");
+                    std::process::exit(EXIT_STDIN_EOF);
+                }
+            },
+            _ = sigint.recv() => exit_on_signal("SIGINT"),
+            _ = sigterm.recv() => exit_on_signal("SIGTERM"),
+        }
+    }
 }
