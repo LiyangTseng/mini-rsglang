@@ -57,7 +57,7 @@ findings:
     title: "The slow-boot test's `sitecustomize` can shadow an existing one and relies on `sys.orig_argv`"
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "No top-level exception/finally guard around the rust-mode spawn loop can leave already-spawned processes unkilled"
   - id: WR-02
     severity: warning
@@ -99,7 +99,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 14
+open: 13
 total: 24
 recorded: 2026-10-05T05:02:51.000Z
 ---
@@ -134,7 +134,7 @@ unaffected. Only this ledger's four rows now point at new findings under the sam
 | IN-11 | info | open | - (not in the current review) |
 | IN-12 | info | open | - (not in the current review) |
 | IN-13 | info | open | - (not in the current review) |
-| CR-01 | critical | open | python/rsglang/launch.py:124-298 (spawn loop at 166-177; unguarded handshake write at 268-275) — `_run_rust_mode` has no top-level try/except/finally around spawning `rsg-server` and the TP scheduler-rank processes; an unanticipated exception (e.g. `mp.Process.start()` failing for one TP rank, or a `ValueError` from `encode_handshake_line`, only `BrokenPipeError` is caught around that write) propagates with already-spawned GPU-holding processes never killed — `run_rust_mode`'s `finally` only unlinks socket files. Contradicts D-12's clean process-group teardown goal. 2026-10-05 incremental review. |
+| CR-01 | critical | fixed | .planning/quick/261004-vqo-fix-cr-01-critical-finding-2026-10-05-in/261004-vqo-PLAN.md (quick task 261004-vqo): everything in _run_rust_mode after the rsg-server spawn runs inside try/except BaseException, which prints the traceback, unlinks the run sockets and SIGKILLs the launcher's process group before re-raising; regression test test_unexpected_error_leaves_no_orphans covers the spawn-loop and handshake-encode triggers |
 | WR-02 | warning | fixed | 01-08-PLAN.md (gap G-01-3): launcher pid passed explicitly, immediate getppid re-check, PR_SET_PDEATHSIG on Linux (not in the current review) |
 | WR-03 | warning | deferred | deferred to Phase 7 (benchmark harness launches the launcher under wrappers; same issue as WR-10) — UAT test 7, 2026-10-03 (not in the current review) |
 | WR-04 | warning | fixed | 01-11-PLAN.md (gap G-01-7-WR04): eos_token_id required via deserialize_with = Option::deserialize; missing key exits 2 (not in the current review) |
