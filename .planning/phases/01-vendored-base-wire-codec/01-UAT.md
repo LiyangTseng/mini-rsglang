@@ -3,23 +3,23 @@ status: partial
 phase: 01-vendored-base-wire-codec
 source: [01-VERIFICATION.md]
 started: 2026-10-04T04:55:00Z
-updated: 2026-10-05T05:02:51Z
+updated: 2026-10-05T07:08:30Z
 ---
 
 ## Current Test
 
-number: 10
-name: Triage CR-01 (critical, 2026-10-05 incremental review)
+number: 11
+name: Triage WR-01 (new instance, 2026-10-05 incremental review)
 expected: |
-  CR-01 is not left permanently `open` without a decision. `_run_rust_mode` in
-  python/rsglang/launch.py has no top-level try/except/finally around the
-  rsg-server + TP-rank spawn loop or the handshake write, so an unanticipated
-  exception leaves already-spawned GPU-holding processes unkilled — contradicts
-  D-12's clean-teardown goal. Decide fixed-now or deferred-with-target-phase and
-  record it in 01-REVIEW-DISPOSITION.md.
+  `rust_tail` (a deque) is appended to by `_pump_rsg_stderr` on a background
+  thread and read via `list(rust_tail)` in `shutdown()` with no lock. If the
+  pump thread is still writing when shutdown's grace period expires, this
+  risks `RuntimeError: deque mutated during iteration`, crashing shutdown()
+  before its own SIGKILL escalation. Decide fixed-now or
+  deferred-with-target-phase and record it in 01-REVIEW-DISPOSITION.md.
 awaiting: user response
 
-[testing paused — 5 items outstanding: tests 1 and 6 blocked on a Linux machine; tests 10, 11, 12 are new triage decisions from the 2026-10-05 incremental review]
+[testing paused — 4 items outstanding: tests 1 and 6 blocked on a Linux machine; tests 11, 12 are new triage decisions from the 2026-10-05 incremental review]
 
 ## Tests
 
@@ -93,7 +93,9 @@ expected: |
   every passing test exercises an anticipated failure path that already calls
   shutdown(). Decide fixed-now or deferred-with-target-phase and record it in
   01-REVIEW-DISPOSITION.md; it must not be left silently `open`.
-result: pending
+result: pass
+reported: "fix CR-01 with appropriate action"
+resolution: "Fixed via quick task 261004-vqo (commits de6ba69 test, c39851f fix, f3122be docs). _run_rust_mode now wraps its spawn+supervise body in try/except BaseException that logs the cause, unlinks run sockets, and SIGKILLs the process group before re-raising — mirrors shutdown()'s existing D-12 escalation. Regression test test_unexpected_error_leaves_no_orphans (parametrized over spawn_loop and handshake_encode failure injection) reproduced the predicted hang on the unmodified code and passes after the fix. Full python/tests suite: 90 passed, 37 skipped. 01-REVIEW-DISPOSITION.md: CR-01 fixed, open count 14 -> 13."
 
 ### 11. Triage WR-01 (new instance, 2026-10-05 incremental review) — unsynchronized `rust_tail` deque access
 expected: |
@@ -123,9 +125,9 @@ result: pending
 ## Summary
 
 total: 12
-passed: 7
+passed: 8
 issues: 0
-pending: 3
+pending: 2
 skipped: 0
 blocked: 2
 
