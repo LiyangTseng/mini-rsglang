@@ -9,11 +9,11 @@ findings:
     title: "`rust_tail` deque is appended to from the stderr-pump thread and read via `list()` in `shutdown()` without synchronization"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: deferred
     title: "`extract_handshake`'s dict literal hand-duplicates `HANDSHAKE_KEYS` instead of building from the constant"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: deferred
     title: "Statements after the self-directed SIGKILL in `launch.py`'s shutdown path are dead/racy code"
   - id: IN-03
     severity: info
@@ -99,7 +99,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 13
+open: 11
 total: 24
 recorded: 2026-10-05T05:02:51.000Z
 ---
@@ -122,8 +122,8 @@ unaffected. Only this ledger's four rows now point at new findings under the sam
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-01 | warning | open | python/rsglang/launch.py:94-100, 158-161, 210-217 — `rust_tail` deque is appended to from `_pump_rsg_stderr` and read via `list(rust_tail)` in `shutdown()` with no lock; if the pump thread is still writing when shutdown's grace period expires, this risks `RuntimeError: deque mutated during iteration`, crashing shutdown() before its own SIGKILL escalation. 2026-10-05 incremental review. |
-| IN-01 | info | open | python/rsglang/backend.py:42-55 vs python/rsglang/handshake.py:16-24 — `extract_handshake`'s dict literal hand-duplicates `HANDSHAKE_KEYS`'s order/fields instead of building from the constant; only a runtime check in `encode_handshake_line` would catch future drift. 2026-10-05 incremental review. |
-| IN-02 | info | open | python/rsglang/launch.py:219-233 — statements after the self-directed `os.killpg(..., SIGKILL)` (closing rust.stdin, final _log) are effectively racy/dead code since that signal also kills the launcher; harmless but reads as more reliable than it is. 2026-10-05 incremental review. |
+| IN-01 | info | deferred | python/rsglang/backend.py:42-55 vs python/rsglang/handshake.py:16-24 — `extract_handshake`'s dict literal hand-duplicates `HANDSHAKE_KEYS`'s order/fields instead of building from the constant; only a runtime check in `encode_handshake_line` would catch future drift. Accepted as non-blocking (UAT test 12, 2026-10-05) — pure maintainability, no runtime behavior depends on it. |
+| IN-02 | info | deferred | python/rsglang/launch.py:219-233 — statements after the self-directed `os.killpg(..., SIGKILL)` (closing rust.stdin, final _log) are effectively racy/dead code since that signal also kills the launcher; harmless but reads as more reliable than it is. Accepted as non-blocking (UAT test 12, 2026-10-05) — cosmetic, unreachable in practice. |
 | IN-03 | info | deferred | deferred to Phase 6 (bundle with the GPU end-to-end validation pass over gpu_phase1_check.sh) — UAT test 9, 2026-10-04 |
 | WR-06 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR06): prctl failure logs and degrades to the polling watchdog (argtypes declared); watchdog started inside run_scheduler's error-envelope try (not in the current review) |
 | WR-07 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR07): on_gpu captures nvidia-smi output once and fails the step on an nvidia-smi error; steps 4/4b use wait_no_orphans (not in the current review) |

@@ -3,23 +3,12 @@ status: partial
 phase: 01-vendored-base-wire-codec
 source: [01-VERIFICATION.md]
 started: 2026-10-04T04:55:00Z
-updated: 2026-10-05T07:24:49Z
+updated: 2026-10-05T07:30:24Z
 ---
 
 ## Current Test
 
-number: 12
-name: Triage IN-01 and IN-02 (new instances, 2026-10-05 incremental review)
-expected: |
-  IN-01 (new instance): extract_handshake's dict literal hand-duplicates
-  HANDSHAKE_KEYS instead of building from the constant. IN-02 (new instance):
-  statements after the self-directed SIGKILL in launch.py's shutdown() are
-  effectively dead/racy. Neither defeats a Phase 1 must-have. Each recorded
-  fixed or deferred, or explicitly accepted as non-blocking, in
-  01-REVIEW-DISPOSITION.md.
-awaiting: user response
-
-[testing paused — 3 items outstanding: tests 1 and 6 blocked on a Linux machine; test 12 is a new triage decision from the 2026-10-05 incremental review]
+[testing paused — 2 items outstanding (tests 1 and 6 blocked on a Linux machine)]
 
 ## Tests
 
@@ -122,14 +111,16 @@ expected: |
   signal also kills the launcher. Neither defeats a Phase 1 must-have. Each
   recorded fixed or deferred, or explicitly accepted as non-blocking, in
   01-REVIEW-DISPOSITION.md.
-result: pending
+result: pass
+reported: "pass"
+resolution: "Accepted as non-blocking. Both are pure maintainability/cosmetic issues with no runtime behavior at stake. Recorded as deferred (not bare open) in 01-REVIEW-DISPOSITION.md: IN-01 and IN-02, open count 13 -> 11."
 
 ## Summary
 
 total: 12
-passed: 9
+passed: 10
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 2
 
