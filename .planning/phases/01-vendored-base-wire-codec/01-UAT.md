@@ -3,12 +3,23 @@ status: partial
 phase: 01-vendored-base-wire-codec
 source: [01-VERIFICATION.md]
 started: 2026-10-04T04:55:00Z
-updated: 2026-10-04T09:52:00Z
+updated: 2026-10-05T05:02:51Z
 ---
 
 ## Current Test
 
-[testing paused — 2 items outstanding (tests 1 and 6 blocked on a Linux machine)]
+number: 10
+name: Triage CR-01 (critical, 2026-10-05 incremental review)
+expected: |
+  CR-01 is not left permanently `open` without a decision. `_run_rust_mode` in
+  python/rsglang/launch.py has no top-level try/except/finally around the
+  rsg-server + TP-rank spawn loop or the handshake write, so an unanticipated
+  exception leaves already-spawned GPU-holding processes unkilled — contradicts
+  D-12's clean-teardown goal. Decide fixed-now or deferred-with-target-phase and
+  record it in 01-REVIEW-DISPOSITION.md.
+awaiting: user response
+
+[testing paused — 5 items outstanding: tests 1 and 6 blocked on a Linux machine; tests 10, 11, 12 are new triage decisions from the 2026-10-05 incremental review]
 
 ## Tests
 
@@ -54,23 +65,67 @@ resolution: "All 6 fix gaps closed by plans 01-09..01-12 and re-verified 2026-10
 
 ### 8. Decide the disposition of the newly-surfaced WR-01 finding (abbreviated `--shell-m` with no rust binary built yet reports a misleading "binary not found" error instead of the shell-mode rejection)
 expected: Either fix now (reorder: parse_args/run_shell check before resolve_rust_bin in python/rsglang/launch.py) or mark deferred in 01-REVIEW-DISPOSITION.md with a target phase. This is a NEW, narrower finding than the original WR-01 (already fixed and tested — abbreviations always exit 2, never silently run with shell-mode limits); it is a misleading-diagnostic issue only, not a correctness regression, and defeats no Phase 1 must-have, but must not be silently dropped.
-result: issue
+result: pass
 reported: "yes (fix now, per assistant recommendation: cheap reorder, prevents a confusing error on first-run setup)"
 severity: minor
+resolution: "Fixed by 01-13-PLAN.md (gap G-01-8); run_rust_mode now parses upstream args and checks run_shell before resolve_rust_bin. Independently re-verified 2026-10-05 in 01-VERIFICATION.md (test_rust_mode_reports_shell_mode_before_missing_binary run in isolation for all 3 spellings). Note: 01-REVIEW-DISPOSITION.md's WR-01 id was then REUSED by the 2026-10-05 incremental review for an unrelated new finding (see that file's ID-reuse notice) — this does not reopen G-01-8, which stays resolved."
 
 ### 9. Record fixed/deferred for the carried-forward info-level findings IN-01, IN-02, IN-03 (new, from the latest incremental review) alongside the still-open IN-04..IN-13 and the still-deferred WR-03/WR-05/WR-10
 expected: Each is marked fixed or deferred with a target phase, or explicitly accepted as non-blocking, in 01-REVIEW-DISPOSITION.md. None of these defeats a Phase 1 must-have.
-result: issue
+result: pass
 reported: "OK. let's go with your suggestion (fix IN-01 now; defer IN-02 and IN-03 to Phase 6)"
 severity: minor
 triage: "fix IN-01 (gap G-01-9 below); defer IN-02/IN-03 to Phase 6 (recorded in 01-REVIEW-DISPOSITION.md)"
+resolution: "Fixed by 01-13-PLAN.md (gap G-01-9); start_parent_watchdog now catches (OSError, AttributeError). Independently re-verified 2026-10-05 in 01-VERIFICATION.md (test_prctl_failure_degrades_to_polling[prctl-missing] run in isolation). Note: 01-REVIEW-DISPOSITION.md's IN-01 id was then REUSED by the 2026-10-05 incremental review for an unrelated new finding (see that file's ID-reuse notice) — this does not reopen G-01-9, which stays resolved. IN-02/IN-03 (original instances) remain deferred to Phase 6, unaffected."
+
+### 10. Triage CR-01 (critical, 2026-10-05 incremental review) — missing exception guard around the rust-mode spawn loop
+expected: |
+  `_run_rust_mode` in python/rsglang/launch.py has no top-level try/except/finally
+  around the rsg-server + TP-rank spawn loop (lines ~169-176) or the handshake
+  write (a ValueError from encode_handshake_line escapes the lone except
+  BrokenPipeError). An unanticipated exception there leaves already-spawned
+  rsg-server and scheduler-rank processes running, unkilled — run_rust_mode's
+  own finally only unlinks socket files. This directly contradicts the
+  project's D-12 goal ("benchmarks don't leak GPU processes"), and the verifier
+  flagged it as priority because the only prior Critical finding in this phase
+  (the original CR-01, group-SIGINT) was fixed immediately rather than
+  deferred. It does not break any Phase 1 happy-path must-have on its own —
+  every passing test exercises an anticipated failure path that already calls
+  shutdown(). Decide fixed-now or deferred-with-target-phase and record it in
+  01-REVIEW-DISPOSITION.md; it must not be left silently `open`.
+result: pending
+
+### 11. Triage WR-01 (new instance, 2026-10-05 incremental review) — unsynchronized `rust_tail` deque access
+expected: |
+  `rust_tail` (a deque) is appended to by `_pump_rsg_stderr` on a background
+  thread and read via `list(rust_tail)` in `shutdown()` with no lock
+  (python/rsglang/launch.py:94-100, 158-161, 210-217). If the pump thread is
+  still writing when shutdown's grace period expires, this risks
+  `RuntimeError: deque mutated during iteration`, crashing shutdown() before
+  its own SIGKILL escalation — a low-probability race that can defeat the
+  cleanup guarantees CR-01 (this test's #10) and 01-07/01-08 depend on. Decide
+  fixed-now or deferred-with-target-phase and record it in
+  01-REVIEW-DISPOSITION.md.
+result: pending
+
+### 12. Triage IN-01 and IN-02 (new instances, 2026-10-05 incremental review) — handshake-key duplication and dead/racy post-SIGKILL code
+expected: |
+  IN-01 (new instance): extract_handshake's dict literal hand-duplicates
+  HANDSHAKE_KEYS instead of building from the constant (backend.py:42-55 vs
+  handshake.py:16-24) — only a runtime check elsewhere would catch future
+  drift. IN-02 (new instance): statements after the self-directed SIGKILL in
+  launch.py's shutdown() (lines 219-233) are effectively dead/racy since that
+  signal also kills the launcher. Neither defeats a Phase 1 must-have. Each
+  recorded fixed or deferred, or explicitly accepted as non-blocking, in
+  01-REVIEW-DISPOSITION.md.
+result: pending
 
 ## Summary
 
-total: 9
-passed: 5
-issues: 2
-pending: 0
+total: 12
+passed: 7
+issues: 0
+pending: 3
 skipped: 0
 blocked: 2
 
@@ -226,7 +281,9 @@ blocked: 2
 
 - gap_id: G-01-8
   truth: "Passing `--shell-m` (or another abbreviation) in rust mode always reports the shell-mode rejection as the error, even when the rust binary has not been built yet (new, narrower WR-01 instance surfaced by the 2026-10-04 incremental review)"
-  status: failed
+  status: resolved
+  resolved_by: 01-13-PLAN.md
+  resolved_at: 2026-10-05
   reason: "User reported: yes (fix now, per assistant recommendation)"
   severity: minor
   test: 8
@@ -241,7 +298,9 @@ blocked: 2
 
 - gap_id: G-01-9
   truth: "The parent-death watchdog logs and degrades to the polling watchdog on ANY prctl(PR_SET_PDEATHSIG) failure mode, not just OSError (IN-01 in the 2026-10-04 incremental review)"
-  status: failed
+  status: resolved
+  resolved_by: 01-13-PLAN.md
+  resolved_at: 2026-10-05
   reason: "User reported: OK. let's go with your suggestion (fix IN-01 now)"
   severity: minor
   test: 9
