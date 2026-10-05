@@ -18,7 +18,7 @@ The Rust frontend then runs against the real backend on the GPU machine. Output 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Vendored Base & Wire Codec** - Pinned mini-sglang, one launcher for both frontends with a readiness handshake, and a byte-exact Rust msgpack codec
+- [x] **Phase 1: Vendored Base & Wire Codec** - Pinned mini-sglang, one launcher for both frontends with a readiness handshake, and a byte-exact Rust msgpack codec (completed 2026-10-05)
 - [ ] **Phase 2: Python Frontend Baseline Profile** - Measure the Python frontend's host overhead on the GPU machine (parallel track, does not gate)
 - [ ] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development
 - [ ] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model
@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. For each of the 7 upstream message types, the bytes the Rust codec produces equal golden fixtures exported from upstream's Python encoder, checked by a test that runs on the Mac.
   5. Every message the Rust codec emits decodes through upstream's real Python decoder (`cls(**kwargs)`) without error.
 
-**Plans:** 13/13 plans executed
+**Plans:** 13/13 plans complete
 
 Plans:
 - [x] 01-12-PLAN.md
@@ -169,7 +169,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Vendored Base & Wire Codec | 13/13 | In Progress|  |
+| 1. Vendored Base & Wire Codec | 13/13 | Complete    | 2026-10-05 |
 | 2. Python Frontend Baseline Profile | 0/TBD | Not started | - |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
