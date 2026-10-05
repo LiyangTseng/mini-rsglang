@@ -87,7 +87,28 @@ Plans:
   3. The report records the share of scheduler time spent in the radix cache, as the input to the v2 radix decision.
   4. The profiling run is scripted so it can be repeated on the GPU machine. Its findings are written down as concrete inputs to the benchmark design: which metrics to capture, and which effects can be credited to the frontend.
 
-**Plans**: TBD
+**Plans:** 9 plans
+
+Plans:
+
+**Wave 1**
+- [ ] 02-01-PLAN.md — Package gate (blocking-human) for psutil, aiohttp, py-spy, hyperfine; pin psutil + aiohttp into the hashed Mac lock (wave 1)
+- [ ] 02-02-PLAN.md — Env-gated sitecustomize hook (gc.callbacks + tracemalloc), led by the Pitfall 3 spawn/exec pre-flight tracer (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-03-PLAN.md — Phase tracer: `baseline_profile.py discover` end to end on the Mac (launch, /v1/models ready, psutil children, py-spy dump role-ID, hook active, validated JSON, clean teardown) (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-04-PLAN.md — Full baseline-profile.json schema validation + require_gpu gate (wave 3)
+- [ ] 02-05-PLAN.md — Analysis: radix share (D-09/D-10), CPU/GIL %, IPC/serde buckets, GC stats, GC-to-P99 correlation, memory summaries (wave 3)
+- [ ] 02-06-PLAN.md — Scenario drivers: 128-agent aiohttp cancellations, bench_simple-adapted 32-token saturation, hyperfine cold start helpers (wave 3)
+- [ ] 02-07-PLAN.md — GPU-box wrapper `scripts/gpu_phase2_profile.sh` with preflight and privilege probe (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-08-PLAN.md — `baseline_profile.py run`: per-scenario sessions with py-spy active+GIL passes, all 3 scenarios, script-written sidecar (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-09-PLAN.md — GPU run (human) + hand-written docs/benchmarks/baseline-profile.md tied to the JSON (wave 5)
 
 ### Phase 3: ZMQ Transport & Mock Scheduler
 
@@ -170,7 +191,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Vendored Base & Wire Codec | 13/13 | Complete    | 2026-10-05 |
-| 2. Python Frontend Baseline Profile | 0/TBD | Not started | - |
+| 2. Python Frontend Baseline Profile | 0/9 | Planned | - |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
 | 5. Request Lifecycle & HTTP API | 0/TBD | Not started | - |
