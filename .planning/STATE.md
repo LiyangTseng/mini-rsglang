@@ -4,10 +4,10 @@ current_phase: 01
 current_phase_name: Vendored Base & Wire Codec
 status: executing
 stopped_at: Completed 01-08-PLAN.md
-last_updated: "2026-10-04T18:07:21.106Z"
+last_updated: "2026-10-05T06:56:41.521Z"
 last_activity: 2026-10-04
 last_activity_desc: Phase 01 execution resumed (wave continue)
-state_head: 643c35bd18d7f662b8ad64a161c0d91ba3c8b864
+state_head: a7ea175a5460597a77934d24bcb6bf42402aae46
 progress:
   total_phases: 7
   completed_phases: 0
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 Phase: 01 (Vendored Base & Wire Codec) — EXECUTING
 Plan: 1 of 12
 Status: Executing Phase 01
-Last activity: 2026-10-04 — Phase 01 execution resumed (wave continue)
+Last activity: 2026-10-04 - Completed quick task 261004-vqo: Fix CR-01: SIGKILL the process group on an unanticipated rust-mode launcher error
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -105,6 +105,12 @@ None yet.
 - [Phase 4]: minijinja must cover the Qwen3 and Llama-3 templates. Two open choices: export the effective tokenizer from Python or load the raw `tokenizer.json`, and how Llama-3.x sets `clean_up_tokenization_spaces`. Access to the gated Llama-3.x repo is needed.
 - [Phase 5]: It is not yet known how quickly hyper/axum detects a client disconnect while a request is queued.
 - [Phase 6]: The upstream abort-during-prefill double free comes from code reading only. If it reproduces, the abort-timing setting (LIFE-05) must apply equally to the baseline.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261004-vqo | Fix CR-01: SIGKILL the process group on an unanticipated rust-mode launcher error | 2026-10-05 | a7ea175 | [261004-vqo-fix-cr-01-critical-finding-2026-10-05-in](./quick/261004-vqo-fix-cr-01-critical-finding-2026-10-05-in/) |
 
 ## Deferred Items
 
