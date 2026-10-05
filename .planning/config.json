@@ -47,7 +47,8 @@
     "post_planning_gaps": true,
     "security_enforcement": true,
     "security_asvs_level": 1,
-    "security_block_on": "high"
+    "security_block_on": "high",
+    "_auto_chain_active": false
   },
   "ship": {
     "pr_body_sections": [
@@ -87,7 +88,7 @@
     "source_grounding": false,
     "source_grounding_authority": "grep"
   },
-  "resolve_model_ids": "omit",
+  "resolve_model_ids": false,
   "mode": "yolo",
   "granularity": "standard"
 }
