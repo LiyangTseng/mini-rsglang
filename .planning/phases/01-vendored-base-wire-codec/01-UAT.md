@@ -3,23 +3,23 @@ status: partial
 phase: 01-vendored-base-wire-codec
 source: [01-VERIFICATION.md]
 started: 2026-10-04T04:55:00Z
-updated: 2026-10-05T07:08:30Z
+updated: 2026-10-05T07:24:49Z
 ---
 
 ## Current Test
 
-number: 11
-name: Triage WR-01 (new instance, 2026-10-05 incremental review)
+number: 12
+name: Triage IN-01 and IN-02 (new instances, 2026-10-05 incremental review)
 expected: |
-  `rust_tail` (a deque) is appended to by `_pump_rsg_stderr` on a background
-  thread and read via `list(rust_tail)` in `shutdown()` with no lock. If the
-  pump thread is still writing when shutdown's grace period expires, this
-  risks `RuntimeError: deque mutated during iteration`, crashing shutdown()
-  before its own SIGKILL escalation. Decide fixed-now or
-  deferred-with-target-phase and record it in 01-REVIEW-DISPOSITION.md.
+  IN-01 (new instance): extract_handshake's dict literal hand-duplicates
+  HANDSHAKE_KEYS instead of building from the constant. IN-02 (new instance):
+  statements after the self-directed SIGKILL in launch.py's shutdown() are
+  effectively dead/racy. Neither defeats a Phase 1 must-have. Each recorded
+  fixed or deferred, or explicitly accepted as non-blocking, in
+  01-REVIEW-DISPOSITION.md.
 awaiting: user response
 
-[testing paused — 4 items outstanding: tests 1 and 6 blocked on a Linux machine; tests 11, 12 are new triage decisions from the 2026-10-05 incremental review]
+[testing paused — 3 items outstanding: tests 1 and 6 blocked on a Linux machine; test 12 is a new triage decision from the 2026-10-05 incremental review]
 
 ## Tests
 
@@ -108,7 +108,9 @@ expected: |
   cleanup guarantees CR-01 (this test's #10) and 01-07/01-08 depend on. Decide
   fixed-now or deferred-with-target-phase and record it in
   01-REVIEW-DISPOSITION.md.
-result: pending
+result: pass
+reported: "pass"
+resolution: "User passed without a fixed/deferred decision. WR-01 (this instance) is left as-is, disposition: open, in 01-REVIEW-DISPOSITION.md — not resolved, not deferred. Revisit before relying on shutdown()'s SIGKILL escalation under load (e.g. before Phase 2 benchmark harness work)."
 
 ### 12. Triage IN-01 and IN-02 (new instances, 2026-10-05 incremental review) — handshake-key duplication and dead/racy post-SIGKILL code
 expected: |
@@ -125,9 +127,9 @@ result: pending
 ## Summary
 
 total: 12
-passed: 8
+passed: 9
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 2
 
