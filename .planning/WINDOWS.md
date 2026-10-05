@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 1
-waived_count: 0
+open_count: 0
+waived_count: 1
 fixed_count: 0
 total_count: 1
-last_updated: 2026-10-04T03:57:00.618Z
+last_updated: 2026-10-05T08:04:03.231Z
 ---
 
 # Broken Windows Ledger
@@ -15,7 +15,7 @@ last_updated: 2026-10-04T03:57:00.618Z
 
 | id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
 |----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
-| 1 | 01 | unrun-verify | scripts/gpu_phase1_check.sh |  | GPU end-of-phase check (criteria 2/3, no-orphan, frozen frontend) not run: needs the Linux GPU box; human sign-off pending | open |  | 2026-10-04T03:57:00.618Z |  |
+| 1 | 01 | unrun-verify | scripts/gpu_phase1_check.sh |  | GPU end-of-phase check (criteria 2/3, no-orphan, frozen frontend) not run: needs the Linux GPU box; human sign-off pending | waived | User decision 2026-10-05: Linux+CUDA hardware dependency must not block Phase 1 completion or broader project progress. A GitHub collaborator will run gpu_phase1_check.sh and the Linux-only pdeathsig_sigkill test on their own Linux+GPU machine. Tracked as UAT tests 1 and 6 (both blocked_by: physical-device), unresolved on 01-VERIFICATION.md with 4 explicit, disclosed overrides (accepted_by: LiyangTseng). | 2026-10-04T03:57:00.618Z | 2026-10-05T08:04:03.231Z |
 
 ````json
 [
@@ -26,10 +26,10 @@ last_updated: 2026-10-04T03:57:00.618Z
     "file": "scripts/gpu_phase1_check.sh",
     "line": null,
     "description": "GPU end-of-phase check (criteria 2/3, no-orphan, frozen frontend) not run: needs the Linux GPU box; human sign-off pending",
-    "status": "open",
-    "reason": "",
+    "status": "waived",
+    "reason": "User decision 2026-10-05: Linux+CUDA hardware dependency must not block Phase 1 completion or broader project progress. A GitHub collaborator will run gpu_phase1_check.sh and the Linux-only pdeathsig_sigkill test on their own Linux+GPU machine. Tracked as UAT tests 1 and 6 (both blocked_by: physical-device), unresolved on 01-VERIFICATION.md with 4 explicit, disclosed overrides (accepted_by: LiyangTseng).",
     "recorded_at": "2026-10-04T03:57:00.618Z",
-    "resolved_at": null,
+    "resolved_at": "2026-10-05T08:04:03.231Z",
     "milestone": null
   }
 ]
