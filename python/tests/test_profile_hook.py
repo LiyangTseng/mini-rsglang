@@ -248,6 +248,7 @@ def test_mem_and_alloc_top(tmp_path: Path) -> None:
         request_snapshot(profile_dir, "s1_cancel")
 
         alloc_record = None
+        child_records: list = []
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
             records = load_hook_records(profile_dir)
@@ -255,11 +256,12 @@ def test_mem_and_alloc_top(tmp_path: Path) -> None:
             alloc_records = [
                 r for r in child_records if r["kind"] == "alloc_top" and r["tag"] == "s1_cancel"
             ]
-            if alloc_records:
+            mem_records = [r for r in child_records if r["kind"] == "mem"]
+            if alloc_records and len(mem_records) >= 2:
                 alloc_record = alloc_records[0]
                 break
             time.sleep(0.1)
-        assert alloc_record is not None, "no alloc_top record observed"
+        assert alloc_record is not None, "no alloc_top record (or <2 mem records) observed"
 
         sites = alloc_record["sites"]
         assert 1 <= len(sites) <= 10, sites
