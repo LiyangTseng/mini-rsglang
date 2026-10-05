@@ -62,7 +62,7 @@ def test_stays_alive_while_parent_is_the_launcher():
     assert "Traceback" not in result.stderr
 
 
-@pytest.mark.parametrize("mode", ["prctl-fails", "cdll-fails"])
+@pytest.mark.parametrize("mode", ["prctl-fails", "cdll-fails", "prctl-missing"])
 def test_prctl_failure_degrades_to_polling(mode):
     program = (
         "import ctypes, errno, sys, threading, time, types\n"
@@ -76,9 +76,13 @@ def test_prctl_failure_degrades_to_polling(mode):
         "    def _cdll(*a, **kw):\n"
         "        return types.SimpleNamespace(prctl=_prctl)\n"
         "    ctypes.CDLL = _cdll\n"
-        "else:\n"
+        "elif sys.argv[2] == 'cdll-fails':\n"
         "    def _cdll(*a, **kw):\n"
         "        raise OSError(errno.ENOENT, 'no libc')\n"
+        "    ctypes.CDLL = _cdll\n"
+        "elif sys.argv[2] == 'prctl-missing':\n"
+        "    def _cdll(*a, **kw):\n"
+        "        return types.SimpleNamespace()\n"
         "    ctypes.CDLL = _cdll\n"
         "sys.platform = 'linux'\n"
         "backend.start_parent_watchdog(int(sys.argv[1]), poll_interval=0.1)\n"
@@ -106,6 +110,11 @@ def test_prctl_failure_degrades_to_polling(mode):
         )
         assert calls_line == "CALLS:[(1, " + str(int(signal.SIGKILL)) + ", 0, 0, 0)]"
         assert argtypes_line == "ARGTYPES_LEN:5"
+    if mode == "prctl-missing":
+        pdeathsig_line = next(
+            line for line in result.stderr.splitlines() if "PDEATHSIG unavailable" in line
+        )
+        assert "prctl" in pdeathsig_line
 
 
 def test_watchdog_startup_failure_reaches_launcher_as_error_envelope(monkeypatch):

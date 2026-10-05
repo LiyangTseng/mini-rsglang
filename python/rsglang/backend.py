@@ -74,7 +74,8 @@ def start_parent_watchdog(launcher_pid: int, poll_interval: float = 1.0) -> thre
     _run_rust_mode), which lives as long as the launcher. spawn has no preexec
     hook, so it can only be armed after exec, here.
 
-    A prctl failure, such as one in a seccomp-restricted container, is logged and
+    A prctl failure, such as one in a seccomp-restricted container or a libc that
+    does not export prctl (an AttributeError from the ctypes lookup), is logged and
     the polling thread alone still guards, because PDEATHSIG is defence in depth.
     """
     if sys.platform.startswith("linux"):
@@ -89,7 +90,7 @@ def start_parent_watchdog(launcher_pid: int, poll_interval: float = 1.0) -> thre
             ]
             if libc.prctl(PR_SET_PDEATHSIG, int(signal.SIGKILL), 0, 0, 0) != 0:
                 raise OSError(ctypes.get_errno(), "prctl(PR_SET_PDEATHSIG) failed")
-        except OSError as exc:
+        except (OSError, AttributeError) as exc:
             print(
                 f"rsglang: PDEATHSIG unavailable ({exc}); using the polling watchdog only",
                 file=sys.stderr,

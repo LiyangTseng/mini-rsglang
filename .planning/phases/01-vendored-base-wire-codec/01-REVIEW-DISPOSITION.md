@@ -5,11 +5,11 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Abbreviated `--shell-mode` rejection can be masked by an unrelated \"binary not found\" error"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "`prctl` failure handling only catches `OSError`, not a missing symbol"
   - id: IN-02
     severity: info
@@ -99,7 +99,7 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 12
+open: 10
 total: 24
 recorded: 2026-10-04T09:50:00.000Z
 ---
@@ -108,8 +108,8 @@ recorded: 2026-10-04T09:50:00.000Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| IN-01 | info | open | fix-now decided — UAT test 9, 2026-10-04; awaiting gap closure plan (G-01-9) |
+| WR-01 | warning | fixed | 01-13-PLAN.md (gap G-01-8): upstream parse_args and the run_shell check run before resolve_rust_bin; --shell, --shell-m and --shell-mode report the shell-mode rejection even with no rsg-server binary |
+| IN-01 | info | fixed | 01-13-PLAN.md (gap G-01-9): the prctl setup catches OSError and AttributeError; a missing prctl symbol logs PDEATHSIG unavailable and degrades to the polling watchdog |
 | IN-02 | info | deferred | deferred to Phase 6 (bundle with the GPU end-to-end validation pass over gpu_phase1_check.sh) — UAT test 9, 2026-10-04 |
 | IN-03 | info | deferred | deferred to Phase 6 (bundle with the GPU end-to-end validation pass over gpu_phase1_check.sh) — UAT test 9, 2026-10-04 |
 | WR-06 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR06): prctl failure logs and degrades to the polling watchdog (argtypes declared); watchdog started inside run_scheduler's error-envelope try (not in the current review) |
