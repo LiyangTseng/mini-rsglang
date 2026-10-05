@@ -59,6 +59,7 @@ class LauncherRun:
         mode: str = "ok",
         ready_timeout: float = 60,
         extra_env: dict[str, str] | None = None,
+        extra_args: list[str] | None = None,
     ):
         env = {
             **os.environ,
@@ -70,7 +71,8 @@ class LauncherRun:
         }
         self.proc = subprocess.Popen(
             [sys.executable, "-m", "rsglang.launch", "--frontend", "rust",
-             "--rust-bin", str(rust_bin), "--ready-timeout", f"{ready_timeout:g}", *UPSTREAM_ARGS],
+             "--rust-bin", str(rust_bin), "--ready-timeout", f"{ready_timeout:g}", *UPSTREAM_ARGS,
+             *(extra_args or [])],
             cwd=REPO,
             env=env,
             stdin=subprocess.DEVNULL,
@@ -288,6 +290,82 @@ def test_launcher_sigkill_leaves_no_orphans(make_launcher):
     # The launcher had no chance to clean up its sockets.
     sockets.unlink_run_sockets(f".rsg={run.proc.pid}")
     assert not any(path.exists() for path in sockets.run_socket_paths(f".rsg={run.proc.pid}"))
+
+
+# --- CR-01: an unexpected (not-just-anticipated) error must still SIGKILL the group ---
+
+# Gated on "rsglang.launch" in sys.orig_argv: this patches the launcher process only, never
+# a spawned --multiprocessing-fork child, the resource tracker, or pytest itself (IN-13).
+_SPAWN_LOOP_HOOK = """\
+import os, sys, time
+
+if "rsglang.launch" in sys.orig_argv:
+    import multiprocessing.process as _mp_process
+
+    _orig_start = _mp_process.BaseProcess.start
+
+    def _start(self, *args, **kwargs):
+        if self.name == "rsglang-TP1-scheduler":
+            # Wait for rank 0 to be fully up before failing. Without this, rank 0 is usually
+            # still unpickling its arguments when the error escapes, and multiprocessing's
+            # exit finalizers unlink the ready queue's semaphore out from under it, making the
+            # unfixed launcher exit 1 with no orphans by a timing accident (seen during
+            # planning) rather than RED for the right reason.
+            status_dir = os.environ.get("RSGLANG_FAKE_STATUS_DIR")
+            deadline = time.monotonic() + 60.0
+            while status_dir and not os.path.exists(os.path.join(status_dir, "detok_peer_connected")):
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(0.05)
+            raise OSError("injected: TP rank 1 failed to start")
+        return _orig_start(self, *args, **kwargs)
+
+    _mp_process.BaseProcess.start = _start
+"""
+
+_HANDSHAKE_HOOK = """\
+import sys
+
+if "rsglang.launch" in sys.orig_argv:
+    import rsglang.handshake as _handshake
+
+    def _raise_handshake_error(payload):
+        raise ValueError("injected: handshake keys drifted")
+
+    _handshake.encode_handshake_line = _raise_handshake_error
+"""
+
+
+@pytest.mark.parametrize(
+    "hook, extra_args",
+    [
+        pytest.param(_SPAWN_LOOP_HOOK, ["--tp-size", "2"], id="spawn_loop"),
+        pytest.param(_HANDSHAKE_HOOK, [], id="handshake_encode"),
+    ],
+)
+def test_unexpected_error_leaves_no_orphans(make_launcher, tmp_path, hook, extra_args):
+    # CR-01 / D-12: an exception _run_rust_mode does not anticipate must still print the
+    # cause, SIGKILL the launcher's whole process group, and leave no rsg-server or
+    # scheduler process behind.
+    hook_dir = tmp_path / "hook"
+    hook_dir.mkdir()
+    (hook_dir / "sitecustomize.py").write_text(hook)
+    pythonpath = os.pathsep.join(p for p in (str(hook_dir), os.environ.get("PYTHONPATH")) if p)
+    run = make_launcher(extra_env={"PYTHONPATH": pythonpath}, extra_args=extra_args)
+    run.wait_for("injected: ", 90)
+    try:
+        code = run.finish(30)
+    except subprocess.TimeoutExpired:
+        pytest.fail(
+            "launcher still running 30 s after the injected error; its children were "
+            f"never killed (CR-01)\n{run.text()}"
+        )
+    assert code != 0, run.text()  # -9: the group SIGKILL ends the launcher too
+    own = [line for line in run.lines if line.startswith("rsglang.launch:")]
+    assert any("unexpected error in the launcher" in line for line in own), run.text()
+    assert set(run.pids()) == {"rsg-server", "scheduler"}, run.text()
+    for name, pid in run.pids().items():
+        assert _gone(pid, 15), f"{name} pid={pid} orphaned\n{run.text()}"
 
 
 def test_launcher_sigkill_during_scheduler_boot_leaves_no_orphans(make_launcher, tmp_path):
