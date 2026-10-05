@@ -5,16 +5,16 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: fixed
-    title: "Abbreviated `--shell-mode` rejection can be masked by an unrelated \"binary not found\" error"
+    disposition: open
+    title: "`rust_tail` deque is appended to from the stderr-pump thread and read via `list()` in `shutdown()` without synchronization"
   - id: IN-01
     severity: info
-    disposition: fixed
-    title: "`prctl` failure handling only catches `OSError`, not a missing symbol"
+    disposition: open
+    title: "`extract_handshake`'s dict literal hand-duplicates `HANDSHAKE_KEYS` instead of building from the constant"
   - id: IN-02
     severity: info
-    disposition: deferred
-    title: "`gpu_phase1_check.sh`'s safety-net cleanup can signal an unrelated process group"
+    disposition: open
+    title: "Statements after the self-directed SIGKILL in `launch.py`'s shutdown path are dead/racy code"
   - id: IN-03
     severity: info
     disposition: deferred
@@ -57,8 +57,8 @@ findings:
     title: "The slow-boot test's `sitecustomize` can shadow an existing one and relies on `sys.orig_argv`"
   - id: CR-01
     severity: critical
-    disposition: fixed
-    title: "Ctrl-C (SIGINT to the whole process group) makes the launcher exit 1 and report a failure"
+    disposition: open
+    title: "No top-level exception/finally guard around the rust-mode spawn loop can leave already-spawned processes unkilled"
   - id: WR-02
     severity: warning
     disposition: fixed
@@ -99,18 +99,31 @@ findings:
     severity: info
     disposition: open
     title: "`bootstrap_mac_env.sh --relock` hardcodes Apple Silicon"
-open: 10
+open: 14
 total: 24
-recorded: 2026-10-04T09:50:00.000Z
+recorded: 2026-10-05T05:02:51.000Z
 ---
 
 # Phase 01: Code Review Disposition
 
+**ID-reuse notice (2026-10-05):** the 2026-10-05 incremental review (re-scoped to the 4 files
+`01-13-PLAN.md` touched) reused finding IDs CR-01, WR-01, IN-01 and IN-02 for entirely new
+findings. Per this file's own rule ("when a finding id is REUSED by a different finding, the
+earlier decision cannot keep a row — the id is taken — and it is dropped"), four RECORDED
+decisions were dropped and are preserved here for the record rather than silently lost:
+- CR-01 (critical, was `fixed`): "Ctrl-C (SIGINT to the whole process group) makes the launcher exit 1 and report a failure" — fixed by 01-07-PLAN.md (gap G-01-2)
+- WR-01 (warning, was `fixed`): "Abbreviated `--shell-mode` rejection can be masked by an unrelated \"binary not found\" error" — fixed by 01-13-PLAN.md (gap G-01-8), this run
+- IN-01 (info, was `fixed`): "`prctl` failure handling only catches `OSError`, not a missing symbol" — fixed by 01-13-PLAN.md (gap G-01-9), this run
+- IN-02 (info, was `deferred`): "`gpu_phase1_check.sh`'s safety-net cleanup can signal an unrelated process group" — deferred to Phase 6, UAT test 9
+
+None of the underlying fixes/deferrals are undone — the source code and UAT record are
+unaffected. Only this ledger's four rows now point at new findings under the same IDs.
+
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 01-13-PLAN.md (gap G-01-8): upstream parse_args and the run_shell check run before resolve_rust_bin; --shell, --shell-m and --shell-mode report the shell-mode rejection even with no rsg-server binary |
-| IN-01 | info | fixed | 01-13-PLAN.md (gap G-01-9): the prctl setup catches OSError and AttributeError; a missing prctl symbol logs PDEATHSIG unavailable and degrades to the polling watchdog |
-| IN-02 | info | deferred | deferred to Phase 6 (bundle with the GPU end-to-end validation pass over gpu_phase1_check.sh) — UAT test 9, 2026-10-04 |
+| WR-01 | warning | open | python/rsglang/launch.py:94-100, 158-161, 210-217 — `rust_tail` deque is appended to from `_pump_rsg_stderr` and read via `list(rust_tail)` in `shutdown()` with no lock; if the pump thread is still writing when shutdown's grace period expires, this risks `RuntimeError: deque mutated during iteration`, crashing shutdown() before its own SIGKILL escalation. 2026-10-05 incremental review. |
+| IN-01 | info | open | python/rsglang/backend.py:42-55 vs python/rsglang/handshake.py:16-24 — `extract_handshake`'s dict literal hand-duplicates `HANDSHAKE_KEYS`'s order/fields instead of building from the constant; only a runtime check in `encode_handshake_line` would catch future drift. 2026-10-05 incremental review. |
+| IN-02 | info | open | python/rsglang/launch.py:219-233 — statements after the self-directed `os.killpg(..., SIGKILL)` (closing rust.stdin, final _log) are effectively racy/dead code since that signal also kills the launcher; harmless but reads as more reliable than it is. 2026-10-05 incremental review. |
 | IN-03 | info | deferred | deferred to Phase 6 (bundle with the GPU end-to-end validation pass over gpu_phase1_check.sh) — UAT test 9, 2026-10-04 |
 | WR-06 | warning | fixed | 01-10-PLAN.md (gap G-01-7-WR06): prctl failure logs and degrades to the polling watchdog (argtypes declared); watchdog started inside run_scheduler's error-envelope try (not in the current review) |
 | WR-07 | warning | fixed | 01-09-PLAN.md (gap G-01-7-WR07): on_gpu captures nvidia-smi output once and fails the step on an nvidia-smi error; steps 4/4b use wait_no_orphans (not in the current review) |
@@ -121,7 +134,7 @@ recorded: 2026-10-04T09:50:00.000Z
 | IN-11 | info | open | - (not in the current review) |
 | IN-12 | info | open | - (not in the current review) |
 | IN-13 | info | open | - (not in the current review) |
-| CR-01 | critical | fixed | 01-07-PLAN.md (gap G-01-2): stop re-checked after every ready_queue.get and before each child-state-driven shutdown(1) (not in the current review) |
+| CR-01 | critical | open | python/rsglang/launch.py:124-298 (spawn loop at 166-177; unguarded handshake write at 268-275) — `_run_rust_mode` has no top-level try/except/finally around spawning `rsg-server` and the TP scheduler-rank processes; an unanticipated exception (e.g. `mp.Process.start()` failing for one TP rank, or a `ValueError` from `encode_handshake_line`, only `BrokenPipeError` is caught around that write) propagates with already-spawned GPU-holding processes never killed — `run_rust_mode`'s `finally` only unlinks socket files. Contradicts D-12's clean process-group teardown goal. 2026-10-05 incremental review. |
 | WR-02 | warning | fixed | 01-08-PLAN.md (gap G-01-3): launcher pid passed explicitly, immediate getppid re-check, PR_SET_PDEATHSIG on Linux (not in the current review) |
 | WR-03 | warning | deferred | deferred to Phase 7 (benchmark harness launches the launcher under wrappers; same issue as WR-10) — UAT test 7, 2026-10-03 (not in the current review) |
 | WR-04 | warning | fixed | 01-11-PLAN.md (gap G-01-7-WR04): eos_token_id required via deserialize_with = Option::deserialize; missing key exits 2 (not in the current review) |
