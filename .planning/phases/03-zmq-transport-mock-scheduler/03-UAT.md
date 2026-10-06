@@ -1,23 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 03-zmq-transport-mock-scheduler
 source: [03-VERIFICATION.md]
 started: 2026-10-06T10:05:37Z
-updated: 2026-10-06T10:05:37Z
+updated: 2026-10-06T18:07:59Z
 ---
 
 ## Current Test
 
-number: 1
-name: Confirm acceptance of the backstop-tagged libzmq whole-message delivery truth
-expected: |
-  A decision recorded (e.g. as a verification override, or accepted as-is) that
-  structural reliance on libzmq's whole-message delivery guarantee (under a
-  coalesced BatchBackendMsg) is appropriate for a dev-mode/Mac-only transport
-  phase, OR a follow-up item opened to add an external verification step before
-  Phase 5-7 build on WriterHandle::abort's ordering guarantee under batch
-  coalescing.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -34,7 +25,7 @@ expected: |
   on it (one `encode_backend`-produced byte buffer per `send_backend` call, never
   partial), but presence of that reliance is not evidence the underlying
   guarantee holds.
-result: [pending]
+result: pass
 
 ### 2. Confirm the mock-timing-as-performance-evidence prohibition is honored
 expected: |
@@ -48,14 +39,14 @@ expected: |
   frontend performance) does not violate it. This prohibition is tagged
   `verification: judgment`, so per the verifier's own protocol it always routes
   to an explicit human checkpoint rather than being resolved unilaterally.
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 2
-passed: 0
+passed: 2
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
