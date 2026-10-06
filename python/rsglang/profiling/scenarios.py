@@ -177,3 +177,66 @@ async def run_s1(
         return [record for agent_records in results for record in agent_records]
     finally:
         await session.close()
+
+
+# --- Scenario 2: bench_simple adaptation (D-07) and first-request workload ---
+
+
+async def run_s2(
+    base_url: str,
+    *,
+    requests: int = 512,
+    max_input: int = 32,
+    output_tokens: int = 32,
+    seed: int = 42,
+) -> list[RequestRecord]:
+    # Lazy imports: openai/transformers/minisgl.benchmark exist on the GPU box
+    # (upstream deps) but not in the Mac lock -- module import must not need them.
+    from minisgl.benchmark.client import benchmark_one, generate_prompt, get_model_name
+    from openai import AsyncOpenAI
+    from transformers import AutoTokenizer
+
+    random.seed(seed)
+    async with AsyncOpenAI(base_url=f"{base_url}/v1", api_key="dummy") as client:
+        model = await get_model_name(client)
+        tokenizer = AutoTokenizer.from_pretrained(model)
+
+        lengths = [random.randint(1, max_input) for _ in range(requests)]
+        prompts = [generate_prompt(tokenizer, n) for n in lengths]
+
+        async def _wrap(prompt: str) -> RequestRecord:
+            # t_send, not tics[0]: tics[0] is taken after the response headers,
+            # so TTFT measured from it would hide the frontend's request-accept
+            # latency, which is exactly what BENCH-01 profiles.
+            t_send = time.perf_counter()
+            try:
+                result = await benchmark_one(client, prompt, output_tokens, model, pbar=False)
+                tics = result.tics
+                t_first = tics[1] if len(tics) > 1 else None
+                t_end = tics[-1]
+                chunks = len(tics) - 1
+                outcome = "completed" if t_first is not None else "failed"
+                error = None
+            except Exception as exc:  # noqa: BLE001 - any benchmark_one failure is a recorded outcome
+                t_first = None
+                t_end = time.perf_counter()
+                chunks = 0
+                outcome = "failed"
+                error = str(exc)
+            return RequestRecord(
+                t_send=t_send, t_first=t_first, t_end=t_end, chunks=chunks, outcome=outcome, error=error
+            )
+
+        return list(await asyncio.gather(*(_wrap(p) for p in prompts)))
+
+
+async def run_first_request(base_url: str, *, max_tokens: int = 16) -> list[RequestRecord]:
+    model = await get_model_id(base_url)
+    session = make_session()
+    try:
+        record = await stream_chat(
+            session, base_url, model=model, prompt="Say hello.", max_tokens=max_tokens, cancel_after=None
+        )
+        return [record]
+    finally:
+        await session.close()
