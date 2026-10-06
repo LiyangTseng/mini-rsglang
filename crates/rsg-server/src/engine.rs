@@ -17,12 +17,13 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;
 
 use tokio::sync::mpsc;
+use tokio::time::Instant;
 use tokio_util::sync::{CancellationToken, DropGuard};
 
 use rsg_wire::{SamplingParams, Tensor};
 
 use crate::codec::{CodecError, Prompt, TextCodec};
-use crate::dispatch::{DispatchHandle, DispatchStatsSnapshot, UidEvent};
+use crate::dispatch::{DispatchHandle, DispatchStatsSnapshot, UidEvent, UidStream};
 use crate::fsm::RegistryHandle;
 use crate::fsm::state::LifecycleState;
 use crate::writer::{Submitted, WriterClosed, WriterHandle};
@@ -272,6 +273,61 @@ async fn abort_now(engine: &Engine, uid: i64, submitted: &Submitted) {
     }
 }
 
+/// Handles a cancellation observed once a submit ticket exists (CONTEXT
+/// D-01). In `Immediate` mode, or once a first token has already been seen
+/// (`first_token_seen`), aborts right away. In `Deferred` mode with no
+/// first token yet, waits instead (see [`deferred_wait`]).
+async fn cancel_after_submit(
+    engine: &Engine,
+    uid: i64,
+    submitted: &Submitted,
+    stream: &mut UidStream,
+    first_token_seen: bool,
+) {
+    if engine.config.abort_timing == AbortTiming::Immediate || first_token_seen {
+        abort_now(engine, uid, submitted).await;
+    } else {
+        deferred_wait(engine, uid, submitted, stream).await;
+    }
+}
+
+/// `Deferred` mode's wait for the first token (CONTEXT D-01): a
+/// cancellation observed after submit but before any first token enters
+/// this wait instead of aborting immediately.
+///
+/// - The first `Token`: if it is already `finished`, the backend already
+///   completed and the dispatcher already removed the route, so no abort
+///   is needed. Otherwise the backend is actively producing, so abort now.
+/// - A `Dropped` lag event: the backend is producing (we just fell behind
+///   reading it), so abort now.
+/// - The deadline expiring first: a backend silent for `backend_timeout`
+///   is already treated as unresponsive, so abort anyway.
+/// - The stream ending on its own: nothing to abort.
+///
+/// All four outcomes end Cancelled, never Decoding -> Cancelled: the
+/// client never received any token during this wait, so the transition is
+/// always Submitted -> Cancelled (the caller does the actual
+/// `finish_silent` call after this returns).
+async fn deferred_wait(engine: &Engine, uid: i64, submitted: &Submitted, stream: &mut UidStream) {
+    let deadline = Instant::now() + engine.config.backend_timeout;
+    tokio::select! {
+        event = stream.recv() => {
+            match event {
+                Some(UidEvent::Token(reply)) if reply.finished => {
+                    tracing::debug!(uid, "deferred cancel observed the finished token; no abort needed");
+                }
+                Some(UidEvent::Token(_)) | Some(UidEvent::Dropped(_)) => {
+                    abort_now(engine, uid, submitted).await;
+                }
+                None => {}
+            }
+        }
+        _ = tokio::time::sleep_until(deadline) => {
+            abort_now(engine, uid, submitted).await;
+        }
+    }
+}
+
 /// The per-request driver's happy path (plus cancellation): encode ->
 /// register -> submit -> stream tokens through the codec's decoder ->
 /// exactly one terminal event. Every exit path below reports exactly one
@@ -345,7 +401,7 @@ async fn drive_request(
     engine.registry.report(uid, LifecycleState::Submitted);
 
     if cancel.is_cancelled() {
-        abort_now(&engine, uid, &submitted).await;
+        cancel_after_submit(&engine, uid, &submitted, &mut stream, false).await;
         finish_silent(&engine, uid, LifecycleState::Cancelled);
         return;
     }
@@ -359,7 +415,7 @@ async fn drive_request(
         tokio::select! {
             biased;
             _ = cancel.cancelled() => {
-                abort_now(&engine, uid, &submitted).await;
+                cancel_after_submit(&engine, uid, &submitted, &mut stream, reported_decoding).await;
                 finish_silent(&engine, uid, LifecycleState::Cancelled);
                 return;
             }
