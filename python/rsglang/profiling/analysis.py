@@ -245,3 +245,191 @@ def percentile(values: Sequence[float], p: float) -> "float | None":
     idx = math.ceil(p / 100 * n) - 1
     idx = max(0, min(idx, n - 1))
     return sorted_values[idx]
+
+
+# ---------------------------------------------------------------------------
+# GC pauses, GC-to-TTFT correlation, request and memory summaries
+# ---------------------------------------------------------------------------
+
+
+def slice_window(records: Iterable[Mapping[str, Any]], t0: float, t1: float) -> list:
+    """Records whose "t" falls in the closed interval [t0, t1]."""
+    return [r for r in records if t0 <= r["t"] <= t1]
+
+
+def gc_stats(events: Iterable[Mapping[str, Any]], *, t0: float) -> dict:
+    """GC-pause-per-role block from already-sliced gc hook records.
+
+    Durations go to ms (duration_s * 1000), unrounded. by_generation keys
+    are the strings "0", "1", "2". Percentiles use percentile() over pause
+    durations in ms. events become [t_rel_s, duration_ms, generation], with
+    t_rel_s = t - t0. A role with 0 collections reports count 0,
+    total_pause_ms 0.0, by_generation all 0 and every pause_ms percentile
+    None.
+    """
+    events = list(events)
+    by_generation = {"0": 0, "1": 0, "2": 0}
+    collected_total = 0
+    durations_ms: list[float] = []
+    out_events: list[list] = []
+
+    for e in events:
+        duration_ms = e["duration_s"] * 1000
+        durations_ms.append(duration_ms)
+        generation = e.get("generation")
+        key = str(generation)
+        if key in by_generation:
+            by_generation[key] += 1
+        collected_total += e.get("collected", 0)
+        out_events.append([e["t"] - t0, duration_ms, generation])
+
+    return {
+        "count": len(events),
+        "by_generation": by_generation,
+        "total_pause_ms": sum(durations_ms),
+        "pause_ms": {
+            "p50": percentile(durations_ms, 50),
+            "p99": percentile(durations_ms, 99),
+            "max": percentile(durations_ms, 100),
+        },
+        "collected": collected_total,
+        "events": out_events,
+    }
+
+
+def gc_ttft_correlation(
+    requests: Iterable[Any], gc_events: Iterable[Mapping[str, Any]]
+) -> "dict | None":
+    """Correlate GC pauses with P99 TTFT spikes (D-03).
+
+    TTFT in ms is (t_first - t_send) * 1000 for every request whose t_first
+    is not None (requests without t_first are excluded). The spike
+    threshold is percentile(ttfts, 99); a request is a spike when its TTFT
+    is at or above that threshold. A GC pause interval is
+    (t - duration_s, t); it overlaps a request when start < t_first and
+    end > t_send, both strict (a pause that only touches a window endpoint
+    does not count). Overlap rates are with_gc / requests, None for a zero
+    denominator. Returns None when no request has t_first.
+    """
+    pairs = [(r, (r.t_first - r.t_send) * 1000) for r in requests if r.t_first is not None]
+    if not pairs:
+        return None
+
+    ttfts = [ttft for _, ttft in pairs]
+    threshold = percentile(ttfts, 99)
+
+    pauses = [(e["t"] - e["duration_s"], e["t"]) for e in gc_events]
+
+    spike_requests = 0
+    spike_with_gc = 0
+    nonspike_requests = 0
+    nonspike_with_gc = 0
+
+    for r, ttft in pairs:
+        overlaps = any(start < r.t_first and end > r.t_send for start, end in pauses)
+        if ttft >= threshold:
+            spike_requests += 1
+            if overlaps:
+                spike_with_gc += 1
+        else:
+            nonspike_requests += 1
+            if overlaps:
+                nonspike_with_gc += 1
+
+    return {
+        "p99_ttft_ms": threshold,
+        "spike_requests": spike_requests,
+        "spike_with_gc": spike_with_gc,
+        "nonspike_requests": nonspike_requests,
+        "nonspike_with_gc": nonspike_with_gc,
+        "spike_overlap_rate": spike_with_gc / spike_requests if spike_requests else None,
+        "nonspike_overlap_rate": (
+            nonspike_with_gc / nonspike_requests if nonspike_requests else None
+        ),
+    }
+
+
+def summarize_requests(records: Iterable[Any], window_s: float) -> dict:
+    """The requests-per-scenario block: counts by outcome, TTFT percentiles,
+    and rps. TTFT percentiles (p50, p90, p99, max) are computed, in ms,
+    over completed or cancelled records that have t_first. rps is
+    completed / window_s, or None when window_s <= 0.
+    """
+    records = list(records)
+    sent = len(records)
+    completed = sum(1 for r in records if r.outcome == "completed")
+    cancelled = sum(1 for r in records if r.outcome == "cancelled")
+    failed = sum(1 for r in records if r.outcome == "failed")
+
+    ttfts = [
+        (r.t_first - r.t_send) * 1000
+        for r in records
+        if r.outcome in ("completed", "cancelled") and r.t_first is not None
+    ]
+
+    return {
+        "sent": sent,
+        "completed": completed,
+        "cancelled": cancelled,
+        "failed": failed,
+        "ttft_ms": {
+            "p50": percentile(ttfts, 50),
+            "p90": percentile(ttfts, 90),
+            "p99": percentile(ttfts, 99),
+            "max": percentile(ttfts, 100),
+        },
+        "rps": completed / window_s if window_s > 0 else None,
+    }
+
+
+def memory_role_summary(
+    rss_samples: Iterable[tuple],
+    mem_records: Iterable[Mapping[str, Any]],
+    top_alloc_sites: Any,
+    *,
+    t0: float,
+) -> dict:
+    """The memory-per-role block: RSS curve/summary, tracemalloc
+    curve/summary, and the passed-through top allocation sites.
+
+    rss_samples is an iterable of (t, rss_bytes) pairs. rss_curve is
+    [[t - t0, rss_bytes], ...]; growth = end - start. mem_records are
+    hook.py "mem" records ({"t", "traced_current", "traced_peak"}, see
+    rsglang.profiling.hook); tracemalloc_curve is
+    [[t - t0, traced_current, traced_peak], ...] and peak is the max
+    traced_peak across all records. With no samples, every summary value
+    is None and the curves are empty lists.
+    """
+    rss_samples = list(rss_samples)
+    rss_curve = [[t - t0, rss] for t, rss in rss_samples]
+    if rss_samples:
+        rss_values = [rss for _, rss in rss_samples]
+        rss_bytes = {
+            "start": rss_samples[0][1],
+            "end": rss_samples[-1][1],
+            "max": max(rss_values),
+            "growth": rss_samples[-1][1] - rss_samples[0][1],
+        }
+    else:
+        rss_bytes = {"start": None, "end": None, "max": None, "growth": None}
+
+    mem_records = list(mem_records)
+    tracemalloc_curve = [
+        [r["t"] - t0, r["traced_current"], r["traced_peak"]] for r in mem_records
+    ]
+    if mem_records:
+        tracemalloc = {
+            "current_start": mem_records[0]["traced_current"],
+            "current_end": mem_records[-1]["traced_current"],
+            "peak": max(r["traced_peak"] for r in mem_records),
+        }
+    else:
+        tracemalloc = {"current_start": None, "current_end": None, "peak": None}
+
+    return {
+        "rss_bytes": rss_bytes,
+        "rss_curve": rss_curve,
+        "tracemalloc": tracemalloc,
+        "tracemalloc_curve": tracemalloc_curve,
+        "top_alloc_sites": top_alloc_sites,
+    }
