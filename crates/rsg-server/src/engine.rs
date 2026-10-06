@@ -4,10 +4,13 @@
 //! tokens -> terminal), and returns an [`ActiveRequest`] handle for the
 //! HTTP layer to await acceptance and then consume [`RequestEvent`]s from.
 //!
-//! Plan 05-02 (Task 2, this same plan) adds the `fsm` registry parameter
-//! and reports every transition to it. Plan 05-04 adds cancellation
-//! (acting on the [`AbortGuard`]'s token), abort timing, the backend
-//! timeout and the overlong-prompt check on top of this happy path.
+//! The driver observes cancellation (the [`AbortGuard`]'s
+//! [`CancellationToken`]) with a `biased` `tokio::select!`: the
+//! cancellation branch always goes first, so an abort reaches the backend
+//! promptly even while tokens are streaming (LIFE-02). Plan 05-04's later
+//! tasks add abort-timing (`Immediate`/`Deferred`, CONTEXT D-01), a
+//! per-request backend-inactivity timeout, and the overlong-prompt check
+//! on top of this.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -22,17 +25,17 @@ use crate::codec::{CodecError, Prompt, TextCodec};
 use crate::dispatch::{DispatchHandle, DispatchStatsSnapshot, UidEvent};
 use crate::fsm::RegistryHandle;
 use crate::fsm::state::LifecycleState;
-use crate::writer::{WriterClosed, WriterHandle};
+use crate::writer::{Submitted, WriterClosed, WriterHandle};
 
-/// Default backend-unresponsive timeout (LIFE-04), in milliseconds. Plan
-/// 05-04 wires this into the driver; this plan only defines the constant
-/// and the config field it initializes.
+/// Default backend-unresponsive timeout (LIFE-04), in milliseconds. A
+/// later task in this plan wires this into the driver; this constant and
+/// the config field it initializes are already in place from plan 05-01.
 pub const DEFAULT_BACKEND_TIMEOUT_MS: u64 = 60_000;
 
 /// Server-wide abort-timing mode (LIFE-05, CONTEXT D-01): `Immediate`
 /// (default) aborts as soon as a disconnect is noticed; `Deferred` waits
-/// for the first token. Plan 05-04 wires this into the driver; this plan
-/// only defines the enum and the config field it initializes.
+/// for the first token. A later task in this plan wires this into the
+/// driver; this plan's first task always behaves as `Immediate`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
 pub enum AbortTiming {
     #[default]
@@ -87,11 +90,24 @@ pub enum RequestEvent {
 /// A `Drop`-based cancellation hook (CONTEXT Pattern A). Wraps a
 /// [`tokio_util::sync::DropGuard`]: dropping whatever owns this guard (the
 /// response body stream, or the handler future that holds an
-/// [`ActiveRequest`]) cancels the request's [`CancellationToken`]. Plan
-/// 05-04 makes the driver act on that cancellation; this plan only wires
-/// the guard through so later plans have it in place. `AbortGuard` is
-/// `Send` and exposes no public methods beyond construction — the project's
-/// minimal-wrapper-type convention (see `transport.rs`'s split halves).
+/// [`ActiveRequest`]) cancels the request's [`CancellationToken`]. The
+/// driver observes the cancellation with a `biased` `tokio::select!` (the
+/// cancellation branch always checked first) and turns it into an abort on
+/// the backend. `AbortGuard` is `Send` and exposes no public methods beyond
+/// construction — the project's minimal-wrapper-type convention (see
+/// `transport.rs`'s split halves).
+///
+/// **D-03 (accepted limitation):** hyper only notices a closed connection
+/// when it next tries to write to it (or otherwise polls the connection).
+/// A request that is still queued — nothing written yet, e.g. still in
+/// prefill — or a non-streaming request — nothing written until the whole
+/// response is ready — may not have its guard dropped until that next
+/// write, or until the request completes. This is a documented limitation,
+/// not patched with liveness probing (CONTEXT D-03). The actual bound is
+/// measured, not eliminated, by
+/// `http_cancellation::queued_stream_disconnect_abort_bound` (plan 05-04)
+/// and `http_nonstream::tracer_nonstream_disconnect_reaches_one_terminal_state`
+/// (plan 05-07).
 pub struct AbortGuard {
     _guard: DropGuard,
 }
@@ -195,12 +211,13 @@ impl Engine {
         let uid = self.next_uid.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = mpsc::unbounded_channel();
         let token = CancellationToken::new();
+        let driver_token = token.clone();
         let guard = AbortGuard {
-            _guard: token.clone().drop_guard(),
+            _guard: token.drop_guard(),
         };
 
         let engine = Arc::clone(self);
-        tokio::spawn(drive_request(engine, uid, prompt, params, tx));
+        tokio::spawn(drive_request(engine, uid, prompt, params, tx, driver_token));
 
         ActiveRequest {
             uid,
@@ -231,18 +248,45 @@ fn finish(
     send_event(tx, event);
 }
 
-/// The per-request driver's happy path: encode -> register -> submit ->
-/// stream tokens through the codec's decoder -> exactly one terminal
-/// event. Every exit path below reports exactly one terminal state to the
-/// registry and sends exactly one terminal (`Rejected`/`Failed`) event, or
-/// returns after the finished `Token` event — see the module doc for what
-/// later plans add on top.
+/// Reports `to` (always a terminal state) to the registry without sending
+/// any event. Used only for cancellation paths: the HTTP layer's event
+/// receiver and `AbortGuard` only disappear because something dropped
+/// them, so nobody is listening on `tx` by construction — sending an
+/// event there would be a silently-ignored no-op anyway, but this makes
+/// that explicit rather than inventing an event nobody consumes.
+fn finish_silent(engine: &Engine, uid: i64, to: LifecycleState) {
+    engine.registry.report(uid, to);
+}
+
+/// Deregisters `uid`'s route, then sends an `AbortBackendMsg` through the
+/// single ordered writer using `submitted`'s ticket. Deregistering first
+/// means every reply that arrives after this point is counted by the
+/// dispatcher as `unknown_uid`/`closed_route` (LIFE-02's "dropped and
+/// counted"); going through the ticket means this abort can never overtake
+/// its own submit (WIRE-03). A `WriterClosed` here is logged at warn — the
+/// request still ends Cancelled.
+async fn abort_now(engine: &Engine, uid: i64, submitted: &Submitted) {
+    engine.dispatch.deregister(uid);
+    if let Err(WriterClosed) = engine.writer.abort(submitted).await {
+        tracing::warn!(uid, "writer closed while sending abort");
+    }
+}
+
+/// The per-request driver's happy path (plus cancellation): encode ->
+/// register -> submit -> stream tokens through the codec's decoder ->
+/// exactly one terminal event. Every exit path below reports exactly one
+/// terminal state to the registry, and sends exactly one terminal
+/// (`Rejected`/`Failed`) event or none at all (a cancellation nobody is
+/// listening for — see [`finish_silent`]), or returns after the finished
+/// `Token` event. See the module doc for what later tasks in this plan add
+/// on top (abort timing, the backend timeout, the overlong check).
 async fn drive_request(
     engine: Arc<Engine>,
     uid: i64,
     prompt: Prompt,
     params: SamplingParams,
     tx: mpsc::UnboundedSender<RequestEvent>,
+    cancel: CancellationToken,
 ) {
     engine.registry.report(uid, LifecycleState::Received);
     engine.registry.report(uid, LifecycleState::Tokenizing);
@@ -264,10 +308,21 @@ async fn drive_request(
     let input_len = input_ids.len();
     let max_tokens = params.max_tokens;
 
+    // A cancellation observed before anything was ever sent to the backend
+    // needs no abort at all: there is no ticket to abort with.
+    if cancel.is_cancelled() {
+        tracing::debug!(uid, "cancelled before submit; nothing sent to backend");
+        finish_silent(&engine, uid, LifecycleState::Cancelled);
+        return;
+    }
+
     // Register before submitting (Phase 3 caller contract): a reply could
     // otherwise arrive before this uid has a route.
     let mut stream = engine.dispatch.register(uid);
 
+    // Do not race the submit await itself against cancellation: tokio's
+    // bounded send either enqueues or not, and checking right after keeps
+    // the ticket logic simple (CONTEXT D-01).
     let submitted = match engine
         .writer
         .submit(uid, Tensor::from_i32_slice(&input_ids), params)
@@ -289,82 +344,98 @@ async fn drive_request(
     };
     engine.registry.report(uid, LifecycleState::Submitted);
 
+    if cancel.is_cancelled() {
+        abort_now(&engine, uid, &submitted).await;
+        finish_silent(&engine, uid, LifecycleState::Cancelled);
+        return;
+    }
+
     tracing::debug!(uid, input_len, max_tokens, "request accepted");
     send_event(&tx, RequestEvent::Accepted);
     let mut decoder = engine.codec.decoder();
     let mut reported_decoding = false;
 
     loop {
-        match stream.recv().await {
-            Some(UidEvent::Token(reply)) => {
-                if !reported_decoding {
-                    engine.registry.report(uid, LifecycleState::Decoding);
-                    reported_decoding = true;
-                }
-                match decoder.step(reply.next_token, reply.finished) {
-                    Ok(text) => {
-                        if reply.finished {
-                            tracing::debug!(uid, "request finished");
-                            finish(
-                                &engine,
-                                &tx,
-                                uid,
-                                LifecycleState::Finished,
-                                RequestEvent::Token {
-                                    text,
-                                    finished: true,
-                                },
-                            );
-                            return;
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => {
+                abort_now(&engine, uid, &submitted).await;
+                finish_silent(&engine, uid, LifecycleState::Cancelled);
+                return;
+            }
+            event = stream.recv() => {
+                match event {
+                    Some(UidEvent::Token(reply)) => {
+                        if !reported_decoding {
+                            engine.registry.report(uid, LifecycleState::Decoding);
+                            reported_decoding = true;
                         }
-                        send_event(
-                            &tx,
-                            RequestEvent::Token {
-                                text,
-                                finished: false,
-                            },
-                        );
+                        match decoder.step(reply.next_token, reply.finished) {
+                            Ok(text) => {
+                                if reply.finished {
+                                    tracing::debug!(uid, "request finished");
+                                    finish(
+                                        &engine,
+                                        &tx,
+                                        uid,
+                                        LifecycleState::Finished,
+                                        RequestEvent::Token {
+                                            text,
+                                            finished: true,
+                                        },
+                                    );
+                                    return;
+                                }
+                                send_event(
+                                    &tx,
+                                    RequestEvent::Token {
+                                        text,
+                                        finished: false,
+                                    },
+                                );
+                            }
+                            Err(CodecError(msg)) => {
+                                engine.dispatch.deregister(uid);
+                                let _ = engine.writer.abort(&submitted).await;
+                                tracing::warn!(uid, "decode failed");
+                                finish(
+                                    &engine,
+                                    &tx,
+                                    uid,
+                                    LifecycleState::Failed,
+                                    RequestEvent::Failed(RequestError::Decode(msg)),
+                                );
+                                return;
+                            }
+                        }
                     }
-                    Err(CodecError(msg)) => {
+                    Some(UidEvent::Dropped(n)) => {
+                        // A gap would corrupt the decoded text, so the
+                        // request fails instead of streaming wrong output.
                         engine.dispatch.deregister(uid);
                         let _ = engine.writer.abort(&submitted).await;
-                        tracing::warn!(uid, "decode failed");
+                        tracing::warn!(uid, dropped = n, "slow consumer, failing request");
                         finish(
                             &engine,
                             &tx,
                             uid,
                             LifecycleState::Failed,
-                            RequestEvent::Failed(RequestError::Decode(msg)),
+                            RequestEvent::Failed(RequestError::SlowConsumer { dropped: n }),
+                        );
+                        return;
+                    }
+                    None => {
+                        tracing::warn!(uid, "backend gone");
+                        finish(
+                            &engine,
+                            &tx,
+                            uid,
+                            LifecycleState::Failed,
+                            RequestEvent::Failed(RequestError::BackendGone),
                         );
                         return;
                     }
                 }
-            }
-            Some(UidEvent::Dropped(n)) => {
-                // A gap would corrupt the decoded text, so the request
-                // fails instead of streaming wrong output.
-                engine.dispatch.deregister(uid);
-                let _ = engine.writer.abort(&submitted).await;
-                tracing::warn!(uid, dropped = n, "slow consumer, failing request");
-                finish(
-                    &engine,
-                    &tx,
-                    uid,
-                    LifecycleState::Failed,
-                    RequestEvent::Failed(RequestError::SlowConsumer { dropped: n }),
-                );
-                return;
-            }
-            None => {
-                tracing::warn!(uid, "backend gone");
-                finish(
-                    &engine,
-                    &tx,
-                    uid,
-                    LifecycleState::Failed,
-                    RequestEvent::Failed(RequestError::BackendGone),
-                );
-                return;
             }
         }
     }
