@@ -383,11 +383,12 @@ def cmd_run(ns: argparse.Namespace) -> int:
         procs.ServerExited,
         TimeoutError,
         procs.RoleError,
+        procs.PySpyPermissionError,
         session.MeasurementError,
         analysis.SpeedscopeError,
     ) as exc:
         print(str(exc), file=sys.stderr)
-        return 1
+        return 2 if isinstance(exc, procs.PySpyPermissionError) else 1
 
     meta = sidecar.build_meta(
         mode="run",
@@ -424,7 +425,7 @@ def _check_hyperfine_version(hyperfine_path: str) -> "tuple[bool, str]":
 
     try:
         out = subprocess.run([hyperfine_path, "--version"], capture_output=True, text=True, timeout=10)
-    except OSError as exc:
+    except (OSError, subprocess.TimeoutExpired) as exc:
         return False, f"hyperfine: could not run --version: {exc}"
     if out.returncode != 0:
         return False, f"hyperfine --version failed: {out.stderr.strip()}"

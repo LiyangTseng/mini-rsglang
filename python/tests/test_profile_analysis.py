@@ -231,6 +231,19 @@ def test_cpu_metrics():
     assert result_no_gil["gil_held_pct"] is None
 
 
+def test_cpu_metrics_rate_hz_zero_does_not_raise():
+    # Code review CR-03: per_request_ms divided by rate_hz guarded only by
+    # requests_completed > 0, never by rate_hz > 0 -- rate_hz=0 raised
+    # ZeroDivisionError after a full scenario had already run. ticks <= 0
+    # already makes cpu_active_pct/gil_held_pct None for the same input, so
+    # per_request_ms must be None too, not a crash.
+    active_doc = _cpu_fixture(ipc_count=20, filler_count=380)
+    result = analysis.cpu_metrics(active_doc, None, rate_hz=0, window_s=10.0, requests_completed=50)
+    assert result["cpu_active_pct"] is None
+    for bucket in result["buckets"].values():
+        assert bucket["per_request_ms"] is None
+
+
 # ---------------------------------------------------------------------------
 # Task 1: percentile
 # ---------------------------------------------------------------------------
