@@ -27,10 +27,10 @@
 ### Request Lifecycle
 
 - [x] **LIFE-01**: Each request moves through received → tokenizing → submitted → decoding → finished / cancelled / failed, and each terminal state is reached exactly once
-- [ ] **LIFE-02**: On client disconnect (streaming or non-streaming), Rust sends an abort to the backend immediately; tokens that arrive after the abort are dropped and counted
+- [x] **LIFE-02**: On client disconnect (streaming or non-streaming), Rust sends an abort to the backend immediately; tokens that arrive after the abort are dropped and counted
 - [ ] **LIFE-03**: A stress test with 128 concurrent requests and random cancellations ends with no leaked requests and no stuck connections
-- [ ] **LIFE-04**: Overlong prompts get an immediate 400 (upstream drops them silently and the request hangs), and a request whose backend stops responding times out with an error
-- [ ] **LIFE-05**: Abort timing is configurable (immediate or deferred until first token) to work around the suspected upstream abort-during-prefill bug; default is immediate
+- [x] **LIFE-04**: Overlong prompts get an immediate 400 (upstream drops them silently and the request hangs), and a request whose backend stops responding times out with an error
+- [x] **LIFE-05**: Abort timing is configurable (immediate or deferred until first token) to work around the suspected upstream abort-during-prefill bug; default is immediate
 
 ### HTTP API
 
@@ -104,10 +104,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOK-03 | Phase 4 | Pending |
 | TOK-04 | Phase 4 | Pending |
 | LIFE-01 | Phase 5 | Complete |
-| LIFE-02 | Phase 5 | Pending |
+| LIFE-02 | Phase 5 | Complete |
 | LIFE-03 | Phase 5 | Pending |
-| LIFE-04 | Phase 5 | Pending |
-| LIFE-05 | Phase 5 | Pending |
+| LIFE-04 | Phase 5 | Complete |
+| LIFE-05 | Phase 5 | Complete |
 | API-01 | Phase 5 | Complete |
 | API-02 | Phase 5 | Pending |
 | PAR-01 | Phase 6 | Pending |

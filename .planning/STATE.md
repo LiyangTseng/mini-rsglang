@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Request Lifecycle & HTTP API
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-10-06T22:19:14.812Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-10-06T22:45:45.575Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 05 execution started
-state_head: 311cde22378630db3fd0d57e9123c130c406d7f8
+state_head: 687f018f0c0b18b6f879456d08dc3611caf8568e
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 37
-  completed_plans: 31
+  completed_plans: 32
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 05 execution started
 
@@ -75,6 +75,7 @@ Progress: [████░░░░░░] 43%
 | Phase 05 P01 | 45min | 2 tasks | 15 files |
 | Phase 05 P02 | 45min | 2 tasks | 2 files |
 | Phase 05 P03 | 25min | 3 tasks | 6 files |
+| Phase 05 P04 | 70min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,11 @@ Recent decisions affecting current work:
 - [Phase 05]: Relock used no --upgrade flag; uv treated the existing requirements-mac.txt as preferences so all 40 pre-existing pins stayed byte-for-byte identical
 - [Phase 05]: [Phase 05]: list_models is pub(crate), not pub like every other handler in rsg-server, because its return type exposes the crate-private ModelList struct
 - [Phase 05]: The non-streaming chat_completions branch keeps the ActiveRequest (and its AbortGuard) alive in the handler's own future rather than spawning a background stream, so a client disconnect before the response is ready still cancels the backend request
+- [Phase 05]: [Phase 05]: cancel_after_submit(engine, uid, submitted, stream, first_token_seen) is the single decision point for Immediate-vs-Deferred abort timing; both post-submit cancellation checkpoints call through it rather than duplicating the split
+- [Phase 05]: deferred_wait's four outcomes (finished-token/non-finished-token/Dropped/timeout) all end Cancelled, never Decoding -> Cancelled, reported by the caller after deferred_wait returns
+- [Phase 05]: finish_silent reports a terminal state without sending a RequestEvent: every cancellation path is reached only because the AbortGuard/events receiver was already dropped, so nobody is listening
+- [Phase 05]: No tower-http timeout layer: the backend-inactivity deadline is a pinned, resettable tokio::time::sleep_until inside the driver, per CLAUDE.md's prohibition on tower_http::timeout for streaming routes
+- [Phase 05]: An abort reaching Cancelled in the registry only means the AbortBackendMsg was enqueued onto the writer's channel, not that mock-scheduler has received and recorded it in its observe file yet; tests must poll (wait_for_abort/wait_for_observed) rather than assert immediately after a registry snapshot goes idle
 
 ### Pending Todos
 
@@ -152,6 +158,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T22:19:14.769Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-10-06T22:45:45.527Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None

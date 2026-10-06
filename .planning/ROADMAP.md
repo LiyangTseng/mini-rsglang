@@ -165,7 +165,7 @@ Plans:
   4. An overlong prompt gets an immediate 400, and a request whose backend stops responding times out with an error instead of hanging. Abort timing is configurable: immediate by default, or deferred until the first token.
   5. `/health` and `/health/ready` respond, and `/metrics` exposes the request count, the cancellation count and a TTFT histogram.
 
-**Plans:** 3/9 plans executed
+**Plans:** 4/9 plans executed
 
 Plans:
 
@@ -175,7 +175,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 05-03-PLAN.md — /v1/chat/completions (streaming chunks escaped like Python's json.dumps, non-streaming JSON), /v1/models, the multi-method /v1, 422 validation and not-ready 503s (wave 2)
-- [ ] 05-04-PLAN.md — Disconnect -> immediate abort with late tokens dropped and counted; --abort-timing immediate|deferred in the engine (D-01); overlong 400 against the handshake's max_seq_len; per-request backend timeout; D-03 queued-disconnect bound (wave 2)
+- [x] 05-04-PLAN.md — Disconnect -> immediate abort with late tokens dropped and counted; --abort-timing immediate|deferred in the engine (D-01); overlong 400 against the handshake's max_seq_len; per-request backend timeout; D-03 queued-disconnect bound (wave 2)
 - [ ] 05-05-PLAN.md — Runner for the frozen Python frontend against the mock-scheduler, plus gen_api_fixtures.py capturing 18 golden API cases from a live run (D-02) (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
@@ -231,6 +231,6 @@ Plans:
 | 2. Python Frontend Baseline Profile | 9/9 | Complete    | 2026-10-05 |
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
-| 5. Request Lifecycle & HTTP API | 3/9 | In Progress|  |
+| 5. Request Lifecycle & HTTP API | 4/9 | In Progress|  |
 | 6. GPU End-to-End Parity | 0/TBD | Not started | - |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |
