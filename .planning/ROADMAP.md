@@ -87,7 +87,7 @@ Plans:
   3. The report records the share of scheduler time spent in the radix cache, as the input to the v2 radix decision.
   4. The profiling run is scripted so it can be repeated on the GPU machine. Its findings are written down as concrete inputs to the benchmark design: which metrics to capture, and which effects can be credited to the frontend.
 
-**Plans:** 8/9 plans executed
+**Plans:** 9/9 plans executed
 
 Plans:
 
@@ -108,7 +108,7 @@ Plans:
 - [x] 02-08-PLAN.md — `baseline_profile.py run`: per-scenario sessions with py-spy active+GIL passes, all 3 scenarios, script-written sidecar (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 02-09-PLAN.md — GPU run (human) + hand-written docs/benchmarks/baseline-profile.md tied to the JSON (wave 5)
+- [x] 02-09-PLAN.md — GPU run (human) + hand-written docs/benchmarks/baseline-profile.md tied to the JSON (wave 5)
 
 ### Phase 3: ZMQ Transport & Mock Scheduler
 
@@ -191,7 +191,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Vendored Base & Wire Codec | 13/13 | Complete    | 2026-10-05 |
-| 2. Python Frontend Baseline Profile | 8/9 | In Progress|  |
+| 2. Python Frontend Baseline Profile | 9/9 | In Progress|  |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
 | 5. Request Lifecycle & HTTP API | 0/TBD | Not started | - |
