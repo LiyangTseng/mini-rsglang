@@ -23,9 +23,18 @@ use crate::transport::BackendSink;
 pub const WRITER_QUEUE_CAPACITY: usize = 1024;
 
 /// A successfully enqueued submit. The enqueue — not any later send over
-/// the wire — is the ordering point 03-04's abort ticket API relies on:
-/// once `submit` returns, this uid's `UserMsg` already sits in the single
-/// FIFO ahead of anything enqueued after it.
+/// the wire — is the ordering point [`WriterHandle::abort`]'s ticket API
+/// relies on: once `submit` returns, this uid's `UserMsg` already sits in
+/// the single FIFO ahead of anything enqueued after it.
+///
+/// The `uid` field is private and only [`WriterHandle::submit`] can produce
+/// a `Submitted`. That is what makes "an abort can never be enqueued before
+/// its own submit" structural rather than merely conventional (D-01,
+/// WIRE-03): there is no way to construct a ticket for a uid whose
+/// `UserMsg` has not already completed its enqueue. `Submitted` is `Clone`
+/// and (being a plain `i64` underneath) `Send`, so a task other than the
+/// one that called `submit` may hold a clone of the ticket and call
+/// [`WriterHandle::abort`] with it.
 #[derive(Debug, Clone)]
 pub struct Submitted {
     uid: i64,
@@ -67,6 +76,30 @@ impl WriterHandle {
             .await
             .map_err(|_| WriterClosed)?;
         Ok(Submitted { uid })
+    }
+
+    /// Enqueues an `AbortBackendMsg` for `ticket`'s uid.
+    ///
+    /// A [`Submitted`] ticket exists only after its `UserMsg` enqueue has
+    /// completed, and the queue is FIFO into the single `tx-zmq` thread, so
+    /// this abort is guaranteed to reach the scheduler after the submit it
+    /// cancels (WIRE-03) — no code path can enqueue an abort for a uid
+    /// before that uid's submit. The ticket is `Clone` and `Send`, so a
+    /// task other than the one that submitted may hold it and abort.
+    ///
+    /// Aborting twice forwards two `AbortBackendMsg` frames to the
+    /// scheduler: the writer never deduplicates, merges or drops a
+    /// message. The scheduler treats an abort for an unknown or
+    /// already-finished uid as a no-op (`scheduler.py:190-195`).
+    ///
+    /// A request cancelled before it was ever submitted (for example,
+    /// during tokenization) needs no abort at all — the caller simply
+    /// never calls `submit` for it; there is no ticket to abort with.
+    pub async fn abort(&self, ticket: &Submitted) -> Result<(), WriterClosed> {
+        self.tx
+            .send(BackendMsg::AbortBackendMsg { uid: ticket.uid() })
+            .await
+            .map_err(|_| WriterClosed)
     }
 
     /// Enqueues an `ExitMsg`.
