@@ -3,41 +3,41 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: request-lifecycle-http-api
 status: executing
-stopped_at: Phase 5 context gathered
+stopped_at: Phase 05 planned (9 plans, 5 waves); merged Phase 03 from origin/main
 last_updated: "2026-10-06T18:23:23.754Z"
-last_activity: 2026-10-05
-last_activity_desc: Phase 02 execution started
+last_activity: 2026-10-06
+last_activity_desc: Phase 05 planned (9 plans, 5 waves); merged Phase 03 completion from origin/main
 state_head: c17f9e7559c72321354e24226da0ca4863c77a2b
 progress:
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 37
-  completed_plans: 22
-  percent: 14
+  completed_plans: 28
+  percent: 43
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-02)
+See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 02 — Python Frontend Baseline Profile
+**Current focus:** Phase 05 — Request Lifecycle & HTTP API
 
 ## Current Position
 
 Phase: 05 (request-lifecycle-http-api) — READY TO EXECUTE
 Plan: 1 of 9
 Status: Ready to execute
-Last activity: 2026-10-05 — Phase 02 execution started
+Last activity: 2026-10-06 — Phase 05 planned (9 plans, 5 waves); Phase 03 merged in complete from origin/main
 
-Progress: [█░░░░░░░░░] 14%
+Progress: [████░░░░░░] 43%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 28
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -46,6 +46,8 @@ Progress: [█░░░░░░░░░] 14%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 13 | - | - |
+| 02 | 9 | - | - |
+| 03 | 6 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -64,6 +66,12 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 01 P06 | 8 min | 2 tasks | 6 files |
 | Phase 01 P07 | 20 min | 2 tasks | 4 files |
 | Phase 01 P08 | 25 min | 3 tasks | 6 files |
+| Phase 03 P01 | 35min | 2 tasks | 10 files |
+| Phase 03 P02 | 25min | 2 tasks | 4 files |
+| Phase 03 P03 | 55min | 2 tasks | 2 files |
+| Phase 03 P04 | 50min | 3 tasks | 2 files |
+| Phase 03 P05 | 40min | 2 tasks | 2 files |
+| Phase 03 P06 | 45min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -77,6 +85,17 @@ Recent decisions affecting current work:
 - [Roadmap]: There is one minimal Rust mock scheduler only: no Python mock, no Python contract oracle, no Mac A/B rehearsal phase.
 - [Roadmap]: Phase 2 (BENCH-01 profiling) runs on the GPU machine in parallel with Mac work. It informs benchmark design but does not gate the project.
 - [Roadmap]: Phase 4 (tokenizer parity) does not depend on the transport and can run alongside Phase 3.
+- [Phase 02]: Real GPU run needed no py-spy privilege grant — this WSL2 box doesn't enforce `kernel.yama.ptrace_scope`. Environment-specific, not a general claim; a box with the default `ptrace_scope=1` still needs the documented setcap/sudo/ptrace_scope remediation.
+- [Phase 02]: Radix-cache share measured at 1.58%/0.76%/0.98% of scheduler time (real GPU, 3 scenarios) — recommends not clearing RADIX-01's "meaningful share" bar; author's decision, not automatic.
+- [Phase 02]: Scheduler (backend) hit 93% CPU-active in the heaviest scenario (128-agent load) — already near its own ceiling there, so Rust-frontend gains are likelier to show in lower-backend-load scenarios. Phase 7 benchmark design should attribute frontend vs. backend cost separately (see PROJECT.md Key Decisions).
+- [Phase 02]: Two real bugs found only against real GPU/py-spy output (neither caught by Mac stand-ins): a WSL PATH gap for nvidia-smi/nvcc on non-interactive SSH, and py-spy occasionally emitting invalid UTF-8 in unresolvable native-frame names. Both fixed with regression tests (commits `c53a4b3`, `d4272b3`).
+- [Phase 02]: Code review found 4 critical bugs (process-teardown signal handling, a missing exit-code mapping, a divide-by-zero, and a subprocess-timeout gap that could discard a completed measurement run) — all fixed with regression tests (commit `0c78fe6`). 3 non-blocking warnings remain open in `02-REVIEW-DISPOSITION.md`.
+- [Phase 03]: mock-scheduler opens ZmqSchedulerTransport on its own dedicated engine thread (not created in main() and moved in), and ZMQ_RECONNECT_IVL is lowered to 1ms on all Connect-role sockets in the shared open_socket helper — fixes a real ZMQ connect-before-bind race where libzmq's 100ms default reconnect interval silently delayed a socket's first message by up to ~100ms; the fix lives in shared code so every later transport consumer (Phases 5-7) inherits it
+- [Phase 03]: mock-scheduler is a same-package src/bin/ binary reusing the new rsg_server library (handshake, transport); readiness travels out-of-band on stdout as the Phase 1 handshake JSON line, observation goes to a --observe-file, and neither becomes a 9th wire tag (D-08, prohibition on extending the wire schema)
+- [Phase 03]: WriterHandle::abort(&Submitted) is ticket-gated: Submitted's private uid field makes "abort can never precede its own submit" structural; the abort-ordering proptest's final case count is 64 (largest of 64/32/16 under a 60s budget), measured ~7.0s across 4 runs against a real mock subprocess
+- [Phase 03]: Per-uid reply channel is tokio::sync::broadcast::channel(16), drop-oldest, fixed capacity with no CLI/config knob (D-07); DispatchHandle::deregister and stats() -> DispatchStatsSnapshot {routed, unknown_uid, closed_route, malformed_frames} give Phases 5-7 the route-cleanup and drop-accounting surface
+- [Phase 03]: Unknown-uid drops log at tracing::debug!, not warn!: after a mass cancellation they can number in the thousands and would flood the log; the unknown_uid counter is the signal
+- [Phase 03]: Phase 3 complete — all 4 success criteria proven end-to-end (handshake/uid-routing, the abort-ordering proptest inside the gate, each mock misbehavior exercised both raw and through the transport, unknown-uid drops counted and silent uids never stall others); scripts/check_all.sh --offline green. Code review found 0 Critical/3 Warning/2 Info (all open, non-blocking); security review found 0 open threats across 23 registered; Nyquist validation confirmed full automated coverage
 - [Phase 01]: rsg-server toolchain stays on Rust 1.99.0: zmq-sys bundled libzmq builds on it (A2 confirmed)
 - [Phase 01]: rsg-server exit-code contract: 0 signal, 1 startup failure, 2 bad handshake, 3 stdin EOF
 - [Phase 01]: Mac dev env is a project-local uv-managed .venv synced from the sha256-hashed requirements-mac.txt; never install into system/user Python
@@ -122,6 +141,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T08:30:39.298Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-request-lifecycle-http-api/05-CONTEXT.md
+Last session: 2026-10-06T18:23:23.754Z
+Stopped at: Phase 05 planned (9 plans, 5 waves); Phase 03 merged in complete from origin/main
+Resume file: None
