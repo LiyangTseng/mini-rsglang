@@ -6,7 +6,7 @@
 
 use std::fmt;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// The only handshake schema version this binary understands.
 pub const HANDSHAKE_VERSION: u32 = 1;
@@ -17,7 +17,7 @@ pub const EXPECTED_UPSTREAM_SHA: &str = include_str!("../../../vendor/UPSTREAM_S
 
 /// The handshake payload. Every key is required (`eos_token_id` may be `null`);
 /// any other key is rejected.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Handshake {
     pub handshake_version: u32,
@@ -39,6 +39,13 @@ impl Handshake {
             Some(id) => id.to_string(),
             None => "null".to_string(),
         }
+    }
+
+    /// Serializes this handshake as one JSON line (no trailing newline), the
+    /// same schema `parse_handshake` accepts. Serialization of this plain,
+    /// all-primitive struct cannot fail.
+    pub fn to_json_line(&self) -> String {
+        serde_json::to_string(self).expect("Handshake serialization is infallible")
     }
 }
 
@@ -186,6 +193,23 @@ mod tests {
             parse_handshake("not json", SHA),
             Err(HandshakeError::Malformed(_))
         ));
+    }
+
+    #[test]
+    fn to_json_line_round_trips_through_parse_handshake() {
+        let hs = Handshake {
+            handshake_version: HANDSHAKE_VERSION,
+            upstream_sha: EXPECTED_UPSTREAM_SHA.to_string(),
+            max_seq_len: 4096,
+            eos_token_id: Some(151645),
+            page_size: 16,
+            max_running_req: 8,
+            num_pages: 1024,
+        };
+        let line = hs.to_json_line();
+        assert!(!line.ends_with('\n'), "{line:?}");
+        let parsed = parse_handshake(&line, EXPECTED_UPSTREAM_SHA).expect("valid handshake");
+        assert_eq!(parsed, hs);
     }
 
     #[test]

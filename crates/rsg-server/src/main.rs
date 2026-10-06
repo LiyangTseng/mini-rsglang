@@ -1,9 +1,6 @@
 //! rsg-server: the Rust frontend. In Phase 1 a skeleton that opens its two ZMQ
 //! sockets, reads the readiness handshake and idles (D-08).
 
-mod handshake;
-mod transport;
-
 use std::io::BufRead;
 
 use clap::Parser;
@@ -11,7 +8,8 @@ use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio::sync::mpsc;
 use tracing_subscriber::EnvFilter;
 
-use transport::{Endpoint, Role, ZmqTransport};
+use rsg_server::handshake;
+use rsg_server::transport::{Endpoint, Role, ZmqTransport};
 
 /// SIGINT or SIGTERM.
 const EXIT_OK: i32 = 0;

@@ -31,14 +31,21 @@ pub struct Endpoint {
     pub role: Role,
 }
 
-/// Frames to the scheduler (backend PUSH) and from it (detokenizer PULL).
-pub trait Transport: Send {
-    #[cfg_attr(not(test), allow(dead_code))]
+/// Send frames to the scheduler's backend (PULL) endpoint.
+pub trait BackendSink: Send {
     fn send_backend(&self, frame: &[u8]) -> anyhow::Result<()>;
+}
+
+/// Receive frames from the scheduler's detokenizer (PUSH) endpoint.
+pub trait DetokSource: Send {
     /// Wait up to `timeout_ms` for one frame; `Ok(None)` on timeout.
-    #[cfg_attr(not(test), allow(dead_code))]
     fn recv_detok(&self, timeout_ms: i64) -> anyhow::Result<Option<Vec<u8>>>;
 }
+
+/// Frames to the scheduler (backend PUSH) and from it (detokenizer PULL).
+pub trait Transport: BackendSink + DetokSource {}
+
+impl<T: BackendSink + DetokSource> Transport for T {}
 
 pub struct ZmqTransport {
     _ctx: zmq::Context,
@@ -59,15 +66,34 @@ impl ZmqTransport {
             detok: detok_sock,
         })
     }
+
+    /// Splits into two Send halves, each owning one socket, so each can be
+    /// moved into its own dedicated OS thread (the project's tx-zmq/rx-zmq
+    /// convention). Both halves keep the context alive via `zmq::Context`'s
+    /// cheap, reference-counted clone.
+    pub fn split(self) -> (ZmqBackendTx, ZmqDetokRx) {
+        (
+            ZmqBackendTx {
+                _ctx: self._ctx.clone(),
+                backend: self.backend,
+            },
+            ZmqDetokRx {
+                _ctx: self._ctx,
+                detok: self.detok,
+            },
+        )
+    }
 }
 
-impl Transport for ZmqTransport {
+impl BackendSink for ZmqTransport {
     fn send_backend(&self, frame: &[u8]) -> anyhow::Result<()> {
         self.backend
             .send(frame, 0)
             .context("send on backend socket")
     }
+}
 
+impl DetokSource for ZmqTransport {
     fn recv_detok(&self, timeout_ms: i64) -> anyhow::Result<Option<Vec<u8>>> {
         let ready = self
             .detok
@@ -81,6 +107,93 @@ impl Transport for ZmqTransport {
             .recv_bytes(0)
             .context("recv on detokenizer socket")?;
         Ok(Some(frame))
+    }
+}
+
+/// The backend-sending half of a split [`ZmqTransport`]. Owns the PUSH socket.
+pub struct ZmqBackendTx {
+    _ctx: zmq::Context,
+    backend: zmq::Socket,
+}
+
+impl BackendSink for ZmqBackendTx {
+    fn send_backend(&self, frame: &[u8]) -> anyhow::Result<()> {
+        self.backend
+            .send(frame, 0)
+            .context("send on backend socket")
+    }
+}
+
+/// The detokenizer-receiving half of a split [`ZmqTransport`]. Owns the PULL socket.
+pub struct ZmqDetokRx {
+    _ctx: zmq::Context,
+    detok: zmq::Socket,
+}
+
+impl DetokSource for ZmqDetokRx {
+    fn recv_detok(&self, timeout_ms: i64) -> anyhow::Result<Option<Vec<u8>>> {
+        let ready = self
+            .detok
+            .poll(zmq::POLLIN, timeout_ms)
+            .context("poll detokenizer socket")?;
+        if ready == 0 {
+            return Ok(None);
+        }
+        let frame = self
+            .detok
+            .recv_bytes(0)
+            .context("recv on detokenizer socket")?;
+        Ok(Some(frame))
+    }
+}
+
+/// The scheduler side of the wire: a PULL socket for the backend endpoint
+/// (receives `UserMsg`/`AbortBackendMsg`/`BatchBackendMsg`/`ExitMsg`) and a
+/// PUSH socket for the detokenizer endpoint (sends `DetokenizeMsg`/
+/// `BatchTokenizerMsg`). Reuses the same `Endpoint`/`Role` convention and
+/// `open_socket` helper as `ZmqTransport`, so `mock-scheduler` never redefines
+/// them (D-08).
+pub struct ZmqSchedulerTransport {
+    _ctx: zmq::Context,
+    backend: zmq::Socket,
+    detok: zmq::Socket,
+}
+
+impl ZmqSchedulerTransport {
+    /// Open a PULL socket for `backend` and a PUSH socket for `detok`, binding
+    /// or connecting each per its role.
+    pub fn open(backend: &Endpoint, detok: &Endpoint) -> anyhow::Result<ZmqSchedulerTransport> {
+        let ctx = zmq::Context::new();
+        let backend_sock = open_socket(&ctx, zmq::PULL, backend, "backend")?;
+        let detok_sock = open_socket(&ctx, zmq::PUSH, detok, "detokenizer")?;
+        Ok(ZmqSchedulerTransport {
+            _ctx: ctx,
+            backend: backend_sock,
+            detok: detok_sock,
+        })
+    }
+
+    /// Wait up to `timeout_ms` for one backend frame; `Ok(None)` on timeout.
+    pub fn recv_backend(&self, timeout_ms: i64) -> anyhow::Result<Option<Vec<u8>>> {
+        let ready = self
+            .backend
+            .poll(zmq::POLLIN, timeout_ms)
+            .context("poll backend socket")?;
+        if ready == 0 {
+            return Ok(None);
+        }
+        let frame = self
+            .backend
+            .recv_bytes(0)
+            .context("recv on backend socket")?;
+        Ok(Some(frame))
+    }
+
+    /// Send one frame on the detokenizer socket.
+    pub fn send_detok(&self, frame: &[u8]) -> anyhow::Result<()> {
+        self.detok
+            .send(frame, 0)
+            .context("send on detokenizer socket")
     }
 }
 
@@ -183,5 +296,80 @@ mod tests {
         let t = ZmqTransport::open(&backend, &detok).expect("open");
         assert_eq!(t.recv_detok(200).expect("recv"), None);
         let _ = std::fs::remove_file(path(&detok.addr));
+    }
+
+    #[test]
+    fn scheduler_side_round_trips_with_split_frontend() {
+        // Scheduler side mirrors the frontend's roles: backend Bind (PULL),
+        // detok Connect (PUSH) vs. the frontend's backend Connect (PUSH),
+        // detok Bind (PULL).
+        let backend_addr = addr("g");
+        let detok_addr = addr("h");
+
+        let scheduler = ZmqSchedulerTransport::open(
+            &Endpoint {
+                addr: backend_addr.clone(),
+                role: Role::Bind,
+            },
+            &Endpoint {
+                addr: detok_addr.clone(),
+                role: Role::Connect,
+            },
+        )
+        .expect("open scheduler transport");
+
+        let frontend = ZmqTransport::open(
+            &Endpoint {
+                addr: backend_addr.clone(),
+                role: Role::Connect,
+            },
+            &Endpoint {
+                addr: detok_addr.clone(),
+                role: Role::Bind,
+            },
+        )
+        .expect("open frontend transport");
+        let (frontend_tx, frontend_rx) = frontend.split();
+
+        // A freshly connected PUSH socket's connection is established
+        // asynchronously by libzmq's io thread; a send issued immediately
+        // after `connect()` from a just-spawned OS thread can race that
+        // attach and be silently dropped (confirmed with a minimal
+        // repro outside this test suite). Retry sending "ping" until the
+        // scheduler side observes it, bounded by an overall deadline, so
+        // the test proves the split halves work without being racy.
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop_sender = std::sync::Arc::clone(&stop);
+        let send_handle = std::thread::spawn(move || {
+            while !stop_sender.load(std::sync::atomic::Ordering::SeqCst) {
+                let _ = frontend_tx.send_backend(b"ping");
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+        });
+        let recv_handle = std::thread::spawn(move || frontend_rx.recv_detok(2000));
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        let got = loop {
+            match scheduler.recv_backend(50).expect("recv backend") {
+                Some(frame) => break frame,
+                None => assert!(
+                    std::time::Instant::now() < deadline,
+                    "timed out waiting for ping over the split frontend"
+                ),
+            }
+        };
+        assert_eq!(got, b"ping");
+        stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        send_handle.join().expect("send thread panicked");
+
+        scheduler.send_detok(b"pong").expect("send detok");
+        let got = recv_handle
+            .join()
+            .expect("recv thread panicked")
+            .expect("recv detok");
+        assert_eq!(got.as_deref(), Some(&b"pong"[..]));
+
+        let _ = std::fs::remove_file(path(&backend_addr));
+        let _ = std::fs::remove_file(path(&detok_addr));
     }
 }
