@@ -2,13 +2,38 @@
 //! have no upstream equivalent — upstream's `api_server.py` defines none of
 //! them — so their shape is this phase's own design, not a parity target.
 
+use axum::Json;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::http::header::CONTENT_TYPE;
 use axum::response::{IntoResponse, Response};
+use serde_json::{Value, json};
 
 use crate::metrics::METRICS_CONTENT_TYPE;
 
 use super::AppState;
+
+/// `GET /health`: process liveness only. Always 200 once the HTTP listener
+/// itself is up — this route never touches the engine, unlike every
+/// upstream-parity route and `/health/ready` below.
+pub async fn health() -> Json<Value> {
+    Json(json!({ "status": "ok" }))
+}
+
+/// `GET /health/ready`: 200 once the readiness handshake has been received
+/// and `AppState::set_engine` called (`state.engine()` is `Ok`), 503
+/// `{"status":"starting"}` until then. This is the front-half/end-to-end
+/// split Phase 7's cold-start scenario measures.
+pub async fn ready(State(state): State<AppState>) -> Response {
+    match state.engine() {
+        Ok(_) => (StatusCode::OK, Json(json!({ "status": "ready" }))).into_response(),
+        Err(_) => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({ "status": "starting" })),
+        )
+            .into_response(),
+    }
+}
 
 /// `GET /metrics`: the Prometheus text exposition for this server's own
 /// `ServerMetrics`. Served even before the engine is set — `/metrics` must

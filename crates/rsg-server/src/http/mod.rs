@@ -94,6 +94,8 @@ pub fn router(state: AppState) -> Router {
                 .head(models::v1_root)
                 .options(models::v1_root),
         )
+        .route("/health", get(health::health))
+        .route("/health/ready", get(health::ready))
         .route("/metrics", get(health::metrics))
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
         .with_state(state)
