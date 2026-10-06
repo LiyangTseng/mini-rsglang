@@ -18,6 +18,18 @@ done
 
 step() { echo; echo "=== check_all [$1/5] $2 ==="; }
 
+# crates/rsg-server/tests/stress_128.rs needs more open files than macOS's
+# default soft limit of 256 (128 client sockets, 128 server sockets, plus
+# the mock's own fds). Raise the soft limit here when it's below 4096,
+# leaving it alone otherwise. A shell whose hard limit is itself below
+# 4096 makes `ulimit -n 4096` fail; `|| true` keeps that from failing this
+# script under `set -e` — the stress test's own guard reports the problem
+# instead, with a clearer message than a mid-run "too many open files".
+current_nofile_limit=$(ulimit -n)
+if [ "$current_nofile_limit" != "unlimited" ] && [ "$current_nofile_limit" -lt 4096 ]; then
+  ulimit -n 4096 || true
+fi
+
 step 1 "cargo test --workspace"
 cargo test --workspace
 step 2 "pytest python/tests"
