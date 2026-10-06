@@ -129,6 +129,53 @@ struct ChatStream {
     first: bool,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(json: &str) -> ChatCompletionRequest {
+        serde_json::from_str(json).expect("valid request")
+    }
+
+    #[test]
+    fn defaults_mirror_upstream() {
+        let req = parse(r#"{"model":"m","messages":[{"role":"user","content":"x"}]}"#);
+        assert_eq!(
+            req.sampling_params(),
+            SamplingParams {
+                temperature: 1.0,
+                top_k: -1,
+                top_p: 1.0,
+                ignore_eos: false,
+                max_tokens: 16,
+            }
+        );
+        assert!(!req.stream);
+
+        let req = parse(
+            r#"{"model":"m","messages":[{"role":"user","content":"x"}],"temperature":0.5,"top_k":4,"top_p":0.9,"ignore_eos":true,"max_tokens":7}"#,
+        );
+        assert_eq!(
+            req.sampling_params(),
+            SamplingParams {
+                temperature: 0.5,
+                top_k: 4,
+                top_p: 0.9,
+                ignore_eos: true,
+                max_tokens: 7,
+            }
+        );
+
+        let req = parse(
+            r#"{"model":"m","messages":[{"role":"user","content":"x"}],"n":3,"stop":["a","b"],"presence_penalty":0.2,"frequency_penalty":0.3}"#,
+        );
+        assert_eq!(req.n, 3);
+        assert_eq!(req.stop, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(req.presence_penalty, 0.2);
+        assert_eq!(req.frequency_penalty, 0.3);
+    }
+}
+
 pub async fn chat_completions(State(state): State<AppState>, body: Bytes) -> Result<Response, ApiError> {
     // Parsed before touching the engine: a 422 here must never consume a uid.
     let req: ChatCompletionRequest = parse_json(&body)?;
