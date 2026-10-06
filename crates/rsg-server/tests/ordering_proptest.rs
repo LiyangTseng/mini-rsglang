@@ -156,7 +156,11 @@ fn scenario_strategy() -> impl Strategy<Value = Scenario> {
 /// The three ids derived from a uid, matching the pattern already proven in
 /// `transport_e2e.rs`'s concurrency test.
 fn prompt_ids(uid: i64) -> [i32; 3] {
-    [(uid * 10 + 1) as i32, (uid * 10 + 2) as i32, (uid * 10 + 3) as i32]
+    [
+        (uid * 10 + 1) as i32,
+        (uid * 10 + 2) as i32,
+        (uid * 10 + 3) as i32,
+    ]
 }
 
 /// Runs one generated scenario against `writer`: spawns one task per uid

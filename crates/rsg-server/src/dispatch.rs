@@ -241,10 +241,7 @@ pub fn spawn_dispatcher<S: DetokSource + 'static>(source: S) -> std::io::Result<
                 }
             }
         })?;
-    Ok(DispatchHandle {
-        tx: ctrl_tx,
-        stats,
-    })
+    Ok(DispatchHandle { tx: ctrl_tx, stats })
 }
 
 /// Drains every pending registration/deregistration into `routes`. Returns
@@ -399,9 +396,15 @@ mod tests {
         });
 
         let text = String::from_utf8(captured.lock().unwrap().clone()).expect("utf8 log");
-        assert!(text.contains("slow consumer"), "log missing message: {text}");
+        assert!(
+            text.contains("slow consumer"),
+            "log missing message: {text}"
+        );
         assert!(text.contains("uid=3"), "log missing uid field: {text}");
-        assert!(text.contains("dropped=4"), "log missing dropped field: {text}");
+        assert!(
+            text.contains("dropped=4"),
+            "log missing dropped field: {text}"
+        );
     }
 
     // --- Task 2: stats, deregister, unknown/malformed/closed routes,
@@ -468,7 +471,10 @@ mod tests {
         }
 
         /// Waits up to 2s for `pred` to hold on a fresh `stats()` snapshot.
-        fn wait_for_stats(&self, pred: impl Fn(DispatchStatsSnapshot) -> bool) -> DispatchStatsSnapshot {
+        fn wait_for_stats(
+            &self,
+            pred: impl Fn(DispatchStatsSnapshot) -> bool,
+        ) -> DispatchStatsSnapshot {
             let deadline = std::time::Instant::now() + Duration::from_secs(2);
             loop {
                 let snap = self.handle.stats();

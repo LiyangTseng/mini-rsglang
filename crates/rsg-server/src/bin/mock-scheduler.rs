@@ -285,7 +285,9 @@ enum RunningState {
     Normal,
     /// `remaining` more echo tokens to send, all `finished=false`, before
     /// removal.
-    Draining { remaining: u32 },
+    Draining {
+        remaining: u32,
+    },
 }
 
 /// One in-flight request the engine is emitting echo tokens for.
@@ -330,7 +332,10 @@ impl PendingReplies {
 /// Sends every pending reply as exactly one frame — a bare `DetokenizeMsg`
 /// when one is pending, otherwise a `BatchTokenizerMsg` in emission order
 /// (io.py:124-130) — and clears the buffer. A no-op when nothing is pending.
-fn flush_pending(pending: &mut PendingReplies, transport: &ZmqSchedulerTransport) -> Result<(), i32> {
+fn flush_pending(
+    pending: &mut PendingReplies,
+    transport: &ZmqSchedulerTransport,
+) -> Result<(), i32> {
     if pending.entries.is_empty() {
         return Ok(());
     }
@@ -546,12 +551,10 @@ fn record_observe(observe: &mut Option<BufWriter<File>>, line: &str) -> Result<(
     let Some(w) = observe else {
         return Ok(());
     };
-    writeln!(w, "{line}")
-        .and_then(|()| w.flush())
-        .map_err(|e| {
-            tracing::error!("write observe-file line {line:?}: {e}");
-            EXIT_STARTUP
-        })
+    writeln!(w, "{line}").and_then(|()| w.flush()).map_err(|e| {
+        tracing::error!("write observe-file line {line:?}: {e}");
+        EXIT_STARTUP
+    })
 }
 
 /// The engine loop: (1) waits for a frame or the next due time, (2) takes one
@@ -641,9 +644,14 @@ fn run_engine(
             }
         }
 
-        if let Err(code) =
-            emit_due_tokens(&transport, now, decode_delay, batch_size, &mut pending, &mut running)
-        {
+        if let Err(code) = emit_due_tokens(
+            &transport,
+            now,
+            decode_delay,
+            batch_size,
+            &mut pending,
+            &mut running,
+        ) {
             let _ = observe.as_mut().map(BufWriter::flush);
             return code;
         }

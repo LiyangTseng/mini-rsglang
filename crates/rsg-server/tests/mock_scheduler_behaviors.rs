@@ -342,12 +342,8 @@ fn default_batch_size_sends_every_reply_bare() {
 
 #[test]
 fn uid_range_applies_behavior_to_each_uid() {
-    let mut mock = MockScheduler::spawn(&[
-        "--misbehave-uids",
-        "3-5",
-        "--behavior",
-        "drop-overlong",
-    ]);
+    let mut mock =
+        MockScheduler::spawn(&["--misbehave-uids", "3-5", "--behavior", "drop-overlong"]);
     mock.wait_ready();
     let frontend = mock.frontend();
 
@@ -483,7 +479,12 @@ fn malformed_uid_list_exits_2() {
     for bad in ["5-3", "abc", "1,,2", "-4"] {
         let mut mock =
             MockScheduler::spawn(&["--misbehave-uids", bad, "--behavior", "drop-overlong"]);
-        assert_eq!(mock.wait_exit(), 2, "input {bad:?}; stderr:\n{}", mock.stderr());
+        assert_eq!(
+            mock.wait_exit(),
+            2,
+            "input {bad:?}; stderr:\n{}",
+            mock.stderr()
+        );
         assert!(mock.handshake_line().is_none(), "input {bad:?}");
     }
 }

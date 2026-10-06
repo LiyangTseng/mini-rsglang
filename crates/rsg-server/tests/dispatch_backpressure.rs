@@ -110,7 +110,11 @@ fn tracer_slow_consumer_does_not_stall_other_uids() {
             })
             .collect();
         assert_eq!(got_tokens, expected_tail, "uid 1's last 16 echo tokens");
-        assert_eq!(events1.len(), 17, "Dropped(184) + 16 tokens, then stream end");
+        assert_eq!(
+            events1.len(),
+            17,
+            "Dropped(184) + 16 tokens, then stream end"
+        );
         match events1.last() {
             Some(UidEvent::Token(reply)) => assert!(reply.finished, "last token must be finished"),
             other => panic!("expected the last event to be a finished Token, got {other:?}"),

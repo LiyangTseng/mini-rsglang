@@ -1,0 +1,118 @@
+name: CI
+
+# Runs the same local gate every phase branch already relies on
+# (scripts/check_all.sh) so that landing a PR against main gives a real
+# pass/fail signal instead of none at all. See scripts/check_all.sh for the
+# authoritative definition of "passing" — this workflow wraps it rather than
+# reimplementing its steps, so CI and a developer's local run check the same
+# thing.
+#
+# The real GPU/CUDA backend only runs on Linux hardware with a GPU. Nothing
+# here needs a GPU: scripts/check_all.sh --offline covers cargo tests (which
+# include the mock-scheduler end-to-end tests), the Python test suite (which
+# runs entirely against the mock scheduler / fakes, no CUDA), wire-fixture
+# freshness, the WIRE-02 decode check, and the vendored-tree check in its
+# network-free mode.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-all:
+    name: check_all.sh --offline (cargo test, pytest, fixtures, wire decode, vendored tree)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Cache cargo registry and target dir
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "requirements-mac.in"
+
+      - name: "Bootstrap Python env (Linux: CPU-only torch; same pins as requirements-mac.in)"
+        # Not scripts/bootstrap_mac_env.sh as-is: requirements-mac.txt's hash lock was
+        # resolved on macOS, where torch has no CUDA runtime dependency at all. On Linux,
+        # PyPI's default torch wheel dlopen()s CUDA shared libraries (libcublas.so.*,
+        # libcudart.so.12) at import time, which aren't on this CPU-only runner and were
+        # never part of the macOS-resolved package set to install in the first place —
+        # confirmed by running bootstrap_mac_env.sh's own exact commands here first, which
+        # failed only on that CUDA dlopen, nothing else. The fix is PyTorch's own CPU-only
+        # wheel index, which is a build without the CUDA dependency, not a version bump.
+        # Everything else installs from the same requirements-mac.in pins bootstrap_mac_env.sh
+        # uses, and the two editable installs are byte-identical to that script.
+        run: |
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python "torch==2.9.1+cpu" --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .venv/bin/python -r requirements-mac.in
+          uv pip install --python .venv/bin/python --no-deps -e vendor/mini-sglang
+          uv pip install --python .venv/bin/python --no-deps -e .
+          .venv/bin/python - <<'SMOKE'
+          import minisgl.message, minisgl.core, minisgl.utils, minisgl.scheduler, minisgl.server.args
+          import rsglang, torch, msgpack, zmq
+          print(f"torch {torch.__version__}, msgpack {msgpack.version}, pyzmq {zmq.__version__}")
+          print(f"minisgl from {minisgl.message.__file__}")
+          print(f"rsglang {rsglang.__version__} from {rsglang.__file__}")
+          SMOKE
+
+      - name: check_all.sh --offline
+        run: scripts/check_all.sh --offline
+
+  clippy:
+    name: cargo clippy --all-targets -D warnings
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Cache cargo registry and target dir
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  fmt-check:
+    # Advisory only: main is not cargo-fmt-clean today (pre-existing drift
+    # found while wiring up this workflow, tracked in the PR description, not
+    # fixed here). This job surfaces drift in the PR checks list without
+    # blocking merges until that cleanup lands and this can be promoted to a
+    # required gate.
+    name: cargo fmt --check (advisory, non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
