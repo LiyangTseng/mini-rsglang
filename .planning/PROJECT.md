@@ -58,13 +58,14 @@ Serving through the Rust frontend produces output identical to the Python fronte
 |----------|-----------|---------|
 | Build on top of mini-sglang by vendoring its code (MIT) instead of a submodule | The goal is to replace mini-sglang's Python frontend; vendoring lets the backend gain small shared fixes while staying one repo | — Pending |
 | Keep the Python frontend frozen as the baseline; `--frontend python\|rust` on a shared backend | Isolates the frontend's effect in every benchmark | — Pending |
-| Defer the Rust radix cache to v2; only record radix's share of scheduler time during baseline profiling | Radix lives in the scheduler (backend), not the frontend; it is not an immediate need and would not show up in frontend benchmarks | — Pending |
+| Defer the Rust radix cache to v2; only record radix's share of scheduler time during baseline profiling | Radix lives in the scheduler (backend), not the frontend; it is not an immediate need and would not show up in frontend benchmarks | ✓ Measured — Phase 2: radix share was 1.58%/0.76%/0.98% of scheduler time across the 3 scenarios, on real GPU hardware. Report recommends this does not clear RADIX-01's "meaningful share" bar; the project author's decision, not an automatic verdict |
 | FSM = request lifecycle FSM; constrained decoding deferred to v2 | Matches RFC Scenario 1 (dynamic requests/cancellations) | — Pending |
 | Mock backend for Mac development, remote GPU for real runs | Mac has no CUDA | — Pending |
 | Parity models: Qwen3-0.6B (hard gate) + one Llama-3.x | Llama exercises BOS and space-cleanup edge cases | — Pending |
 | Baseline: report the Python frontend at default and at its best `--num-tokenizer` | Headline comparison against the best-tuned Python frontend | — Pending |
 | Cold start and RAM measured for the frontend only; end-to-end reported separately | End-to-end start is dominated by weight loading, identical for both frontends | — Pending |
 | Done = output parity + benchmark harness quantifying per-scenario improvement; ±2% only a reference | RFC numbers are estimates | — Pending |
+| Phase 7 benchmark design must attribute cost to frontend (api_server + tokenizer: IPC/serde, tokenize/detokenize, HTTP, frontend GC) vs. shared backend (scheduler CPU, radix, scheduler GC) separately | Phase 2's baseline profile found the scheduler process already at 93% CPU-active in the heaviest scenario (128-agent load) — a faster Rust frontend cannot exceed the throughput ceiling the backend itself sets there. Frontend-attributable cost (ipc_zmq+serde) was measured at 6.77-11.01 ms/request, ~7% of p50 TTFT in that same scenario | ✓ Confirmed — Phase 2 `docs/benchmarks/baseline-profile.md`. Rust-frontend gains are more likely to be visible in lower-backend-load scenarios (e.g. short-prompt saturation) than the heaviest-load one |
 
 ## Evolution
 
@@ -84,4 +85,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-02 after research and scoping decisions*
+*Last updated: 2026-10-05 after Phase 2*
