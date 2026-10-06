@@ -12,6 +12,7 @@ import asyncio
 import os
 import signal
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -19,7 +20,7 @@ from typing import Any, Awaitable, Callable, Mapping, Sequence
 
 import psutil
 
-from . import analysis, hook, procs, sidecar
+from . import analysis, hook, procs, scenarios, sidecar
 
 ROLES = sidecar.ROLES  # ("api_server", "scheduler", "tokenizer")
 
@@ -419,4 +420,103 @@ def run_session(
         session_dir=session_dir,
         clock_mismatch=clock_mismatch,
     )
+    return entry, warnings
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def run_coldstart(
+    *,
+    model: str,
+    port: int,
+    timeout_s: float,
+    work_dir: Path,
+    py_spy: Sequence[str],
+    rate_hz: int,
+    interval_s: float,
+    hyperfine: str,
+    runs: int,
+    warmup: int,
+    max_tokens: int,
+    sample_s: float,
+    server_cmd: "str | None",
+    argv: Sequence[str],
+    params: Mapping[str, Any],
+) -> tuple[dict, list[str]]:
+    """Scenario 3 (D-08/D-11): hyperfine-timed cold start to readiness (via
+    the coldstart-once/coldstart-stop subcommands), then one instrumented
+    first-request session whose GC/tracemalloc window starts at launch
+    (include_boot=True) so boot-time GC is included and the scheduler is
+    py-spy-sampled too. Order matters: hyperfine first, so its warmup run
+    absorbs first-touch disk-cache effects before the instrumented session.
+    """
+    work_dir = Path(work_dir)
+    session_dir = work_dir / "s3_coldstart"
+    hyperfine_dir = session_dir / "hyperfine"
+    hyperfine_dir.mkdir(parents=True, exist_ok=True)
+
+    pgid_file = hyperfine_dir / "pgid"
+    record_file = hyperfine_dir / "record.jsonl"
+    log_path = hyperfine_dir / "coldstart.log"
+    export_json = hyperfine_dir / "hyperfine.json"
+    script_path = _REPO_ROOT / "scripts" / "baseline_profile.py"
+
+    once_cmd = [
+        sys.executable, str(script_path), "coldstart-once",
+        "--model", model,
+        "--port", str(port),
+        "--timeout", str(timeout_s),
+        "--pgid-file", str(pgid_file),
+        "--record-file", str(record_file),
+        "--log", str(log_path),
+    ]
+    if server_cmd is not None:
+        once_cmd += ["--server-cmd", server_cmd]
+    stop_cmd = [
+        sys.executable, str(script_path), "coldstart-stop",
+        "--pgid-file", str(pgid_file),
+        "--record-file", str(record_file),
+    ]
+
+    hf_argv = scenarios.hyperfine_argv(
+        hyperfine=hyperfine,
+        runs=runs,
+        warmup=warmup,
+        export_json=export_json,
+        once_cmd=once_cmd,
+        stop_cmd=stop_cmd,
+    )
+
+    timeout_total = (runs + warmup) * (timeout_s + 120)
+    try:
+        result = subprocess.run(hf_argv, capture_output=True, text=True, timeout=timeout_total)
+        if result.returncode != 0:
+            raise MeasurementError(
+                f"s3_coldstart: hyperfine exited {result.returncode}: "
+                f"{(result.stderr or result.stdout).strip()}"
+            )
+    finally:
+        if pgid_file.exists():
+            scenarios.coldstart_stop(pgid_file=pgid_file, record_file=record_file)
+
+    entry, warnings = run_session(
+        "s3_coldstart",
+        argv=argv,
+        port=port,
+        timeout_s=timeout_s,
+        work_dir=work_dir,
+        py_spy=py_spy,
+        rate_hz=rate_hz,
+        interval_s=interval_s,
+        workload=lambda url: scenarios.run_first_request(url, max_tokens=max_tokens),
+        include_boot=True,
+        min_sample_s=sample_s,
+        params=params,
+    )
+
+    entry["coldstart"] = {
+        "hyperfine": scenarios.parse_hyperfine_json(export_json),
+        **scenarios.read_coldstart_records(record_file, warmup=warmup, runs=runs),
+    }
     return entry, warnings

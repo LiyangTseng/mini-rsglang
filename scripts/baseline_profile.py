@@ -102,6 +102,25 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--s3-max-tokens", type=int, default=16)
     run.add_argument("--s3-sample-s", type=float, default=10.0)
 
+    coldstart_once = sub.add_parser(
+        "coldstart-once",
+        help="Launch the server once and record its self-timed readiness (hyperfine's timed command)",
+    )
+    coldstart_once.add_argument("--model", default="Qwen/Qwen3-0.6B", metavar="MODEL")
+    coldstart_once.add_argument("--port", type=int, default=1919, metavar="PORT")
+    coldstart_once.add_argument("--timeout", type=float, default=900.0, metavar="SECONDS")
+    coldstart_once.add_argument("--server-cmd", default=None, metavar="TEMPLATE")
+    coldstart_once.add_argument("--pgid-file", type=Path, required=True, metavar="PATH")
+    coldstart_once.add_argument("--record-file", type=Path, required=True, metavar="PATH")
+    coldstart_once.add_argument("--log", type=Path, required=True, metavar="PATH")
+
+    coldstart_stop = sub.add_parser(
+        "coldstart-stop",
+        help="Sample whole-tree RSS/PSS and tear down the server (hyperfine's --conclude)",
+    )
+    coldstart_stop.add_argument("--pgid-file", type=Path, required=True, metavar="PATH")
+    coldstart_stop.add_argument("--record-file", type=Path, required=True, metavar="PATH")
+
     validate = sub.add_parser("validate", help="Validate a baseline-profile.json sidecar")
     validate.add_argument("file", metavar="FILE", type=Path)
     validate.add_argument("--require-gpu", action="store_true")
@@ -426,7 +445,44 @@ def _check_hyperfine_version(hyperfine_path: str) -> "tuple[bool, str]":
 
 
 def _run_s3(ns: argparse.Namespace, *, argv: list[str], work_dir: Path, py_spy: list[str]) -> "tuple[dict, list[str]]":
-    raise NotImplementedError("scenario 3 (coldstart) is added by plan 02-08 task 2")
+    return session.run_coldstart(
+        model=ns.model,
+        port=ns.port,
+        timeout_s=ns.timeout,
+        work_dir=work_dir,
+        py_spy=py_spy,
+        rate_hz=ns.py_spy_rate,
+        interval_s=ns.sample_interval_s,
+        hyperfine=ns.hyperfine,
+        runs=ns.s3_runs,
+        warmup=ns.s3_warmup,
+        max_tokens=ns.s3_max_tokens,
+        sample_s=ns.s3_sample_s,
+        server_cmd=ns.server_cmd,
+        argv=argv,
+        params={
+            "runs": ns.s3_runs,
+            "warmup": ns.s3_warmup,
+            "max_tokens": ns.s3_max_tokens,
+            "sample_s": ns.s3_sample_s,
+        },
+    )
+
+
+def cmd_coldstart_once(ns: argparse.Namespace) -> int:
+    argv = procs.server_argv(ns.server_cmd, python=sys.executable, model=ns.model, port=ns.port)
+    return scenarios.coldstart_once(
+        argv=argv,
+        port=ns.port,
+        timeout_s=ns.timeout,
+        pgid_file=ns.pgid_file,
+        record_file=ns.record_file,
+        log_path=ns.log,
+    )
+
+
+def cmd_coldstart_stop(ns: argparse.Namespace) -> int:
+    return scenarios.coldstart_stop(pgid_file=ns.pgid_file, record_file=ns.record_file)
 
 
 def cmd_validate(ns: argparse.Namespace) -> int:
@@ -449,6 +505,10 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_discover(ns)
     if ns.command == "run":
         return cmd_run(ns)
+    if ns.command == "coldstart-once":
+        return cmd_coldstart_once(ns)
+    if ns.command == "coldstart-stop":
+        return cmd_coldstart_stop(ns)
     if ns.command == "validate":
         return cmd_validate(ns)
     return 2
