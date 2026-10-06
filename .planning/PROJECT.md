@@ -12,7 +12,8 @@ Serving through the Rust frontend produces output identical to the Python fronte
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Rust frontend talks to the backend over the existing ZMQ + MessagePack boundary; lock-free channels are used inside the Rust process — Phase 3 (WIRE-03: single ordered `tx-zmq` writer + per-uid `rx-zmq` broadcast dispatcher, both built on `tokio::sync` channels, proven under 64-case concurrent-ordering property test against a real subprocess)
+- ✓ One minimal mock backend so the Rust frontend is developed and tested on macOS without a GPU (no extra mocks beyond what tests need) — Phase 3 (MOCK-01: `mock-scheduler` binary with echo tokens, fixed delays, and the late-abort-token/drop-overlong/batched-reply misbehaviors the cancellation tests need)
 
 ### Active
 
@@ -21,8 +22,6 @@ Serving through the Rust frontend produces output identical to the Python fronte
 - [ ] Rust concurrent ingress (HTTP/async) accepting requests, streaming responses, handling client disconnects as cancellations
 - [ ] Rust async request-lifecycle FSM (received, tokenizing, submitted, decoding, finished, cancelled, failed) supporting 128 concurrent agents with dynamic requests/cancellations
 - [ ] Rust Hugging Face tokenization, chat-template rendering and incremental detokenization matching the Python frontend exactly
-- [ ] Rust frontend talks to the backend over the existing ZMQ + MessagePack boundary; lock-free channels are used inside the Rust process
-- [ ] One minimal mock backend so the Rust frontend is developed and tested on macOS without a GPU (no extra mocks beyond what tests need)
 - [ ] End-to-end run on a remote GPU machine with output identical to the Python frontend
 - [ ] Reproducible benchmark harness comparing Python vs Rust frontend on the same backend for three scenarios: (1) 128 concurrent agents with dynamic requests/cancellations, P99 TTFT; (2) 32-token short-prompt saturation, RPS; (3) frontend cold start latency and frontend host RAM
 - [ ] Standard inference throughput does not regress versus the Python frontend (about parity)
@@ -66,6 +65,9 @@ Serving through the Rust frontend produces output identical to the Python fronte
 | Cold start and RAM measured for the frontend only; end-to-end reported separately | End-to-end start is dominated by weight loading, identical for both frontends | — Pending |
 | Done = output parity + benchmark harness quantifying per-scenario improvement; ±2% only a reference | RFC numbers are estimates | — Pending |
 | Phase 7 benchmark design must attribute cost to frontend (api_server + tokenizer: IPC/serde, tokenize/detokenize, HTTP, frontend GC) vs. shared backend (scheduler CPU, radix, scheduler GC) separately | Phase 2's baseline profile found the scheduler process already at 93% CPU-active in the heaviest scenario (128-agent load) — a faster Rust frontend cannot exceed the throughput ceiling the backend itself sets there. Frontend-attributable cost (ipc_zmq+serde) was measured at 6.77-11.01 ms/request, ~7% of p50 TTFT in that same scenario | ✓ Confirmed — Phase 2 `docs/benchmarks/baseline-profile.md`. Rust-frontend gains are more likely to be visible in lower-backend-load scenarios (e.g. short-prompt saturation) than the heaviest-load one |
+| Writer's ordering point is the submit's mpsc enqueue, not the later wire send; abort requires a `Submitted` ticket obtainable only after that enqueue completes | Makes "abort can never precede its own submit" structural rather than timing-dependent; a raw-uid abort would need the writer to buffer/guess about submits that might never come | ✓ Shipped — Phase 3, proven by a 64-case property test against a real mock subprocess |
+| Per-uid reply channel is `tokio::sync::broadcast::channel(16)`, fixed capacity, drop-oldest | A slow consumer on one request must never stall replies for others (WIRE-03 criterion 4); fixed capacity avoids a CLI/config knob surface | ✓ Shipped — Phase 3 |
+| mock-scheduler's readiness travels out-of-band on stdout (the Phase 1 handshake JSON line); misbehaviors and observation never become a 9th wire tag | Any new wire field crashes the real scheduler; the mock must prove it speaks only rsg-wire's existing types | ✓ Shipped — Phase 3 |
 
 ## Evolution
 
@@ -85,4 +87,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-05 after Phase 2*
+*Last updated: 2026-10-06 after Phase 3*
