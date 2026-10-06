@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 2
-current_phase_name: Python Frontend Baseline Profile
+current_phase: 3
+current_phase_name: ZMQ Transport & Mock Scheduler
 status: planning
-stopped_at: Phase 01 complete, ready to plan Phase 2
-last_updated: "2026-10-05T08:04:47.083Z"
+stopped_at: Phase 02 complete, ready to plan Phase 3
+last_updated: "2026-10-06T05:48:16.239Z"
 last_activity: 2026-10-05
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 0eedbe3b6b0da5402c4082bfb8f58ada18056eb7
+last_activity_desc: Phase 02 complete, transitioned to Phase 3
+state_head: 52cb2dede736d29d7ca0262437d90cc660f4c17e
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 13
-  completed_plans: 13
-  percent: 14
+  completed_phases: 2
+  total_plans: 22
+  completed_plans: 22
+  percent: 29
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-02)
+See: .planning/PROJECT.md (updated 2026-10-05)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 01 — Vendored Base & Wire Codec
+**Current focus:** Phase 3 — ZMQ Transport & Mock Scheduler
 
 ## Current Position
 
-Phase: 2 — Python Frontend Baseline Profile
+Phase: 3 — ZMQ Transport & Mock Scheduler
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-05 — Phase 01 complete, transitioned to Phase 2
+Last activity: 2026-10-05 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [█░░░░░░░░░] 14%
+Progress: [███░░░░░░░] 29%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 22
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -46,6 +46,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 13 | - | - |
+| 02 | 9 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -77,6 +78,11 @@ Recent decisions affecting current work:
 - [Roadmap]: There is one minimal Rust mock scheduler only: no Python mock, no Python contract oracle, no Mac A/B rehearsal phase.
 - [Roadmap]: Phase 2 (BENCH-01 profiling) runs on the GPU machine in parallel with Mac work. It informs benchmark design but does not gate the project.
 - [Roadmap]: Phase 4 (tokenizer parity) does not depend on the transport and can run alongside Phase 3.
+- [Phase 02]: Real GPU run needed no py-spy privilege grant — this WSL2 box doesn't enforce `kernel.yama.ptrace_scope`. Environment-specific, not a general claim; a box with the default `ptrace_scope=1` still needs the documented setcap/sudo/ptrace_scope remediation.
+- [Phase 02]: Radix-cache share measured at 1.58%/0.76%/0.98% of scheduler time (real GPU, 3 scenarios) — recommends not clearing RADIX-01's "meaningful share" bar; author's decision, not automatic.
+- [Phase 02]: Scheduler (backend) hit 93% CPU-active in the heaviest scenario (128-agent load) — already near its own ceiling there, so Rust-frontend gains are likelier to show in lower-backend-load scenarios. Phase 7 benchmark design should attribute frontend vs. backend cost separately (see PROJECT.md Key Decisions).
+- [Phase 02]: Two real bugs found only against real GPU/py-spy output (neither caught by Mac stand-ins): a WSL PATH gap for nvidia-smi/nvcc on non-interactive SSH, and py-spy occasionally emitting invalid UTF-8 in unresolvable native-frame names. Both fixed with regression tests (commits `c53a4b3`, `d4272b3`).
+- [Phase 02]: Code review found 4 critical bugs (process-teardown signal handling, a missing exit-code mapping, a divide-by-zero, and a subprocess-timeout gap that could discard a completed measurement run) — all fixed with regression tests (commit `0c78fe6`). 3 non-blocking warnings remain open in `02-REVIEW-DISPOSITION.md`.
 - [Phase 01]: rsg-server toolchain stays on Rust 1.99.0: zmq-sys bundled libzmq builds on it (A2 confirmed)
 - [Phase 01]: rsg-server exit-code contract: 0 signal, 1 startup failure, 2 bad handshake, 3 stdin EOF
 - [Phase 01]: Mac dev env is a project-local uv-managed .venv synced from the sha256-hashed requirements-mac.txt; never install into system/user Python
@@ -122,6 +128,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-04T06:20:45.560Z
-Stopped at: Phase 01 complete, ready to plan Phase 2
+Last session: 2026-10-05T21:19:16.860Z
+Stopped at: Phase 02 complete, ready to plan Phase 3
 Resume file: None

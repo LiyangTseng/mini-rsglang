@@ -48,7 +48,7 @@
 
 ### Benchmarks
 
-- [ ] **BENCH-01**: Profile the Python frontend on the GPU machine and quantify its host-side overhead in the three scenarios — GC pauses (count, duration, correlation with P99 spikes), memory allocation and resident growth, GIL contention between tokenize/detokenize/HTTP handling, serialization and IPC cost — as input for benchmark design and attribution; also record the scheduler's time share spent in the radix cache for v2 evaluation
+- [x] **BENCH-01**: Profile the Python frontend on the GPU machine and quantify its host-side overhead in the three scenarios — GC pauses (count, duration, correlation with P99 spikes), memory allocation and resident growth, GIL contention between tokenize/detokenize/HTTP handling, serialization and IPC cost — as input for benchmark design and attribution; also record the scheduler's time share spent in the radix cache for v2 evaluation
 - [ ] **BENCH-02**: A Rust load generator: open-loop, supports mid-stream cancellation, records TTFT, P99 and RPS
 - [ ] **BENCH-03**: Scenario 1: 128 concurrent agents with random cancellations, P99 TTFT, Python vs Rust frontend
 - [ ] **BENCH-04**: Scenario 2: 32-token short-prompt saturation, RPS-vs-latency curve, Python vs Rust frontend
@@ -96,7 +96,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BASE-03 | Phase 1 | Complete |
 | WIRE-01 | Phase 1 | Complete |
 | WIRE-02 | Phase 1 | Complete |
-| BENCH-01 | Phase 2 | Pending |
+| BENCH-01 | Phase 2 | Complete |
 | WIRE-03 | Phase 3 | Pending |
 | MOCK-01 | Phase 3 | Pending |
 | TOK-01 | Phase 4 | Pending |
