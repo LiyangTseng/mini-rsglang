@@ -20,6 +20,8 @@ use rsg_wire::{SamplingParams, Tensor};
 
 use crate::codec::{CodecError, Prompt, TextCodec};
 use crate::dispatch::{DispatchHandle, DispatchStatsSnapshot, UidEvent};
+use crate::fsm::RegistryHandle;
+use crate::fsm::state::LifecycleState;
 use crate::writer::{WriterClosed, WriterHandle};
 
 /// Default backend-unresponsive timeout (LIFE-04), in milliseconds. Plan
@@ -149,6 +151,7 @@ pub struct Engine {
     writer: WriterHandle,
     dispatch: DispatchHandle,
     codec: Arc<dyn TextCodec>,
+    registry: RegistryHandle,
     config: EngineConfig,
     next_uid: AtomicI64,
 }
@@ -158,12 +161,14 @@ impl Engine {
         writer: WriterHandle,
         dispatch: DispatchHandle,
         codec: Arc<dyn TextCodec>,
+        registry: RegistryHandle,
         config: EngineConfig,
     ) -> Arc<Engine> {
         Arc::new(Engine {
             writer,
             dispatch,
             codec,
+            registry,
             config,
             next_uid: AtomicI64::new(0),
         })
@@ -171,6 +176,10 @@ impl Engine {
 
     pub fn dispatch_stats(&self) -> DispatchStatsSnapshot {
         self.dispatch.stats()
+    }
+
+    pub fn registry(&self) -> &RegistryHandle {
+        &self.registry
     }
 
     pub fn config(&self) -> &EngineConfig {
@@ -208,11 +217,26 @@ fn send_event(tx: &mpsc::UnboundedSender<RequestEvent>, event: RequestEvent) {
     let _ = tx.send(event);
 }
 
+/// Reports `to` to the registry and sends `event`, in that order, so every
+/// driver exit path reports exactly one terminal through this one helper
+/// (LIFE-01).
+fn finish(
+    engine: &Engine,
+    tx: &mpsc::UnboundedSender<RequestEvent>,
+    uid: i64,
+    to: LifecycleState,
+    event: RequestEvent,
+) {
+    engine.registry.report(uid, to);
+    send_event(tx, event);
+}
+
 /// The per-request driver's happy path: encode -> register -> submit ->
 /// stream tokens through the codec's decoder -> exactly one terminal
-/// event. Every exit path below sends exactly one terminal
-/// (`Rejected`/`Failed`) event, or returns after the finished `Token`
-/// event — see the module doc for what later plans add on top.
+/// event. Every exit path below reports exactly one terminal state to the
+/// registry and sends exactly one terminal (`Rejected`/`Failed`) event, or
+/// returns after the finished `Token` event — see the module doc for what
+/// later plans add on top.
 async fn drive_request(
     engine: Arc<Engine>,
     uid: i64,
@@ -220,11 +244,20 @@ async fn drive_request(
     params: SamplingParams,
     tx: mpsc::UnboundedSender<RequestEvent>,
 ) {
+    engine.registry.report(uid, LifecycleState::Received);
+    engine.registry.report(uid, LifecycleState::Tokenizing);
+
     let input_ids = match engine.codec.encode(&prompt) {
         Ok(ids) => ids,
         Err(CodecError(msg)) => {
             tracing::warn!(uid, "codec encode failed");
-            send_event(&tx, RequestEvent::Rejected(SubmitError::Codec(msg)));
+            finish(
+                &engine,
+                &tx,
+                uid,
+                LifecycleState::Failed,
+                RequestEvent::Rejected(SubmitError::Codec(msg)),
+            );
             return;
         }
     };
@@ -244,57 +277,93 @@ async fn drive_request(
         Err(WriterClosed) => {
             engine.dispatch.deregister(uid);
             tracing::warn!(uid, "writer closed before submit");
-            send_event(
+            finish(
+                &engine,
                 &tx,
+                uid,
+                LifecycleState::Failed,
                 RequestEvent::Rejected(SubmitError::BackendUnavailable),
             );
             return;
         }
     };
+    engine.registry.report(uid, LifecycleState::Submitted);
 
     tracing::debug!(uid, input_len, max_tokens, "request accepted");
     send_event(&tx, RequestEvent::Accepted);
     let mut decoder = engine.codec.decoder();
+    let mut reported_decoding = false;
 
     loop {
         match stream.recv().await {
-            Some(UidEvent::Token(reply)) => match decoder.step(reply.next_token, reply.finished) {
-                Ok(text) => {
-                    send_event(
-                        &tx,
-                        RequestEvent::Token {
-                            text,
-                            finished: reply.finished,
-                        },
-                    );
-                    if reply.finished {
-                        tracing::debug!(uid, "request finished");
+            Some(UidEvent::Token(reply)) => {
+                if !reported_decoding {
+                    engine.registry.report(uid, LifecycleState::Decoding);
+                    reported_decoding = true;
+                }
+                match decoder.step(reply.next_token, reply.finished) {
+                    Ok(text) => {
+                        if reply.finished {
+                            tracing::debug!(uid, "request finished");
+                            finish(
+                                &engine,
+                                &tx,
+                                uid,
+                                LifecycleState::Finished,
+                                RequestEvent::Token {
+                                    text,
+                                    finished: true,
+                                },
+                            );
+                            return;
+                        }
+                        send_event(
+                            &tx,
+                            RequestEvent::Token {
+                                text,
+                                finished: false,
+                            },
+                        );
+                    }
+                    Err(CodecError(msg)) => {
+                        engine.dispatch.deregister(uid);
+                        let _ = engine.writer.abort(&submitted).await;
+                        tracing::warn!(uid, "decode failed");
+                        finish(
+                            &engine,
+                            &tx,
+                            uid,
+                            LifecycleState::Failed,
+                            RequestEvent::Failed(RequestError::Decode(msg)),
+                        );
                         return;
                     }
                 }
-                Err(CodecError(msg)) => {
-                    engine.dispatch.deregister(uid);
-                    let _ = engine.writer.abort(&submitted).await;
-                    tracing::warn!(uid, "decode failed");
-                    send_event(&tx, RequestEvent::Failed(RequestError::Decode(msg)));
-                    return;
-                }
-            },
+            }
             Some(UidEvent::Dropped(n)) => {
                 // A gap would corrupt the decoded text, so the request
                 // fails instead of streaming wrong output.
                 engine.dispatch.deregister(uid);
                 let _ = engine.writer.abort(&submitted).await;
                 tracing::warn!(uid, dropped = n, "slow consumer, failing request");
-                send_event(
+                finish(
+                    &engine,
                     &tx,
+                    uid,
+                    LifecycleState::Failed,
                     RequestEvent::Failed(RequestError::SlowConsumer { dropped: n }),
                 );
                 return;
             }
             None => {
                 tracing::warn!(uid, "backend gone");
-                send_event(&tx, RequestEvent::Failed(RequestError::BackendGone));
+                finish(
+                    &engine,
+                    &tx,
+                    uid,
+                    LifecycleState::Failed,
+                    RequestEvent::Failed(RequestError::BackendGone),
+                );
                 return;
             }
         }

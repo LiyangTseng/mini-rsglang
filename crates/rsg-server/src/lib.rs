@@ -7,6 +7,7 @@
 pub mod codec;
 pub mod dispatch;
 pub mod engine;
+pub mod fsm;
 pub mod handshake;
 pub mod http;
 pub mod transport;

@@ -11,6 +11,7 @@ use std::time::Duration;
 use rsg_server::codec::{ChatRole, CodecError, IncrementalDecoder, Prompt, TextCodec};
 use rsg_server::dispatch::spawn_dispatcher;
 use rsg_server::engine::{AbortTiming, Engine, EngineConfig};
+use rsg_server::fsm::{RegistrySnapshot, spawn_registry};
 use rsg_server::http::{self, AppState};
 use rsg_server::writer::spawn_writer;
 
@@ -120,6 +121,7 @@ impl TestServer {
         let (tx, rx) = mock.frontend().split();
         let (writer, _writer_join) = spawn_writer(tx).expect("spawn writer");
         let dispatch = spawn_dispatcher(rx).expect("spawn dispatcher");
+        let registry = spawn_registry();
 
         let engine_config = EngineConfig {
             max_seq_len: handshake.max_seq_len,
@@ -127,7 +129,7 @@ impl TestServer {
             backend_timeout: Duration::from_millis(config.backend_timeout_ms),
         };
         let codec: Arc<dyn TextCodec> = Arc::new(ByteCodec);
-        let engine = Engine::new(writer, dispatch, codec, engine_config);
+        let engine = Engine::new(writer, dispatch, codec, registry, engine_config);
 
         let state = AppState::new("test-model");
         state.set_engine(Arc::clone(&engine));
@@ -143,6 +145,22 @@ impl TestServer {
             mock,
             engine,
             state,
+        }
+    }
+
+    /// Polls the engine's registry every 10 ms until `active == 0`, and
+    /// panics with the last snapshot if `timeout_dur` elapses first.
+    pub async fn snapshot_when_idle(&self, timeout_dur: Duration) -> RegistrySnapshot {
+        let deadline = std::time::Instant::now() + timeout_dur;
+        loop {
+            let snap = self.engine.registry().snapshot().await;
+            if snap.active == 0 {
+                return snap;
+            }
+            if std::time::Instant::now() >= deadline {
+                panic!("timed out waiting for registry to go idle; last snapshot: {snap:?}");
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
     }
 }

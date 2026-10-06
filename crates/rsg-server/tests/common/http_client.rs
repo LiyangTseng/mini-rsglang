@@ -7,7 +7,9 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{
+    AsyncBufRead, AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader,
+};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
@@ -43,8 +45,14 @@ enum Framing {
     None,
 }
 
-async fn write_request(
-    stream: &mut TcpStream,
+/// Writes one request line, headers and (if given) body onto `w`. Generic
+/// over the writer half so [`send`] can write on a split-off write half
+/// concurrently with reading the response — some tests send bodies large
+/// enough that the server responds (and stops reading) before the whole
+/// body has been written, and a sequential write-then-read would deadlock
+/// waiting for TCP window space the server will never drain.
+async fn write_request<W: AsyncWrite + Unpin>(
+    w: &mut W,
     method: &str,
     path: &str,
     body: Option<&[u8]>,
@@ -55,11 +63,11 @@ async fn write_request(
         req.push_str(&format!("Content-Length: {}\r\n", b.len()));
     }
     req.push_str("\r\n");
-    stream.write_all(req.as_bytes()).await?;
+    w.write_all(req.as_bytes()).await?;
     if let Some(b) = body {
-        stream.write_all(b).await?;
+        w.write_all(b).await?;
     }
-    stream.flush().await?;
+    w.flush().await?;
     Ok(())
 }
 
@@ -196,25 +204,51 @@ async fn read_body_to_end<R: AsyncBufRead + Unpin>(r: &mut R, framing: Framing) 
 }
 
 /// Sends one request and reads the whole response (headers plus body)
-/// before returning.
+/// before returning. Writes the request concurrently with reading the
+/// response (via `tokio::join!`, on the split halves of the same
+/// connection): a body large enough to trip a server-side size limit gets
+/// its response (and the connection closed) before the whole body is
+/// written, and writing/reading sequentially would deadlock waiting for
+/// TCP window space the server will never drain.
+///
+/// Splitting (rather than reading/writing both ends of one `TcpStream`
+/// directly) matters here for a subtler reason: `TcpStream`'s own
+/// `AsyncRead`/`AsyncWrite` impls borrow `&mut self`, so a naive
+/// `tokio::join!` over the same stream can't borrow it mutably twice at
+/// once. The split halves are two distinct owned values, so both sides of
+/// the join can each hold their own `&mut`. Keep both halves alive in this
+/// function's own scope (not moved into a detached `tokio::spawn`) until
+/// after the response has been read: `OwnedWriteHalf` shuts down the
+/// connection's write direction when it drops, and doing that before the
+/// server has finished writing its response is read by some servers as an
+/// early client disconnect, discarding the in-flight response.
 pub async fn send(addr: SocketAddr, method: &str, path: &str, body: Option<&[u8]>) -> HttpResponse {
-    let mut stream = TcpStream::connect(addr).await.expect("connect");
-    write_request(&mut stream, method, path, body)
-        .await
-        .expect("write request");
-    let mut r = BufReader::new(stream);
-    let (status, headers, framing) = read_head(&mut r).await.expect("read head");
+    let stream = TcpStream::connect(addr).await.expect("connect");
+    let (read_half, mut write_half) = stream.into_split();
 
-    let (body, complete) = if method.eq_ignore_ascii_case("HEAD") {
-        (Vec::new(), true)
-    } else {
-        read_body_to_end(&mut r, framing).await
+    let write_fut = write_request(&mut write_half, method, path, body);
+
+    let mut r = BufReader::new(read_half);
+    let read_fut = async {
+        let (status, headers, framing) = read_head(&mut r).await.expect("read head");
+        let (resp_body, complete) = if method.eq_ignore_ascii_case("HEAD") {
+            (Vec::new(), true)
+        } else {
+            read_body_to_end(&mut r, framing).await
+        };
+        (status, headers, resp_body, complete)
     };
+
+    // A write error (e.g. the peer closed early) is expected whenever the
+    // server rejects the request before reading the whole body; the
+    // response read concurrently on the other half is this function's
+    // actual result.
+    let (_write_result, (status, headers, resp_body, complete)) = tokio::join!(write_fut, read_fut);
 
     HttpResponse {
         status,
         headers,
-        body,
+        body: resp_body,
         complete,
     }
 }
