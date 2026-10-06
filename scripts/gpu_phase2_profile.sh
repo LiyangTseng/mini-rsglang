@@ -144,6 +144,15 @@ if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
   return 0
 fi
 
+# A non-interactive SSH command (as opposed to a login shell) never sources
+# ~/.bashrc, so on WSL neither nvidia-smi (/usr/lib/wsl/lib) nor a user-space
+# nvcc toolchain (e.g. a micromamba env, since the system nvcc may be too old
+# for flashinfer's JIT) ever reach PATH. Prepend them here when present.
+for extra_path in "$HOME/.local/micromamba/root/envs/cuda128/bin" "$ROOT/.venv/bin" /usr/lib/wsl/lib; do
+  [ -d "$extra_path" ] && PATH="$extra_path:$PATH"
+done
+export PATH
+
 # --- Preflight -----------------------------------------------------------------
 missing=()
 for tool in nvidia-smi curl py-spy hyperfine; do
