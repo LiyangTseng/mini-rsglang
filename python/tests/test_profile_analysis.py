@@ -7,6 +7,8 @@ or hook.py output is read here.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pytest
 
 from rsglang.profiling import analysis
@@ -224,3 +226,177 @@ def test_percentile():
         analysis.percentile([1], 0)
     with pytest.raises(ValueError):
         analysis.percentile([1], 101)
+
+
+# ---------------------------------------------------------------------------
+# Task 2: slice_window
+# ---------------------------------------------------------------------------
+
+
+def test_slice_window():
+    records = [{"t": 1.0}, {"t": 2.0}, {"t": 3.0}]
+    result = analysis.slice_window(records, 2.0, 3.0)
+    assert result == [{"t": 2.0}, {"t": 3.0}]
+
+
+# ---------------------------------------------------------------------------
+# Task 2: gc_stats
+# ---------------------------------------------------------------------------
+
+
+def test_gc_stats():
+    t0_base = 100.0
+    events = [
+        {"kind": "gc", "pid": 1, "t": t0_base + 1.0, "duration_s": 0.001, "generation": 0, "collected": 5, "uncollectable": 0},
+        {"kind": "gc", "pid": 1, "t": t0_base + 2.0, "duration_s": 0.003, "generation": 0, "collected": 0, "uncollectable": 0},
+        {"kind": "gc", "pid": 1, "t": t0_base + 3.0, "duration_s": 0.010, "generation": 2, "collected": 7, "uncollectable": 0},
+    ]
+    t0 = events[0]["t"] - 1.0
+
+    result = analysis.gc_stats(events, t0=t0)
+    assert result["count"] == 3
+    assert result["by_generation"] == {"0": 2, "1": 0, "2": 1}
+    assert result["total_pause_ms"] == pytest.approx(14.0, abs=1e-9)
+    assert result["pause_ms"]["max"] == 10.0
+    assert result["pause_ms"]["p50"] == 3.0
+    assert result["collected"] == 12
+    assert result["events"][0] == [1.0, 1.0, 0]
+
+    empty_result = analysis.gc_stats([], t0=0.0)
+    assert empty_result["count"] == 0
+    assert empty_result["total_pause_ms"] == 0.0
+    assert empty_result["pause_ms"]["p50"] is None
+    assert empty_result["pause_ms"]["p99"] is None
+    assert empty_result["pause_ms"]["max"] is None
+
+
+# ---------------------------------------------------------------------------
+# Task 2: gc_ttft_correlation
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FakeReq:
+    t_send: float
+    t_first: "float | None"
+    t_end: float
+    outcome: str
+
+
+def _build_correlation_fixture():
+    # 60 qualifying requests (t_first set): 1 outlier (500ms TTFT) + 59 normal
+    # (10ms TTFT). With n=60 and p=99, nearest-rank selects the single max
+    # (ceil(0.99*60)=60 -> last index), so the outlier is the sole spike.
+    requests = []
+
+    # the spike request: t_send=0.0, t_first=0.5 (500ms)
+    spike_req = _FakeReq(t_send=0.0, t_first=0.5, t_end=0.6, outcome="completed")
+    requests.append(spike_req)
+
+    touch_req = None
+    for i in range(1, 60):
+        t_send = float(i)
+        req = _FakeReq(t_send=t_send, t_first=t_send + 0.01, t_end=t_send + 0.02, outcome="completed")
+        requests.append(req)
+        if i == 10:
+            touch_req = req
+
+    # one extra request without t_first -- must be excluded entirely
+    requests.append(_FakeReq(t_send=100.0, t_first=None, t_end=100.1, outcome="cancelled"))
+
+    # GC pause 1: strictly inside the spike request's (t_send, t_first) window
+    pause_inside = {"kind": "gc", "pid": 1, "t": 0.3, "duration_s": 0.05, "generation": 0, "collected": 0, "uncollectable": 0}
+    # GC pause 2: ends exactly at touch_req's t_send -- touching, not overlapping
+    pause_touching = {
+        "kind": "gc",
+        "pid": 1,
+        "t": touch_req.t_send,
+        "duration_s": 0.05,
+        "generation": 0,
+        "collected": 0,
+        "uncollectable": 0,
+    }
+    gc_events = [pause_inside, pause_touching]
+    return requests, gc_events
+
+
+def test_gc_ttft_correlation():
+    requests, gc_events = _build_correlation_fixture()
+
+    result = analysis.gc_ttft_correlation(requests, gc_events)
+    assert result["p99_ttft_ms"] == 500.0
+    assert result["spike_requests"] == 1
+    assert result["spike_with_gc"] == 1
+    assert result["nonspike_requests"] == 59
+    assert result["nonspike_with_gc"] == 0
+    assert result["spike_overlap_rate"] == 1.0
+    assert result["nonspike_overlap_rate"] == 0.0
+
+    # no request has t_first -> None
+    no_ttft_requests = [_FakeReq(t_send=0.0, t_first=None, t_end=1.0, outcome="completed")]
+    assert analysis.gc_ttft_correlation(no_ttft_requests, []) is None
+
+
+# ---------------------------------------------------------------------------
+# Task 2: summarize_requests
+# ---------------------------------------------------------------------------
+
+
+def test_summarize_requests():
+    records = [
+        _FakeReq(t_send=0.0, t_first=0.01, t_end=0.02, outcome="completed"),
+        _FakeReq(t_send=0.0, t_first=0.02, t_end=0.03, outcome="completed"),
+        _FakeReq(t_send=0.0, t_first=None, t_end=0.01, outcome="cancelled"),
+        _FakeReq(t_send=0.0, t_first=None, t_end=0.01, outcome="failed"),
+    ]
+
+    result = analysis.summarize_requests(records, 2.0)
+    assert result["sent"] == 4
+    assert result["completed"] == 2
+    assert result["cancelled"] == 1
+    assert result["failed"] == 1
+    assert result["ttft_ms"]["p50"] == 10.0
+    assert result["ttft_ms"]["max"] == 20.0
+    assert result["rps"] == 1.0
+
+    result_zero_window = analysis.summarize_requests(records, 0)
+    assert result_zero_window["rps"] is None
+
+    empty_result = analysis.summarize_requests([], 2.0)
+    assert empty_result["sent"] == 0
+    assert empty_result["ttft_ms"]["p50"] is None
+    assert empty_result["ttft_ms"]["p90"] is None
+    assert empty_result["ttft_ms"]["p99"] is None
+    assert empty_result["ttft_ms"]["max"] is None
+
+
+# ---------------------------------------------------------------------------
+# Task 2: memory_role_summary
+# ---------------------------------------------------------------------------
+
+
+def test_memory_role_summary():
+    t0 = 50.0
+    rss_samples = [(t0 + 0, 100), (t0 + 1, 180), (t0 + 2, 150)]
+    mem_records = [
+        {"kind": "mem", "pid": 1, "t": t0 + 0, "traced_current": 1000, "traced_peak": 1200},
+        {"kind": "mem", "pid": 1, "t": t0 + 1, "traced_current": 1100, "traced_peak": 1500},
+    ]
+
+    result = analysis.memory_role_summary(rss_samples, mem_records, None, t0=t0)
+    assert result["rss_bytes"] == {"start": 100, "end": 150, "max": 180, "growth": 50}
+    assert result["rss_curve"] == [[0.0, 100], [1.0, 180], [2.0, 150]]
+    assert result["tracemalloc"]["current_start"] == 1000
+    assert result["tracemalloc"]["current_end"] == 1100
+    assert result["tracemalloc"]["peak"] == 1500
+    assert result["top_alloc_sites"] is None
+
+    empty_result = analysis.memory_role_summary([], [], None, t0=t0)
+    assert empty_result["rss_bytes"] == {"start": None, "end": None, "max": None, "growth": None}
+    assert empty_result["rss_curve"] == []
+    assert empty_result["tracemalloc"] == {"current_start": None, "current_end": None, "peak": None}
+    assert empty_result["tracemalloc_curve"] == []
+
+    sites = [{"file": "a.py", "line": 1, "size_bytes": 10, "count": 1}]
+    with_sites = analysis.memory_role_summary([], [], sites, t0=t0)
+    assert with_sites["top_alloc_sites"] == sites
