@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Request Lifecycle & HTTP API
 status: executing
-stopped_at: Completed 05-06-PLAN.md
-last_updated: "2026-10-06T23:21:02.952Z"
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-10-06T23:37:01.282Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 05 execution started
-state_head: 9668fb0ff04d15b2a31e850aae264ec0dfa3e03f
+state_head: 99703b9614373ab01cb2de65c643bd373ccae712
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 37
-  completed_plans: 34
+  completed_plans: 35
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
-Plan: 7 of 9
+Plan: 8 of 9
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 05 execution started
 
@@ -78,6 +78,7 @@ Progress: [████░░░░░░] 43%
 | Phase 05 P04 | 70min | 3 tasks | 4 files |
 | Phase 05 P05 | 55min | 2 tasks | 20 files |
 | Phase 05 P06 | 50min | 2 tasks | 11 files |
+| Phase 05 P07 | 50min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,8 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05]: ServerMetrics uses a per-server PrometheusRecorder (never process-global, no set_global_recorder/install_recorder) with no labels on any of its 7 series (T-05-13/T-05-14 fixed cardinality)
 - [Phase 05]: /health is process liveness only (always 200); /health/ready is 200 only after AppState::set_engine — the front-half/end-to-end split Phase 7's cold-start scenario measures
 - [Phase 05]: ServerMetrics::render sets rsg_late_tokens_dropped_total via Counter::absolute(unknown_uid + closed_route) from a live DispatchStatsSnapshot at scrape time, never an internally-accumulated count, so it can never drift from the dispatcher's own single source of truth
+- [Phase 05]: No driver fix was needed in engine.rs for the 128-agent stress test: the existing cancellation/abort-timing/timeout logic from plan 05-04 held up across repeated runs and multiple seeds
+- [Phase 05]: A disconnect-mode stress-test agent picks OpenStream vs. a raw TcpStream based on when the server actually commits to response headers, not just streaming-vs-non-streaming as a label: chat non-stream has no headers until the whole generation is ready, so OpenStream::open would block past the intended disconnect point
 
 ### Pending Todos
 
@@ -166,6 +169,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T23:21:02.907Z
-Stopped at: Completed 05-06-PLAN.md
+Last session: 2026-10-06T23:37:01.238Z
+Stopped at: Completed 05-07-PLAN.md
 Resume file: None
