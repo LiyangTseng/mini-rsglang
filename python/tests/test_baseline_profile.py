@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -42,6 +43,18 @@ def _write_pyspy_stub(tmp_path: Path) -> Path:
     return bin_dir
 
 
+def _write_hyperfine_stub(bin_dir: Path) -> Path:
+    """Write an executable `hyperfine` into bin_dir that execs the fake_profile_env
+    hyperfine stand-in."""
+    bin_dir.mkdir(exist_ok=True)
+    stub = bin_dir / "hyperfine"
+    stub.write_text(
+        f'#!/bin/bash\nexec "{sys.executable}" -m rsglang.testing.fake_profile_env hyperfine "$@"\n'
+    )
+    stub.chmod(0o755)
+    return bin_dir
+
+
 def _pid_alive(pid: int) -> bool:
     if not psutil.pid_exists(pid):
         return False
@@ -65,6 +78,17 @@ def _run_discover(args: list, env: dict, timeout: int = 180) -> "subprocess.Comp
     return subprocess.run(
         [sys.executable, "scripts/baseline_profile.py", "discover", *args],
         env=env,
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+def _run_cli(command: str, args: list, env: dict | None = None, timeout: int = 180) -> "subprocess.CompletedProcess[str]":
+    return subprocess.run(
+        [sys.executable, "scripts/baseline_profile.py", command, *args],
+        env=env if env is not None else dict(os.environ),
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -292,3 +316,233 @@ def test_discover_server_exits_early(tmp_path):
     )
     assert result.returncode == 1, f"stdout={result.stdout!r} stderr={result.stderr!r}"
     assert "boom" in result.stderr
+
+
+# --- run_s1_end_to_end (Plan 02-08, Task 1) -----------------------------------------
+
+
+@pytest.mark.slow
+def test_run_s1_end_to_end(tmp_path):
+    from rsglang.testing.fake_profile_env import (
+        FAKE_ACTIVE_SAMPLES,
+        FAKE_GIL_SAMPLES,
+        FAKE_RADIX_SAMPLES,
+    )
+
+    bin_dir = _write_pyspy_stub(tmp_path)
+    role_map_path = tmp_path / "roles.json"
+    port = _free_port()
+    out_path = tmp_path / "p.json"
+    work_dir = tmp_path / "w"
+
+    env = dict(os.environ)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+    env["RSGLANG_FAKE_PROFILE_ROLE_MAP"] = str(role_map_path)
+
+    result = _run_cli(
+        "run",
+        [
+            "--scenarios", "s1",
+            "--s1-agents", "8",
+            "--s1-duration-s", "2",
+            "--s1-max-tokens", "16",
+            "--s1-think-max-s", "0.05",
+            "--sample-interval-s", "0.2",
+            "--server-cmd",
+            "{python} -m rsglang.testing.fake_profile_env server --port {port}",
+            "--port", str(port),
+            "--timeout", "60",
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+        ],
+        env=env,
+        timeout=180,
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_sidecar(doc, require_scenarios=("s1_cancel",)) == []
+    assert doc["meta"]["mode"] == "run"
+
+    entry = doc["scenarios"]["s1_cancel"]
+    assert entry["radix"]["share"] == FAKE_RADIX_SAMPLES / FAKE_ACTIVE_SAMPLES
+    assert entry["cpu"]["scheduler"]["active_samples"] == FAKE_ACTIVE_SAMPLES
+    assert entry["cpu"]["api_server"]["buckets"]["ipc_zmq"]["samples"] == 2
+    assert entry["cpu"]["tokenizer"]["buckets"]["tokenize"]["samples"] == 2
+    for role in ("api_server", "scheduler", "tokenizer"):
+        assert entry["cpu"][role]["gil_samples"] == FAKE_GIL_SAMPLES
+
+    assert entry["gc"]["scheduler"]["count"] >= 1
+    assert entry["gc"]["tokenizer"]["count"] >= 1
+
+    assert entry["requests"]["sent"] >= 8
+    assert entry["requests"]["failed"] == 0
+
+    for role in ("api_server", "scheduler", "tokenizer"):
+        per_role = entry["memory"]["per_role"][role]
+        assert len(per_role["rss_curve"]) > 0
+        assert isinstance(per_role["top_alloc_sites"], list)
+
+    role_map = json.loads(role_map_path.read_text())
+    alive_pids = {int(pid) for pid in role_map}
+    still_alive = _wait_until_dead(alive_pids)
+    assert not still_alive, f"still alive: {still_alive}"
+
+
+# --- run_refuses_canonical_out_off_gpu (Plan 02-08, Task 1) ---------------------------
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(
+    sys.platform.startswith("linux") and shutil.which("nvidia-smi") is not None,
+    reason="this host would actually attempt a canonical GPU write",
+)
+def test_run_refuses_canonical_out_off_gpu(tmp_path):
+    bin_dir = _write_pyspy_stub(tmp_path)
+    env = dict(os.environ)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+
+    canonical_path = REPO_ROOT / sidecar.CANONICAL_OUT
+    existed_before = canonical_path.exists()
+    before_mtime = canonical_path.stat().st_mtime if existed_before else None
+
+    start = time.monotonic()
+    result = _run_cli(
+        "run",
+        ["--scenarios", "s1", "--work-dir", str(tmp_path / "w")],
+        env=env,
+        timeout=20,
+    )
+    elapsed = time.monotonic() - start
+
+    assert result.returncode == 2, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert elapsed < 20
+    assert "--out" in result.stderr
+
+    if existed_before:
+        assert canonical_path.stat().st_mtime == before_mtime
+    else:
+        assert not canonical_path.exists()
+
+
+# --- validate_cli (Plan 02-08, Task 1) -------------------------------------------------
+
+
+@pytest.mark.slow
+def test_validate_cli(tmp_path):
+    from test_profile_sidecar import make_valid_doc
+
+    valid_path = tmp_path / "valid.json"
+    doc = make_valid_doc()
+    valid_path.write_text(json.dumps(doc))
+
+    result = _run_cli("validate", [str(valid_path)], timeout=30)
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    gpu_path = tmp_path / "gpu.json"
+    gpu_doc = json.loads(json.dumps(doc))
+    gpu_doc["meta"]["platform"] = "darwin"
+    gpu_path.write_text(json.dumps(gpu_doc))
+
+    result2 = _run_cli("validate", [str(gpu_path), "--require-gpu"], timeout=30)
+    assert result2.returncode == 1, f"stdout={result2.stdout!r} stderr={result2.stderr!r}"
+    assert "meta" in (result2.stdout + result2.stderr)
+
+    bad_path = tmp_path / "bad.json"
+    bad_doc = json.loads(json.dumps(doc))
+    bad_doc["scenarios"]["s1_cancel"]["radix"]["share"] = 2.0
+    bad_path.write_text(json.dumps(bad_doc))
+
+    result3 = _run_cli("validate", [str(bad_path)], timeout=30)
+    assert result3.returncode == 1, f"stdout={result3.stdout!r} stderr={result3.stderr!r}"
+
+
+# --- run_s3_end_to_end (Plan 02-08, Task 2) -------------------------------------------
+
+
+@pytest.mark.slow
+def test_run_s3_end_to_end(tmp_path):
+    from rsglang.testing.fake_profile_env import FAKE_ACTIVE_SAMPLES, FAKE_RADIX_SAMPLES
+
+    bin_dir = _write_pyspy_stub(tmp_path)
+    _write_hyperfine_stub(bin_dir)
+    role_map_path = tmp_path / "roles.json"
+    port = _free_port()
+    out_path = tmp_path / "p3.json"
+    work_dir = tmp_path / "w3"
+
+    env = dict(os.environ)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+    env["RSGLANG_FAKE_PROFILE_ROLE_MAP"] = str(role_map_path)
+
+    result = _run_cli(
+        "run",
+        [
+            "--scenarios", "s3",
+            "--s3-runs", "2",
+            "--s3-warmup", "1",
+            "--s3-sample-s", "1",
+            "--s3-max-tokens", "4",
+            "--sample-interval-s", "0.2",
+            "--server-cmd",
+            "{python} -m rsglang.testing.fake_profile_env server --port {port}",
+            "--port", str(port),
+            "--timeout", "60",
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+        ],
+        env=env,
+        timeout=180,
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_sidecar(doc, require_scenarios=("s3_coldstart",)) == []
+
+    entry = doc["scenarios"]["s3_coldstart"]
+    coldstart = entry["coldstart"]
+    assert coldstart["hyperfine"]["runs"] == 2
+    assert len(coldstart["ready_s_self_timed"]) == 2
+    assert all(v > 0 for v in coldstart["ready_s_self_timed"])
+    assert len(coldstart["rss_tree_bytes_at_ready"]) == 2
+    assert all(isinstance(v, int) and v > 0 for v in coldstart["rss_tree_bytes_at_ready"])
+    if not sys.platform.startswith("linux"):
+        assert coldstart["pss_tree_bytes_at_ready"] == [None, None]
+
+    assert entry["requests"]["sent"] == 1
+    assert entry["requests"]["completed"] == 1
+
+    assert entry["radix"]["share"] == FAKE_RADIX_SAMPLES / FAKE_ACTIVE_SAMPLES
+
+    scheduler_events = entry["gc"]["scheduler"]["events"]
+    assert scheduler_events, "expected at least one boot-window GC event"
+    first_t_rel_s = min(e[0] for e in scheduler_events)
+    assert first_t_rel_s < entry["params"]["instrumented_ready_s"]
+
+    work_dir_path = Path(work_dir)
+    pgid_files = list(work_dir_path.glob("**/pgid")) + list(work_dir_path.glob("**/*.pgid"))
+    assert not pgid_files, f"leftover pgid file(s): {pgid_files}"
+
+    role_map = json.loads(role_map_path.read_text())
+    alive_pids = {int(pid) for pid in role_map}
+    still_alive = _wait_until_dead(alive_pids)
+    assert not still_alive, f"still alive: {still_alive}"
+
+
+# --- run_s3_hyperfine_missing_exits_2 (Plan 02-08, Task 2) ----------------------------
+
+
+@pytest.mark.slow
+def test_run_s3_hyperfine_missing_exits_2(tmp_path):
+    bin_dir = _write_pyspy_stub(tmp_path)
+    env = dict(os.environ)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+
+    result = _run_cli(
+        "run",
+        ["--scenarios", "s3", "--out", str(tmp_path / "x.json"), "--work-dir", str(tmp_path / "w")],
+        env=env,
+        timeout=30,
+    )
+    assert result.returncode == 2, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert "hyperfine" in result.stderr

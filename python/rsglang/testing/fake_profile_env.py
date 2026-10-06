@@ -26,6 +26,8 @@ import http.server
 import json
 import multiprocessing as mp
 import os
+import statistics
+import subprocess
 import sys
 import threading
 import time
@@ -413,19 +415,87 @@ def _cmd_pyspy(argv: Sequence[str]) -> int:
     return 1
 
 
+# --- hyperfine subcommand ---------------------------------------------------------
+
+
+def _build_hyperfine_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="hyperfine", add_help=False)
+    parser.add_argument("--version", action="store_true")
+    parser.add_argument("--runs", type=int, default=10)
+    parser.add_argument("--warmup", type=int, default=0)
+    parser.add_argument("--export-json", default=None)
+    parser.add_argument("--conclude", default=None)
+    parser.add_argument("cmd", nargs="?", default=None)
+    return parser
+
+
+def _cmd_hyperfine(argv: Sequence[str]) -> int:
+    ns = _build_hyperfine_parser().parse_args(argv)
+    if ns.version:
+        print("hyperfine 1.20.0")
+        return 0
+
+    if ns.cmd is None:
+        print("hyperfine: missing <command>", file=sys.stderr)
+        return 1
+
+    total = ns.warmup + ns.runs
+    times: list = []
+    exit_codes: list = []
+    for i in range(total):
+        t0 = time.perf_counter()
+        result = subprocess.run(ns.cmd, shell=True)
+        duration = time.perf_counter() - t0
+        rc = result.returncode
+
+        if ns.conclude:
+            subprocess.run(ns.conclude, shell=True)
+
+        if rc != 0:
+            return 1
+
+        if i >= ns.warmup:
+            times.append(duration)
+            exit_codes.append(rc)
+
+    if ns.export_json:
+        n = len(times)
+        doc = {
+            "results": [
+                {
+                    "command": ns.cmd,
+                    "mean": sum(times) / n if n else 0.0,
+                    "stddev": statistics.stdev(times) if n > 1 else None,
+                    "median": statistics.median(times) if n else 0.0,
+                    "min": min(times) if n else 0.0,
+                    "max": max(times) if n else 0.0,
+                    "times": times,
+                    "exit_codes": exit_codes,
+                }
+            ]
+        }
+        export_path = Path(ns.export_json)
+        export_path.parent.mkdir(parents=True, exist_ok=True)
+        export_path.write_text(json.dumps(doc))
+
+    return 0
+
+
 # --- entry point -------------------------------------------------------------------
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv:
-        print("usage: fake_profile_env {server|py-spy} ...", file=sys.stderr)
+        print("usage: fake_profile_env {server|py-spy|hyperfine} ...", file=sys.stderr)
         return 2
     command, rest = argv[0], argv[1:]
     if command == "server":
         return _cmd_server(rest)
     if command == "py-spy":
         return _cmd_pyspy(rest)
+    if command == "hyperfine":
+        return _cmd_hyperfine(rest)
     print(f"fake_profile_env: unknown command {command!r}", file=sys.stderr)
     return 2
 
