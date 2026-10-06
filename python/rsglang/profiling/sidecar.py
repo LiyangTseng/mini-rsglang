@@ -72,7 +72,7 @@ def _git_commit(repo_root: Path) -> str | None:
             text=True,
             timeout=10,
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
         return None
@@ -87,7 +87,7 @@ def _git_dirty(repo_root: Path) -> bool | None:
             text=True,
             timeout=10,
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
         return None
@@ -102,7 +102,7 @@ def _gpu_name() -> str | None:
             text=True,
             timeout=10,
         )
-    except (OSError, FileNotFoundError):
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
         return None

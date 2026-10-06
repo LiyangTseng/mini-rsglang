@@ -338,3 +338,25 @@ def test_write_sidecar_require_gpu(tmp_path):
     with pytest.raises(SidecarError):
         write_sidecar(darwin_doc, path, require_scenarios=SCENARIOS, require_gpu=True)
     assert not path.exists()
+
+
+def test_build_meta_helpers_tolerate_subprocess_timeout(monkeypatch):
+    # Code review CR-04: _git_commit/_git_dirty/_gpu_name caught only OSError
+    # around subprocess.run(..., timeout=N); subprocess.TimeoutExpired is not
+    # an OSError subclass, so a hung git/nvidia-smi call raised straight
+    # through build_meta() -- which cmd_run calls only AFTER every requested
+    # scenario has already run -- discarding a fully-measured session before
+    # write_sidecar() was ever reached. Each helper must degrade to None
+    # (or False for the boolean _git_dirty) instead of propagating.
+    import subprocess
+
+    from rsglang.profiling import sidecar
+
+    def fake_run(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=args[0] if args else "cmd", timeout=10)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    assert sidecar._git_commit(None) is None
+    assert sidecar._git_dirty(None) is None
+    assert sidecar._gpu_name() is None

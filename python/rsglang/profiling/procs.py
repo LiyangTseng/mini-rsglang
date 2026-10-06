@@ -139,7 +139,7 @@ def py_spy_version(base: Sequence[str]) -> str | None:
     argv = _without_sudo(base)
     try:
         out = subprocess.run([*argv, "--version"], capture_output=True, text=True, timeout=10)
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
         return None
@@ -149,7 +149,10 @@ def py_spy_version(base: Sequence[str]) -> str | None:
 
 def py_spy_dump(pid: int, *, base: Sequence[str]) -> str:
     argv = [*base, "dump", "--nonblocking", "--pid", str(pid)]
-    out = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+    try:
+        out = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
     if out.returncode != 0:
         combined = (out.stdout or "") + (out.stderr or "")
         if _PERMISSION_RE.search(combined):
@@ -220,7 +223,7 @@ def teardown(handle: ServerHandle, *, extra_pids: Iterable[int] = (), grace_s: f
 
     try:
         os.killpg(pgid, signal.SIGINT)
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):
         pass
 
     deadline = time.monotonic() + grace_s
@@ -234,7 +237,7 @@ def teardown(handle: ServerHandle, *, extra_pids: Iterable[int] = (), grace_s: f
 
     try:
         os.killpg(pgid, signal.SIGKILL)
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):
         pass
 
     kill_deadline = time.monotonic() + 10.0

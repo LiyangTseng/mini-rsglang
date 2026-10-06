@@ -226,7 +226,9 @@ def cpu_metrics(
     for name, count in bucket_counts.items():
         share_of_active = count / active_samples if active_samples > 0 else None
         per_request_ms = (
-            1000 * count / rate_hz / requests_completed if requests_completed > 0 else None
+            1000 * count / rate_hz / requests_completed
+            if (requests_completed > 0 and rate_hz > 0)
+            else None
         )
         buckets_out[name] = {
             "samples": count,

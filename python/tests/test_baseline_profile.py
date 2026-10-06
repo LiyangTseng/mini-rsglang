@@ -546,3 +546,74 @@ def test_run_s3_hyperfine_missing_exits_2(tmp_path):
     )
     assert result.returncode == 2, f"stdout={result.stdout!r} stderr={result.stderr!r}"
     assert "hyperfine" in result.stderr
+
+
+# --- teardown_eperm_reused_pgid ---
+
+
+def test_teardown_survives_eperm_on_reused_pgid(monkeypatch):
+    # Code review CR-01: once a process group's leader has already exited,
+    # the OS can reuse its pgid; a follow-up signal to that pgid can then
+    # raise PermissionError rather than ProcessLookupError. teardown() must
+    # treat that the same as "nothing left to signal", not let it propagate
+    # out of the finally block its two real callers run it in.
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait(timeout=10)
+
+    calls = []
+
+    def fake_killpg(pgid, sig):
+        calls.append(sig)
+        raise PermissionError("reused pgid")
+
+    monkeypatch.setattr(procs.os, "killpg", fake_killpg)
+    handle = procs.ServerHandle(proc=proc, pgid=proc.pid, t_launch=time.perf_counter(), log_path=Path("/dev/null"))
+
+    survivors = procs.teardown(handle, grace_s=1.0)
+
+    assert len(calls) == 2  # SIGINT then SIGKILL, both raised PermissionError
+    assert survivors == []
+
+
+# --- run_permission_denied_exits_2 ---
+
+
+@pytest.mark.slow
+def test_run_permission_denied_exits_2(tmp_path):
+    # Code review CR-02: `run`'s exception handler didn't catch
+    # procs.PySpyPermissionError, unlike `discover`'s otherwise-identical
+    # path -- an operator hit a raw traceback instead of the documented
+    # "exit 2, CAP_SYS_PTRACE remediation" message `discover` already gives
+    # for the identical underlying condition.
+    bin_dir = _write_pyspy_stub(tmp_path)
+    role_map_path = tmp_path / "roles.json"
+    port = _free_port()
+
+    env = dict(os.environ)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+    env["RSGLANG_FAKE_PROFILE_ROLE_MAP"] = str(role_map_path)
+    env["RSGLANG_FAKE_PYSPY_MODE"] = "denied"
+
+    result = _run_cli(
+        "run",
+        [
+            "--scenarios", "s1",
+            "--s1-agents", "2",
+            "--s1-duration-s", "1",
+            "--server-cmd",
+            "{python} -m rsglang.testing.fake_profile_env server --port {port}",
+            "--port", str(port),
+            "--timeout", "30",
+            "--out", str(tmp_path / "p.json"),
+            "--work-dir", str(tmp_path / "w"),
+        ],
+        env=env,
+        timeout=90,
+    )
+    assert result.returncode == 2, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert "CAP_SYS_PTRACE" in result.stderr
+
+    role_map = json.loads(role_map_path.read_text()) if role_map_path.exists() else {}
+    alive_pids = {int(pid) for pid in role_map}
+    still_alive = _wait_until_dead(alive_pids)
+    assert not still_alive, f"still alive: {still_alive}"
