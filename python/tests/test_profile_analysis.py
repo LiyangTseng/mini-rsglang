@@ -76,6 +76,26 @@ def test_load_speedscope_valid_and_invalid():
         analysis.load_speedscope(bad_mismatch)
 
 
+def test_load_speedscope_tolerates_invalid_utf8_in_frame_name(tmp_path):
+    # Reproduces a real py-spy --nonblocking GPU-run finding: a native-frame
+    # symbol it could not resolve landed as invalid UTF-8 bytes inside a
+    # frame "name" string. json.load()'s strict decoder would raise
+    # UnicodeDecodeError on this and abort the whole measurement; the loader
+    # must instead decode with errors="replace" and still return a usable
+    # document (that frame simply never matches a bucket's path fragment).
+    doc = _doc([_frame("ok", "/a/ok.py")], [_profile([[0]])])
+    raw = __import__("json").dumps(doc).encode("utf-8")
+    # Splice invalid UTF-8 bytes (a lone continuation byte) into the frame name.
+    raw = raw.replace(b'"name": "ok"', b'"name": "\xfb\x96bad"')
+    path = tmp_path / "corrupt.speedscope.json"
+    path.write_bytes(raw)
+
+    loaded = analysis.load_speedscope(str(path))
+
+    assert loaded["shared"]["frames"][0]["file"] == "/a/ok.py"
+    assert "�" in loaded["shared"]["frames"][0]["name"]
+
+
 # ---------------------------------------------------------------------------
 # Task 1: radix frame bucketing
 # ---------------------------------------------------------------------------

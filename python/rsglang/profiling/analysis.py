@@ -34,12 +34,26 @@ def load_speedscope(path_or_doc: "str | Path | Mapping[str, Any]") -> dict:
     shared.frames (a list) and profiles (a list); each profile needs
     samples and weights lists of equal length. Raises SpeedscopeError
     naming the missing key or the offending profile's index otherwise.
+
+    Real py-spy --nonblocking output can contain a frame "name"/"file"
+    string with invalid UTF-8 bytes: py-spy reads process memory without
+    pausing it, and a symbol lookup into a native (non-Python) frame can
+    misresolve into garbage bytes, observed on a real GPU run against
+    api_server's asyncio/uvloop event loop. json.load()'s strict decoder
+    raises UnicodeDecodeError on that, which would abort the whole
+    measurement run over one unresolvable frame name. Decode with
+    errors="replace" instead: the garbage bytes sit inside a JSON string
+    value, never across a structural boundary, so replacing them with
+    U+FFFD keeps the document valid and that frame simply fails every
+    bucket's path-fragment match (falls into "other"), which is the
+    correct outcome for a frame py-spy could not symbolize anyway.
     """
     if isinstance(path_or_doc, (str, Path)):
         import json
 
-        with open(path_or_doc, "r", encoding="utf-8") as fh:
-            doc = json.load(fh)
+        with open(path_or_doc, "rb") as fh:
+            text = fh.read().decode("utf-8", errors="replace")
+        doc = json.loads(text)
     else:
         doc = path_or_doc
 
