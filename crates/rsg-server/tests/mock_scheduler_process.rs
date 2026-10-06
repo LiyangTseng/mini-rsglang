@@ -253,8 +253,7 @@ fn undecodable_frame_exits_4() {
 
 #[test]
 fn prefill_and_decode_delays_are_honored() {
-    let mut mock =
-        MockScheduler::spawn(&["--prefill-delay-ms", "100", "--decode-delay-ms", "50"]);
+    let mut mock = MockScheduler::spawn(&["--prefill-delay-ms", "100", "--decode-delay-ms", "50"]);
     mock.wait_ready();
     let frontend = mock.frontend();
 
