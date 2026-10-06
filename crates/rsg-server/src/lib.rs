@@ -10,5 +10,6 @@ pub mod engine;
 pub mod fsm;
 pub mod handshake;
 pub mod http;
+pub mod metrics;
 pub mod transport;
 pub mod writer;

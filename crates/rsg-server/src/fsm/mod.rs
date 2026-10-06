@@ -12,6 +12,7 @@ use std::time::Instant;
 use rustc_hash::FxHashMap;
 use tokio::sync::{mpsc, oneshot};
 
+use crate::metrics::ServerMetrics;
 use state::{LifecycleState, ReqState};
 
 /// Messages the registry task's inbox accepts.
@@ -63,7 +64,11 @@ pub struct RegistrySnapshot {
 }
 
 /// Spawns the registry actor. Must be called inside a tokio runtime.
-pub fn spawn_registry() -> RegistryHandle {
+/// `metrics` records every transition this actor applies (API-02): a
+/// request count on `Received`, a TTFT observation on `Submitted ->
+/// Decoding`, a terminal count on every terminal state, and the active
+/// gauge after every applied report.
+pub fn spawn_registry(metrics: ServerMetrics) -> RegistryHandle {
     let (tx, mut rx) = mpsc::unbounded_channel::<Msg>();
     tokio::spawn(async move {
         let mut table: FxHashMap<i64, ReqState> = FxHashMap::default();
@@ -79,6 +84,7 @@ pub fn spawn_registry() -> RegistryHandle {
                             std::collections::hash_map::Entry::Vacant(e) => {
                                 e.insert(ReqState::new(uid, at));
                                 counts.received += 1;
+                                metrics.record_received();
                             }
                             std::collections::hash_map::Entry::Occupied(_) => {
                                 tracing::warn!(uid, "duplicate Received report for a tracked uid");
@@ -98,30 +104,43 @@ pub fn spawn_registry() -> RegistryHandle {
                                 );
                                 counts.invalid_transitions += 1;
                             }
-                            Some(entry) => match entry.advance(to, at) {
-                                Ok(()) => {
-                                    if to.is_terminal() {
-                                        match to {
-                                            LifecycleState::Finished => counts.finished += 1,
-                                            LifecycleState::Cancelled => counts.cancelled += 1,
-                                            LifecycleState::Failed => counts.failed += 1,
-                                            _ => {}
+                            Some(entry) => {
+                                let from = entry.state;
+                                match entry.advance(to, at) {
+                                    Ok(()) => {
+                                        if from == LifecycleState::Submitted
+                                            && to == LifecycleState::Decoding
+                                        {
+                                            metrics
+                                                .record_ttft(at.duration_since(entry.received_at));
                                         }
-                                        table.remove(&uid);
+                                        if to.is_terminal() {
+                                            match to {
+                                                LifecycleState::Finished => counts.finished += 1,
+                                                LifecycleState::Cancelled => {
+                                                    counts.cancelled += 1
+                                                }
+                                                LifecycleState::Failed => counts.failed += 1,
+                                                _ => {}
+                                            }
+                                            metrics.record_terminal(to);
+                                            table.remove(&uid);
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            uid = e.uid,
+                                            from = ?e.from,
+                                            to = ?e.to,
+                                            "invalid lifecycle transition"
+                                        );
+                                        counts.invalid_transitions += 1;
                                     }
                                 }
-                                Err(e) => {
-                                    tracing::warn!(
-                                        uid = e.uid,
-                                        from = ?e.from,
-                                        to = ?e.to,
-                                        "invalid lifecycle transition"
-                                    );
-                                    counts.invalid_transitions += 1;
-                                }
-                            },
+                            }
                         }
                     }
+                    metrics.set_active(table.len() as u64);
                 }
                 Msg::Snapshot(reply) => {
                     let mut snap = counts;
@@ -141,7 +160,7 @@ mod tests {
 
     #[tokio::test]
     async fn second_terminal_is_counted_invalid() {
-        let registry = spawn_registry();
+        let registry = spawn_registry(ServerMetrics::new());
         registry.report(1, Received);
         registry.report(1, Tokenizing);
         registry.report(1, Submitted);
@@ -165,7 +184,7 @@ mod tests {
 
     #[tokio::test]
     async fn unknown_uid_and_duplicate_received_are_invalid() {
-        let registry = spawn_registry();
+        let registry = spawn_registry(ServerMetrics::new());
         registry.report(9, Finished);
         registry.report(2, Received);
         registry.report(2, Received);
@@ -177,7 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn active_counts_live_requests() {
-        let registry = spawn_registry();
+        let registry = spawn_registry(ServerMetrics::new());
         registry.report(1, Received);
         registry.report(2, Received);
         registry.report(3, Received);

@@ -13,6 +13,7 @@ use rsg_server::dispatch::spawn_dispatcher;
 use rsg_server::engine::{AbortTiming, Engine, EngineConfig};
 use rsg_server::fsm::{RegistrySnapshot, spawn_registry};
 use rsg_server::http::{self, AppState};
+use rsg_server::metrics::ServerMetrics;
 use rsg_server::writer::spawn_writer;
 
 use super::MockScheduler;
@@ -121,7 +122,8 @@ impl TestServer {
         let (tx, rx) = mock.frontend().split();
         let (writer, _writer_join) = spawn_writer(tx).expect("spawn writer");
         let dispatch = spawn_dispatcher(rx).expect("spawn dispatcher");
-        let registry = spawn_registry();
+        let metrics = ServerMetrics::new();
+        let registry = spawn_registry(metrics.clone());
 
         let engine_config = EngineConfig {
             max_seq_len: handshake.max_seq_len,
@@ -131,7 +133,7 @@ impl TestServer {
         let codec: Arc<dyn TextCodec> = Arc::new(ByteCodec);
         let engine = Engine::new(writer, dispatch, codec, registry, engine_config);
 
-        let state = AppState::new("test-model");
+        let state = AppState::new("test-model", metrics);
         state.set_engine(Arc::clone(&engine));
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")

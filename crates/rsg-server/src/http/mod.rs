@@ -4,6 +4,7 @@
 pub mod chat;
 pub mod error;
 pub mod generate;
+pub mod health;
 pub mod models;
 pub mod pyjson;
 
@@ -16,6 +17,7 @@ use axum::routing::{get, post};
 pub use error::ApiError;
 
 use crate::engine::Engine;
+use crate::metrics::ServerMetrics;
 
 /// Oversized-body guard (T-05-01): a body at or above this size is refused
 /// with 413 before any JSON parsing happens.
@@ -28,6 +30,7 @@ pub const EVENT_STREAM_CONTENT_TYPE: &str = "text/event-stream; charset=utf-8";
 struct Inner {
     model: String,
     engine: OnceLock<Arc<Engine>>,
+    metrics: ServerMetrics,
 }
 
 /// Shared application state passed to every handler.
@@ -37,11 +40,12 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(model: impl Into<String>) -> AppState {
+    pub fn new(model: impl Into<String>, metrics: ServerMetrics) -> AppState {
         AppState {
             inner: Arc::new(Inner {
                 model: model.into(),
                 engine: OnceLock::new(),
+                metrics,
             }),
         }
     }
@@ -61,6 +65,11 @@ impl AppState {
 
     pub fn model(&self) -> &str {
         &self.inner.model
+    }
+
+    /// The per-server metrics this `AppState` was built with.
+    pub fn metrics(&self) -> &ServerMetrics {
+        &self.inner.metrics
     }
 }
 
@@ -85,6 +94,7 @@ pub fn router(state: AppState) -> Router {
                 .head(models::v1_root)
                 .options(models::v1_root),
         )
+        .route("/metrics", get(health::metrics))
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
         .with_state(state)
 }

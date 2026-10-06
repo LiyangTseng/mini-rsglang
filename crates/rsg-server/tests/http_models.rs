@@ -8,6 +8,7 @@ use common::http_client;
 use common::test_server::{TestConfig, TestServer};
 
 use rsg_server::http::{self, AppState};
+use rsg_server::metrics::ServerMetrics;
 
 fn extract_created(body: &[u8]) -> (u64, String) {
     let s = std::str::from_utf8(body).expect("utf8 body");
@@ -96,7 +97,7 @@ async fn validation_422_cases_consume_no_uid() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn not_ready_routes_return_503() {
-    let state = AppState::new("test-model");
+    let state = AppState::new("test-model", ServerMetrics::new());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
         .expect("bind test listener");
