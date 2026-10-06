@@ -28,11 +28,28 @@ impl LifecycleState {
     }
 }
 
-/// Whether `to` is a valid next state from `from`.
-///
-/// TODO(GREEN): this first draft hasn't implemented the table yet.
-pub fn can_transition(_from: LifecycleState, _to: LifecycleState) -> bool {
-    true
+/// Whether `to` is a valid next state from `from`. An explicit match over
+/// every `(from, to)` pair, so the table reads as a spec: exactly 12 of
+/// the 49 pairs are allowed, and every transition out of a terminal state
+/// (`Finished`/`Cancelled`/`Failed`) is rejected, including every
+/// self-transition and every skip (e.g. `Received -> Submitted`).
+pub fn can_transition(from: LifecycleState, to: LifecycleState) -> bool {
+    use LifecycleState::*;
+    matches!(
+        (from, to),
+        (Received, Tokenizing)
+            | (Received, Cancelled)
+            | (Received, Failed)
+            | (Tokenizing, Submitted)
+            | (Tokenizing, Cancelled)
+            | (Tokenizing, Failed)
+            | (Submitted, Decoding)
+            | (Submitted, Cancelled)
+            | (Submitted, Failed)
+            | (Decoding, Finished)
+            | (Decoding, Cancelled)
+            | (Decoding, Failed)
+    )
 }
 
 /// An attempted transition `can_transition` rejects.

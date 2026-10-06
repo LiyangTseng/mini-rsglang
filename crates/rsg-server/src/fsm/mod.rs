@@ -71,33 +71,55 @@ pub fn spawn_registry() -> RegistryHandle {
         while let Some(msg) = rx.recv().await {
             match msg {
                 Msg::Report { uid, to, at } => {
-                    // TODO(GREEN): this first draft doesn't yet reject a
-                    // duplicate Received or a report for a missing uid, and
-                    // never removes a terminal entry from the table.
-                    let entry = table.entry(uid).or_insert_with(|| ReqState::new(uid, at));
                     if to == LifecycleState::Received {
-                        counts.received += 1;
-                    } else {
-                        match entry.advance(to, at) {
-                            Ok(()) => {
-                                if to.is_terminal() {
-                                    match to {
-                                        LifecycleState::Finished => counts.finished += 1,
-                                        LifecycleState::Cancelled => counts.cancelled += 1,
-                                        LifecycleState::Failed => counts.failed += 1,
-                                        _ => {}
-                                    }
-                                }
+                        // A uid already present (an earlier Received that
+                        // hasn't terminated yet) is a duplicate report, not
+                        // a second request.
+                        match table.entry(uid) {
+                            std::collections::hash_map::Entry::Vacant(e) => {
+                                e.insert(ReqState::new(uid, at));
+                                counts.received += 1;
                             }
-                            Err(e) => {
+                            std::collections::hash_map::Entry::Occupied(_) => {
+                                tracing::warn!(uid, "duplicate Received report for a tracked uid");
+                                counts.invalid_transitions += 1;
+                            }
+                        }
+                    } else {
+                        match table.get_mut(&uid) {
+                            None => {
+                                // Never registered, already deregistered by
+                                // this same rule, or already terminal (and
+                                // thus already removed below).
                                 tracing::warn!(
-                                    uid = e.uid,
-                                    from = ?e.from,
-                                    to = ?e.to,
-                                    "invalid lifecycle transition"
+                                    uid,
+                                    to = ?to,
+                                    "report for unknown or already-terminal uid"
                                 );
                                 counts.invalid_transitions += 1;
                             }
+                            Some(entry) => match entry.advance(to, at) {
+                                Ok(()) => {
+                                    if to.is_terminal() {
+                                        match to {
+                                            LifecycleState::Finished => counts.finished += 1,
+                                            LifecycleState::Cancelled => counts.cancelled += 1,
+                                            LifecycleState::Failed => counts.failed += 1,
+                                            _ => {}
+                                        }
+                                        table.remove(&uid);
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        uid = e.uid,
+                                        from = ?e.from,
+                                        to = ?e.to,
+                                        "invalid lifecycle transition"
+                                    );
+                                    counts.invalid_transitions += 1;
+                                }
+                            },
                         }
                     }
                 }
