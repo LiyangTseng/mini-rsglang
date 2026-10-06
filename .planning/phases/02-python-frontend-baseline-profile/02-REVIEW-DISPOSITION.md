@@ -5,19 +5,19 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "procs.teardown() doesn't handle the documented EPERM-on-reused-pgid race, unlike its sibling in scenarios.py"
   - id: CR-02
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "scripts/baseline_profile.py run silently drops its own documented py-spy-permission exit code"
   - id: CR-03
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "analysis.cpu_metrics's per_request_ms divides by rate_hz with no zero-guard"
   - id: CR-04
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "subprocess.run(..., timeout=N) calls only catch OSError, letting a hang crash the script after measurement data is already captured but not yet persisted"
   - id: WR-01
     severity: warning
@@ -51,7 +51,7 @@ findings:
     severity: info
     disposition: open
     title: "procs.ROLES is assigned but never used"
-open: 12
+open: 8
 total: 12
 recorded: "2026-10-05T00:00:00Z"
 ---
@@ -60,10 +60,10 @@ recorded: "2026-10-05T00:00:00Z"
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
-| CR-02 | critical | open | - |
-| CR-03 | critical | open | - |
-| CR-04 | critical | open | - |
+| CR-01 | critical | fixed | commit 0c78fe6 + test_teardown_survives_eperm_on_reused_pgid |
+| CR-02 | critical | fixed | commit 0c78fe6 + test_run_permission_denied_exits_2 |
+| CR-03 | critical | fixed | commit 0c78fe6 + test_cpu_metrics_rate_hz_zero_does_not_raise |
+| CR-04 | critical | fixed | commit 0c78fe6 + test_build_meta_helpers_tolerate_subprocess_timeout |
 | WR-01 | warning | open | - |
 | WR-02 | warning | open | - |
 | WR-03 | warning | open | - |
