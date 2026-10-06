@@ -291,3 +291,156 @@ def test_run_first_request(tmp_path):
         assert records[0].t_first is not None
     finally:
         procs.teardown(handle)
+
+
+# --- Task 3: scenario 3 helpers (hyperfine argv/JSON, coldstart_once/stop) ----
+
+
+def test_hyperfine_argv():
+    once_cmd = ["python", "driver.py", "once"]
+    stop_cmd = ["python", "driver.py", "stop"]
+    argv = scenarios.hyperfine_argv(
+        hyperfine="hyperfine", runs=3, warmup=1, export_json="/x/h.json", once_cmd=once_cmd, stop_cmd=stop_cmd
+    )
+    assert argv == [
+        "hyperfine",
+        "--runs", "3",
+        "--warmup", "1",
+        "--export-json", "/x/h.json",
+        "--conclude", shlex.join(stop_cmd),
+        shlex.join(once_cmd),
+    ]
+
+
+def test_parse_hyperfine_json(tmp_path):
+    path = tmp_path / "h.json"
+    path.write_text(
+        json.dumps(
+            {
+                "results": [
+                    {
+                        "command": "x",
+                        "mean": 11.0,
+                        "stddev": 1.0,
+                        "median": 11.0,
+                        "min": 10.0,
+                        "max": 12.0,
+                        "times": [10.0, 12.0, 11.0],
+                    }
+                ]
+            }
+        )
+    )
+    result = scenarios.parse_hyperfine_json(path)
+    assert result == {
+        "mean_s": 11.0,
+        "stddev_s": 1.0,
+        "median_s": 11.0,
+        "min_s": 10.0,
+        "max_s": 12.0,
+        "times_s": [10.0, 12.0, 11.0],
+        "runs": 3,
+    }
+
+    path2 = tmp_path / "h2.json"
+    path2.write_text(
+        json.dumps(
+            {"results": [{"mean": 1.0, "stddev": None, "median": 1.0, "min": 1.0, "max": 1.0, "times": [1.0]}]}
+        )
+    )
+    result2 = scenarios.parse_hyperfine_json(path2)
+    assert result2["stddev_s"] is None
+
+    path3 = tmp_path / "h3.json"
+    path3.write_text(json.dumps({"no_results": []}))
+    with pytest.raises(ValueError):
+        scenarios.parse_hyperfine_json(path3)
+
+
+def test_read_coldstart_records(tmp_path):
+    path = tmp_path / "coldstart.jsonl"
+    lines = [
+        {"kind": "ready", "ready_s": 5.0},
+        {"kind": "mem", "rss_tree_bytes": 100, "pss_tree_bytes": 10},
+        {"kind": "ready", "ready_s": 4.0},
+        {"kind": "mem", "rss_tree_bytes": 200, "pss_tree_bytes": 20},
+        {"kind": "ready", "ready_s": 4.2},
+        {"kind": "mem", "rss_tree_bytes": 300, "pss_tree_bytes": 30},
+    ]
+    path.write_text("\n".join(json.dumps(l) for l in lines) + "\n")
+    result = scenarios.read_coldstart_records(path, warmup=1, runs=2)
+    assert result == {
+        "ready_s_self_timed": [4.0, 4.2],
+        "rss_tree_bytes_at_ready": [200, 300],
+        "pss_tree_bytes_at_ready": [20, 30],
+    }
+
+
+@pytest.mark.slow
+def test_coldstart_once_then_stop(tmp_path):
+    port = _free_port()
+    pgid_file = tmp_path / "pgid"
+    record_file = tmp_path / "record.jsonl"
+    argv = procs.server_argv(
+        "{python} -m rsglang.testing.fake_profile_env server --port {port}",
+        python=sys.executable,
+        model="fake/model",
+        port=port,
+    )
+
+    try:
+        rc = scenarios.coldstart_once(
+            argv=argv,
+            port=port,
+            timeout_s=30,
+            pgid_file=pgid_file,
+            record_file=record_file,
+            log_path=tmp_path / "s1.log",
+        )
+        assert rc == 0
+        assert pgid_file.exists()
+        pgid1 = int(pgid_file.read_text().strip())
+
+        records = [json.loads(l) for l in record_file.read_text().splitlines() if l.strip()]
+        assert len(records) == 1
+        assert records[0]["kind"] == "ready"
+        assert records[0]["ready_s"] > 0
+
+        import urllib.request
+
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/v1/models", timeout=5) as resp:
+            assert resp.status == 200
+
+        # Calling coldstart_once again without an intervening stop self-heals:
+        # it stops pgid1 before launching a fresh group on the same port.
+        rc2 = scenarios.coldstart_once(
+            argv=argv,
+            port=port,
+            timeout_s=30,
+            pgid_file=pgid_file,
+            record_file=record_file,
+            log_path=tmp_path / "s2.log",
+        )
+        assert rc2 == 0
+        pgid2 = int(pgid_file.read_text().strip())
+        assert pgid2 != pgid1
+        assert _wait_until_dead({pgid1}) == set()
+
+        rc3 = scenarios.coldstart_stop(pgid_file=pgid_file, record_file=record_file)
+        assert rc3 == 0
+        assert not pgid_file.exists()
+
+        records2 = [json.loads(l) for l in record_file.read_text().splitlines() if l.strip()]
+        mem_records = [r for r in records2 if r["kind"] == "mem"]
+        assert len(mem_records) == 1
+        mem = mem_records[0]
+        assert isinstance(mem["rss_tree_bytes"], int) and mem["rss_tree_bytes"] > 0
+        if sys.platform.startswith("linux"):
+            assert isinstance(mem["pss_tree_bytes"], int)
+        else:
+            assert mem["pss_tree_bytes"] is None
+
+        assert _wait_until_dead({pgid2}) == set()
+    finally:
+        if pgid_file.exists():
+            scenarios.coldstart_stop(pgid_file=pgid_file, record_file=record_file)
