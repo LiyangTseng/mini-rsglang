@@ -155,3 +155,6 @@ None - no external service configuration required. The real `openai`/`transforme
 ---
 *Phase: 02-python-frontend-baseline-profile*
 *Completed: 2026-10-06*
+
+## Self-Check: PASSED
+All 3 created/output files found on disk (`python/rsglang/profiling/scenarios.py`, `python/tests/test_profile_scenarios.py`, this SUMMARY.md). All 6 task commits (`3b0b99e`, `8258421`, `4d16759`, `fda02ce`, `42c63ed`, `07145ac`) and the plan-metadata commit (`45f321d`) found in `git log`.
