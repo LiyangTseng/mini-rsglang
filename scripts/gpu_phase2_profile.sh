@@ -145,3 +145,98 @@ if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
 fi
 
 # --- Preflight -----------------------------------------------------------------
+missing=()
+for tool in nvidia-smi curl py-spy hyperfine; do
+  command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+done
+if [ ${#missing[@]} -gt 0 ]; then
+  echo "FAIL preflight: not on PATH: ${missing[*]}"
+  echo "install py-spy==0.4.2, psutil==7.2.2 and aiohttp==3.14.4 into the venv: uv pip install py-spy==0.4.2 psutil==7.2.2 aiohttp==3.14.4"
+  echo "install hyperfine: cargo install hyperfine --version 1.20.0 --locked"
+  exit 1
+fi
+
+if ! "$PYTHON" -c "import psutil, aiohttp, openai, transformers" >/dev/null 2>"$LOG_DIR/preflight-import.log"; then
+  echo "FAIL preflight: python import failed: psutil, aiohttp, openai, transformers (see $LOG_DIR/preflight-import.log)"
+  exit 1
+fi
+
+if ! hyperfine_ok; then
+  echo "FAIL preflight: hyperfine too old (needs >= 1.19.0 for --conclude)"
+  exit 1
+fi
+
+if ! pyspy_can_attach; then
+  echo "FAIL preflight: py-spy cannot attach to a sibling process"
+  exit 1
+fi
+
+echo "GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)"
+echo "py-spy: $(py-spy --version)"
+echo "hyperfine: $(hyperfine --version)"
+echo "python: $PYTHON   model: $MODEL   port: $PORT   timeout: ${TIMEOUT}s   out: $OUT"
+
+# --- Step 1: discover smoke (privilege, topology and hook) ---------------------
+if "$PYTHON" scripts/baseline_profile.py discover --model "$MODEL" --port "$PORT" --timeout "$TIMEOUT" \
+     --out "$LOG_DIR/discover.json" ${PYSPY_SUDO[@]+"${PYSPY_SUDO[@]}"} >"$LOG_DIR/discover.log" 2>&1; then
+  record 1 PASS "scripts/baseline_profile.py discover"
+  STEP1_OK=1
+else
+  record 1 FAIL "scripts/baseline_profile.py discover (see $LOG_DIR/discover.log)"
+  STEP1_OK=0
+fi
+
+# --- Step 2: full run (D-14: the driver writes the baseline profile JSON) ------
+STEP2_OK=0
+if [ "$STEP1_OK" = 1 ]; then
+  if "$PYTHON" scripts/baseline_profile.py run --model "$MODEL" --port "$PORT" --timeout "$TIMEOUT" \
+       --out "$OUT" --work-dir "$LOG_DIR/work" ${PYSPY_SUDO[@]+"${PYSPY_SUDO[@]}"} >"$LOG_DIR/run.log" 2>&1; then
+    record 2 PASS "scripts/baseline_profile.py run"
+    STEP2_OK=1
+  else
+    record 2 FAIL "scripts/baseline_profile.py run (see $LOG_DIR/run.log)"
+  fi
+else
+  record 2 FAIL "skipped: discover failed"
+fi
+
+# --- Step 3: validate the written sidecar ---------------------------------------
+if [ "$STEP2_OK" = 1 ]; then
+  if "$PYTHON" scripts/baseline_profile.py validate "$OUT" --require-gpu >"$LOG_DIR/validate.log" 2>&1; then
+    record 3 PASS "scripts/baseline_profile.py validate --require-gpu"
+  else
+    record 3 FAIL "scripts/baseline_profile.py validate --require-gpu (see $LOG_DIR/validate.log)"
+  fi
+elif [ "$STEP1_OK" = 1 ]; then
+  record 3 FAIL "skipped: run failed"
+else
+  record 3 FAIL "skipped: discover failed"
+fi
+
+# --- Step 4: frozen Python frontend (the vendored tree was not touched) --------
+if [ -f scripts/check_upstream.py ] && "$PYTHON" scripts/check_upstream.py >"$LOG_DIR/check_upstream.log" 2>&1; then
+  record 4 PASS "scripts/check_upstream.py"
+else
+  record 4 FAIL "scripts/check_upstream.py (see $LOG_DIR/check_upstream.log)"
+fi
+
+# --- Summary ---------------------------------------------------------------------
+echo
+echo "=== Phase 2 GPU profiling summary (logs: $LOG_DIR) ==="
+failed=0
+for r in "${RESULTS[@]}"; do
+  echo "$r"
+  case "$r" in FAIL*) failed=1 ;; esac
+done
+
+echo
+echo "Privilege cleanup reminder: remove any grant you made before this run:"
+echo "  sudo setcap -r \"\$(readlink -f .venv/bin/py-spy)\""
+echo "  restore kernel.yama.ptrace_scope to its previous value if you lowered it"
+echo -n "current py-spy capabilities (must print nothing): "
+getcap "$(readlink -f .venv/bin/py-spy)" 2>/dev/null || true
+echo
+
+if [ "$failed" = 0 ]; then echo "ALL PASS"; exit 0; fi
+echo "SOME STEPS FAILED"
+exit 1
