@@ -19,7 +19,7 @@ The Rust frontend then runs against the real backend on the GPU machine. Output 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Vendored Base & Wire Codec** - Pinned mini-sglang, one launcher for both frontends with a readiness handshake, and a byte-exact Rust msgpack codec (completed 2026-10-05)
-- [ ] **Phase 2: Python Frontend Baseline Profile** - Measure the Python frontend's host overhead on the GPU machine (parallel track, does not gate)
+- [x] **Phase 2: Python Frontend Baseline Profile** - Measure the Python frontend's host overhead on the GPU machine (parallel track, does not gate) (completed 2026-10-05)
 - [ ] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development
 - [ ] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model
 - [ ] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend
@@ -87,7 +87,7 @@ Plans:
   3. The report records the share of scheduler time spent in the radix cache, as the input to the v2 radix decision.
   4. The profiling run is scripted so it can be repeated on the GPU machine. Its findings are written down as concrete inputs to the benchmark design: which metrics to capture, and which effects can be credited to the frontend.
 
-**Plans:** 9/9 plans executed
+**Plans:** 9/9 plans complete
 
 Plans:
 
@@ -191,7 +191,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Vendored Base & Wire Codec | 13/13 | Complete    | 2026-10-05 |
-| 2. Python Frontend Baseline Profile | 9/9 | In Progress|  |
+| 2. Python Frontend Baseline Profile | 9/9 | Complete    | 2026-10-05 |
 | 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
 | 5. Request Lifecycle & HTTP API | 0/TBD | Not started | - |
