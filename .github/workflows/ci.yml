@@ -48,10 +48,32 @@ jobs:
         uses: astral-sh/setup-uv@v10.2.0
         with:
           enable-cache: true
-          cache-dependency-glob: "requirements-mac.txt"
+          cache-dependency-glob: "requirements-mac.in"
 
-      - name: Bootstrap Python env (uv venv + hash-locked deps + editable installs)
-        run: scripts/bootstrap_mac_env.sh
+      - name: "Bootstrap Python env (Linux: CPU-only torch; same pins as requirements-mac.in)"
+        # Not scripts/bootstrap_mac_env.sh as-is: requirements-mac.txt's hash lock was
+        # resolved on macOS, where torch has no CUDA runtime dependency at all. On Linux,
+        # PyPI's default torch wheel dlopen()s CUDA shared libraries (libcublas.so.*,
+        # libcudart.so.12) at import time, which aren't on this CPU-only runner and were
+        # never part of the macOS-resolved package set to install in the first place —
+        # confirmed by running bootstrap_mac_env.sh's own exact commands here first, which
+        # failed only on that CUDA dlopen, nothing else. The fix is PyTorch's own CPU-only
+        # wheel index, which is a build without the CUDA dependency, not a version bump.
+        # Everything else installs from the same requirements-mac.in pins bootstrap_mac_env.sh
+        # uses, and the two editable installs are byte-identical to that script.
+        run: |
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python "torch==2.9.1+cpu" --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .venv/bin/python -r requirements-mac.in
+          uv pip install --python .venv/bin/python --no-deps -e vendor/mini-sglang
+          uv pip install --python .venv/bin/python --no-deps -e .
+          .venv/bin/python - <<'SMOKE'
+          import minisgl.message, minisgl.core, minisgl.utils, minisgl.scheduler, minisgl.server.args
+          import rsglang, torch, msgpack, zmq
+          print(f"torch {torch.__version__}, msgpack {msgpack.version}, pyzmq {zmq.__version__}")
+          print(f"minisgl from {minisgl.message.__file__}")
+          print(f"rsglang {rsglang.__version__} from {rsglang.__file__}")
+          SMOKE
 
       - name: check_all.sh --offline
         run: scripts/check_all.sh --offline
