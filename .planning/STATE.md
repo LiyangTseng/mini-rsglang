@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Request Lifecycle & HTTP API
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-10-06T21:33:47.537Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-10-06T22:01:58.578Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 05 execution started
-state_head: be3c768d6bb923e9fc65da39f6ada99a3176cd93
+state_head: 308dd9300f704b7a1bc13b6d80830a31e314faac
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 37
-  completed_plans: 29
+  completed_plans: 30
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 05 execution started
 
@@ -73,6 +73,7 @@ Progress: [████░░░░░░] 43%
 | Phase 03 P05 | 40min | 2 tasks | 2 files |
 | Phase 03 P06 | 45min | 2 tasks | 1 files |
 | Phase 05 P01 | 45min | 2 tasks | 15 files |
+| Phase 05 P02 | 45min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Engine::new takes (writer, dispatch, codec, registry, config); the driver reports Received/Tokenizing/Submitted/Decoding/one-terminal through a single finish helper so LIFE-01's exactly-one-terminal invariant is structural
 - [Phase 05]: Registry actor removes a uid's entry the instant it reaches a terminal state; active is simply the map length at snapshot time, so a leaked or double-terminated request is directly visible
 - [Phase 05]: http_client::send() test helper writes and reads concurrently via tokio::join! on split TcpStream halves kept alive until the response is fully read, since OwnedWriteHalf shuts down the write direction on drop and an early half-close was read by the server as a client disconnect
+- [Phase 05]: Human approved fastapi 0.142.2, uvicorn 0.54.0 and prompt_toolkit 3.0.53 (Task 1 checkpoint) after verifying each PyPI project links to its canonical GitHub repo
+- [Phase 05]: Relock surfaced opentelemetry-api==1.45.1 as an unforeseen transitive dependency of fastapi; human separately approved it after confirming it is the CNCF open-telemetry-python project and correctly spelled
+- [Phase 05]: Relock used no --upgrade flag; uv treated the existing requirements-mac.txt as preferences so all 40 pre-existing pins stayed byte-for-byte identical
 
 ### Pending Todos
 
@@ -145,6 +149,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T21:33:47.491Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-10-06T22:01:58.536Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
