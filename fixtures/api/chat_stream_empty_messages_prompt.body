@@ -1,0 +1,12 @@
+data: {"id": "cmpl-8", "object": "text_completion.chunk", "choices": [{"delta": {"role": "assistant", "content": "fallback"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-8", "object": "text_completion.chunk", "choices": [{"delta": {"content": "fallback"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-8", "object": "text_completion.chunk", "choices": [{"delta": {"content": "fallback"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-8", "object": "text_completion.chunk", "choices": [{"delta": {"content": "fallback"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-8", "object": "text_completion.chunk", "choices": [{"delta": {}, "index": 0, "finish_reason": "stop"}]}
+
+data: [DONE]
+

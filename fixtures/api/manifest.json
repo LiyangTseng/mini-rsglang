@@ -1,0 +1,229 @@
+{
+  "cases": [
+    {
+      "compare": "bytes",
+      "content_type": "application/json",
+      "method": "GET",
+      "name": "models_list",
+      "normalize": [
+        "created"
+      ],
+      "path": "/v1/models",
+      "request_body": null,
+      "status": 200,
+      "uid": null
+    },
+    {
+      "compare": "bytes",
+      "content_type": "application/json",
+      "method": "GET",
+      "name": "v1_get",
+      "normalize": [],
+      "path": "/v1",
+      "request_body": null,
+      "status": 200,
+      "uid": null
+    },
+    {
+      "compare": "bytes",
+      "content_type": "application/json",
+      "method": "POST",
+      "name": "v1_post",
+      "normalize": [],
+      "path": "/v1",
+      "request_body": null,
+      "status": 200,
+      "uid": null
+    },
+    {
+      "compare": "bytes",
+      "content_type": "application/json",
+      "method": "HEAD",
+      "name": "v1_head",
+      "normalize": [],
+      "path": "/v1",
+      "request_body": null,
+      "status": 200,
+      "uid": null
+    },
+    {
+      "compare": "bytes",
+      "content_type": "application/json",
+      "method": "OPTIONS",
+      "name": "v1_options",
+      "normalize": [],
+      "path": "/v1",
+      "request_body": null,
+      "status": 200,
+      "uid": null
+    },
+    {
+      "compare": "bytes",
+      "content_type": "text/event-stream; charset=utf-8",
+      "method": "POST",
+      "name": "generate_ascii",
+      "normalize": [],
+      "path": "/generate",
+      "request_body": "{\"prompt\": \"The quick brown fox jumps over the lazy dog.\", \"max_tokens\": 12}",
+      "status": 200,
+      "uid": 0
+    },
+    {
+      "compare": "bytes",
+      "content_type": "text/event-stream; charset=utf-8",
+      "method": "POST",
+      "name": "generate_multibyte",
+      "normalize": [],
+      "path": "/generate",
+      "request_body": "{\"prompt\": \"你好，世界！😀👍🏽 café\", \"max_tokens\": 16}",
+      "status": 200,
+      "uid": 1
+    },
+    {
+      "compare": "bytes",
+      "content_type": "text/event-stream; charset=utf-8",
+      "method": "POST",
+      "name": "generate_one_token",
+      "normalize": [],
+      "path": "/generate",
+      "request_body": "{\"prompt\": \"Hi\", \"max_tokens\": 1, \"ignore_eos\": true}",
+      "status": 200,
+      "uid": 2
+    },
+    {
+      "compare": "bytes",
+      "content_type": "text/event-stream; charset=utf-8",
+      "method": "POST",
+      "name": "chat_stream_system_user",
+      "normalize": [],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\", \"messages\": [{\"role\": \"system\", \"content\": \"You are terse.\"}, {\"role\": \"user\", \"content\": \"Say héllo 👋\"}], \"max_tokens\": 24, \"stream\": true}",
+      "status": 200,
+      "uid": 3
+    },
+    {
+      "compare": "bytes",
+      "content_type": "text/event-stream; charset=utf-8",
+      "method": "POST",
+      "name": "chat_stream_default_max_tokens",
+      "normalize": [],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\", \"messages\": [{\"role\": \"user\", \"content\": \"Count to three.\"}], \"stream\": true}",
+      "status": 200,
+      "uid": 4
+    },
+    {
+      "compare": "bytes",
+      "content_type": "application/json",
+      "method": "POST",
+      "name": "chat_nonstream_multibyte",
+      "normalize": [
+        "created"
+      ],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\", \"messages\": [{\"role\": \"user\", \"content\": \"翻译：早上好 🌅\"}], \"max_tokens\": 20}",
+      "status": 200,
+      "uid": 5
+    },
+    {
+      "compare": "bytes",
+      "content_type": "application/json",
+      "method": "POST",
+      "name": "chat_nonstream_eos_final",
+      "normalize": [
+        "created"
+      ],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\", \"messages\": [{\"role\": \"user\", \"content\": \"hi\"}], \"max_tokens\": 5}",
+      "status": 200,
+      "uid": 6
+    },
+    {
+      "compare": "bytes",
+      "content_type": "application/json",
+      "method": "POST",
+      "name": "chat_nonstream_prompt_text",
+      "normalize": [
+        "created"
+      ],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\", \"prompt\": \"Plain text prompt, no template.\", \"max_tokens\": 8}",
+      "status": 200,
+      "uid": 7
+    },
+    {
+      "compare": "bytes",
+      "content_type": "text/event-stream; charset=utf-8",
+      "method": "POST",
+      "name": "chat_stream_empty_messages_prompt",
+      "normalize": [],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\", \"messages\": [], \"prompt\": \"fallback\", \"max_tokens\": 4, \"stream\": true}",
+      "status": 200,
+      "uid": 8
+    },
+    {
+      "compare": "status",
+      "content_type": "application/json",
+      "method": "POST",
+      "name": "generate_missing_max_tokens",
+      "normalize": [],
+      "path": "/generate",
+      "request_body": "{\"prompt\": \"x\"}",
+      "status": 422,
+      "uid": null
+    },
+    {
+      "compare": "status",
+      "content_type": "application/json",
+      "method": "POST",
+      "name": "chat_bad_role",
+      "normalize": [],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\", \"messages\": [{\"role\": \"tool\", \"content\": \"x\"}]}",
+      "status": 422,
+      "uid": null
+    },
+    {
+      "compare": "status",
+      "content_type": "text/plain; charset=utf-8",
+      "method": "POST",
+      "name": "chat_missing_prompt",
+      "normalize": [],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\"}",
+      "status": 500,
+      "uid": null
+    },
+    {
+      "compare": "bytes",
+      "content_type": "text/event-stream; charset=utf-8",
+      "method": "POST",
+      "name": "chat_stream_after_errors",
+      "normalize": [],
+      "path": "/v1/chat/completions",
+      "request_body": "{\"model\": \"qwen3\", \"messages\": [{\"role\": \"user\", \"content\": \"ok\"}], \"max_tokens\": 2, \"stream\": true}",
+      "status": 200,
+      "uid": 9
+    }
+  ],
+  "generator": {
+    "fastapi": "0.142.2",
+    "pydantic": "2.13.5",
+    "python": "3.12.12",
+    "starlette": "1.7.0",
+    "tokenizers": "0.22.2",
+    "transformers": "4.57.3",
+    "uvicorn": "0.54.0"
+  },
+  "mock_args": [
+    "--prefill-delay-ms",
+    "0",
+    "--decode-delay-ms",
+    "0",
+    "--max-seq-len",
+    "4096"
+  ],
+  "model": "Qwen/Qwen3-0.6B",
+  "upstream_sha": "9a91cfafe754aa85daee49998176275667eb58f2"
+}
