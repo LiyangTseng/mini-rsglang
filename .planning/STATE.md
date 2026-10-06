@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 3
-current_phase_name: ZMQ Transport & Mock Scheduler
+current_phase: 4
+current_phase_name: Tokenizer & Detokenizer Parity
 status: planning
-stopped_at: Phase 02 complete, ready to plan Phase 3
-last_updated: "2026-10-06T05:48:16.239Z"
-last_activity: 2026-10-05
-last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: 52cb2dede736d29d7ca0262437d90cc660f4c17e
+stopped_at: Phase 03 complete, ready to plan Phase 4
+last_updated: "2026-10-06T18:21:05.000Z"
+last_activity: 2026-10-06
+last_activity_desc: Phase 03 complete, transitioned to Phase 4
+state_head: f833bc0
 progress:
   total_phases: 7
-  completed_phases: 2
-  total_plans: 22
-  completed_plans: 22
-  percent: 29
+  completed_phases: 3
+  total_plans: 28
+  completed_plans: 28
+  percent: 43
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-05)
+See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 3 — ZMQ Transport & Mock Scheduler
+**Current focus:** Phase 4 — Tokenizer & Detokenizer Parity
 
 ## Current Position
 
-Phase: 3 — ZMQ Transport & Mock Scheduler
+Phase: 4 — Tokenizer & Detokenizer Parity
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-05 — Phase 02 complete, transitioned to Phase 3
+Last activity: 2026-10-06 — Phase 03 complete, transitioned to Phase 4
 
-Progress: [███░░░░░░░] 29%
+Progress: [████░░░░░░] 43%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
+- Total plans completed: 28
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -47,6 +47,7 @@ Progress: [███░░░░░░░] 29%
 |-------|-------|-------|----------|
 | 01 | 13 | - | - |
 | 02 | 9 | - | - |
+| 03 | 6 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -65,6 +66,12 @@ Progress: [███░░░░░░░] 29%
 | Phase 01 P06 | 8 min | 2 tasks | 6 files |
 | Phase 01 P07 | 20 min | 2 tasks | 4 files |
 | Phase 01 P08 | 25 min | 3 tasks | 6 files |
+| Phase 03 P01 | 35min | 2 tasks | 10 files |
+| Phase 03 P02 | 25min | 2 tasks | 4 files |
+| Phase 03 P03 | 55min | 2 tasks | 2 files |
+| Phase 03 P04 | 50min | 3 tasks | 2 files |
+| Phase 03 P05 | 40min | 2 tasks | 2 files |
+| Phase 03 P06 | 45min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -83,6 +90,12 @@ Recent decisions affecting current work:
 - [Phase 02]: Scheduler (backend) hit 93% CPU-active in the heaviest scenario (128-agent load) — already near its own ceiling there, so Rust-frontend gains are likelier to show in lower-backend-load scenarios. Phase 7 benchmark design should attribute frontend vs. backend cost separately (see PROJECT.md Key Decisions).
 - [Phase 02]: Two real bugs found only against real GPU/py-spy output (neither caught by Mac stand-ins): a WSL PATH gap for nvidia-smi/nvcc on non-interactive SSH, and py-spy occasionally emitting invalid UTF-8 in unresolvable native-frame names. Both fixed with regression tests (commits `c53a4b3`, `d4272b3`).
 - [Phase 02]: Code review found 4 critical bugs (process-teardown signal handling, a missing exit-code mapping, a divide-by-zero, and a subprocess-timeout gap that could discard a completed measurement run) — all fixed with regression tests (commit `0c78fe6`). 3 non-blocking warnings remain open in `02-REVIEW-DISPOSITION.md`.
+- [Phase 03]: mock-scheduler opens ZmqSchedulerTransport on its own dedicated engine thread (not created in main() and moved in), and ZMQ_RECONNECT_IVL is lowered to 1ms on all Connect-role sockets in the shared open_socket helper — fixes a real ZMQ connect-before-bind race where libzmq's 100ms default reconnect interval silently delayed a socket's first message by up to ~100ms; the fix lives in shared code so every later transport consumer (Phases 5-7) inherits it
+- [Phase 03]: mock-scheduler is a same-package src/bin/ binary reusing the new rsg_server library (handshake, transport); readiness travels out-of-band on stdout as the Phase 1 handshake JSON line, observation goes to a --observe-file, and neither becomes a 9th wire tag (D-08, prohibition on extending the wire schema)
+- [Phase 03]: WriterHandle::abort(&Submitted) is ticket-gated: Submitted's private uid field makes "abort can never precede its own submit" structural; the abort-ordering proptest's final case count is 64 (largest of 64/32/16 under a 60s budget), measured ~7.0s across 4 runs against a real mock subprocess
+- [Phase 03]: Per-uid reply channel is tokio::sync::broadcast::channel(16), drop-oldest, fixed capacity with no CLI/config knob (D-07); DispatchHandle::deregister and stats() -> DispatchStatsSnapshot {routed, unknown_uid, closed_route, malformed_frames} give Phases 5-7 the route-cleanup and drop-accounting surface
+- [Phase 03]: Unknown-uid drops log at tracing::debug!, not warn!: after a mass cancellation they can number in the thousands and would flood the log; the unknown_uid counter is the signal
+- [Phase 03]: Phase 3 complete — all 4 success criteria proven end-to-end (handshake/uid-routing, the abort-ordering proptest inside the gate, each mock misbehavior exercised both raw and through the transport, unknown-uid drops counted and silent uids never stall others); scripts/check_all.sh --offline green. Code review found 0 Critical/3 Warning/2 Info (all open, non-blocking); security review found 0 open threats across 23 registered; Nyquist validation confirmed full automated coverage
 - [Phase 01]: rsg-server toolchain stays on Rust 1.99.0: zmq-sys bundled libzmq builds on it (A2 confirmed)
 - [Phase 01]: rsg-server exit-code contract: 0 signal, 1 startup failure, 2 bad handshake, 3 stdin EOF
 - [Phase 01]: Mac dev env is a project-local uv-managed .venv synced from the sha256-hashed requirements-mac.txt; never install into system/user Python
@@ -128,6 +141,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-05T21:19:16.860Z
-Stopped at: Phase 02 complete, ready to plan Phase 3
+Last session: 2026-10-06T18:21:05.000Z
+Stopped at: Phase 03 complete, ready to plan Phase 4
 Resume file: None

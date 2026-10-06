@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Vendored Base & Wire Codec** - Pinned mini-sglang, one launcher for both frontends with a readiness handshake, and a byte-exact Rust msgpack codec (completed 2026-10-05)
 - [x] **Phase 2: Python Frontend Baseline Profile** - Measure the Python frontend's host overhead on the GPU machine (parallel track, does not gate) (completed 2026-10-05)
-- [ ] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development
+- [x] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development (completed 2026-10-06)
 - [ ] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model
 - [ ] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend
 - [ ] **Phase 6: GPU End-to-End Parity** - Rust and Python frontends produce identical output on the real backend
@@ -121,7 +121,23 @@ Plans:
   3. The mock can be configured to send late tokens after an abort, silently drop overlong prompts, and batch replies for several requests in one message. A test exercises each behavior.
   4. The transport drops replies for unknown uids, such as late tokens after an abort, without crashing. A slow consumer on one request does not stall replies for the others.
 
-**Plans**: TBD
+**Plans:** 6/6 plans complete
+
+Plans:
+
+**Wave 1**
+- [x] 03-01-PLAN.md — Tracer: rsg-server becomes a library plus two binaries. The mock-scheduler subprocess binds the scheduler-side sockets, prints the handshake line on stdout and echoes tokens. Process contract: exit codes 0/1/2/3/4, observe file, stdin-EOF guard (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 03-02-PLAN.md — Single ordered writer (tx-zmq, D-01) and per-uid broadcast dispatcher (rx-zmq, D-04/D-05/D-07): a submit through the writer gets its tokens back by uid; bare-vs-batch coalescing; 32-way concurrent routing (wave 2)
+- [x] 03-03-PLAN.md — mock-scheduler misbehaviors (D-09): late-abort-token, drop-overlong plus upstream's max_seq_len rule, --batch-size with a flush timer, uid-range flags, one test per behavior (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 03-04-PLAN.md — Ticket-gated WriterHandle::abort(&Submitted) and the D-02/D-03 proptest through the real mock: an abort never overtakes its submit (wave 3)
+- [x] 03-05-PLAN.md — Dispatcher drop accounting (D-06: in-band Dropped(n), counter, warn), deregister, stats for unknown/closed/malformed, slow-consumer isolation end to end (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 03-06-PLAN.md — Misbehaving mock through the full transport (late tokens dropped and counted, batched replies routed, silent uids stall no one); rsg-server accepts the mock's handshake; check_all gate (wave 4)
 
 ### Phase 4: Tokenizer & Detokenizer Parity
 
@@ -192,7 +208,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Vendored Base & Wire Codec | 13/13 | Complete    | 2026-10-05 |
 | 2. Python Frontend Baseline Profile | 9/9 | Complete    | 2026-10-05 |
-| 3. ZMQ Transport & Mock Scheduler | 0/TBD | Not started | - |
+| 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
 | 5. Request Lifecycle & HTTP API | 0/TBD | Not started | - |
 | 6. GPU End-to-End Parity | 0/TBD | Not started | - |

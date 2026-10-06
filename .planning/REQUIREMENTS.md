@@ -15,7 +15,7 @@
 
 - [x] **WIRE-01**: The Rust msgpack codec produces bytes identical to upstream's encoder for all 7 message types, verified by golden fixtures exported from Python
 - [x] **WIRE-02**: Every message Rust sends decodes through the real Python decoder (`cls(**kwargs)`) without error
-- [ ] **WIRE-03**: Rust exchanges messages with the scheduler over ZMQ `ipc://` through a single ordered writer, so an abort can never overtake its own submit
+- [x] **WIRE-03**: Rust exchanges messages with the scheduler over ZMQ `ipc://` through a single ordered writer, so an abort can never overtake its own submit
 
 ### Tokenizer
 
@@ -39,7 +39,7 @@
 
 ### Mock Backend
 
-- [ ] **MOCK-01**: One minimal Rust mock scheduler speaks the same wire protocol, so the Rust frontend runs end to end on a Mac, and can reproduce the backend behaviors the cancellation tests need (late tokens after abort, silently dropped overlong prompts, batched replies). No other mocks; protocol fidelity is covered by WIRE-01/02 and PAR-01
+- [x] **MOCK-01**: One minimal Rust mock scheduler speaks the same wire protocol, so the Rust frontend runs end to end on a Mac, and can reproduce the backend behaviors the cancellation tests need (late tokens after abort, silently dropped overlong prompts, batched replies). No other mocks; protocol fidelity is covered by WIRE-01/02 and PAR-01
 
 ### End-to-End Parity
 
@@ -97,8 +97,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WIRE-01 | Phase 1 | Complete |
 | WIRE-02 | Phase 1 | Complete |
 | BENCH-01 | Phase 2 | Complete |
-| WIRE-03 | Phase 3 | Pending |
-| MOCK-01 | Phase 3 | Pending |
+| WIRE-03 | Phase 3 | Complete |
+| MOCK-01 | Phase 3 | Complete |
 | TOK-01 | Phase 4 | Pending |
 | TOK-02 | Phase 4 | Pending |
 | TOK-03 | Phase 4 | Pending |
