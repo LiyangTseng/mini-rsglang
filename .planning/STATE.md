@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Request Lifecycle & HTTP API
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-10-06T22:01:58.578Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-10-06T22:19:14.812Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 05 execution started
-state_head: 308dd9300f704b7a1bc13b6d80830a31e314faac
+state_head: 311cde22378630db3fd0d57e9123c130c406d7f8
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 37
-  completed_plans: 30
+  completed_plans: 31
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 05 execution started
 
@@ -74,6 +74,7 @@ Progress: [████░░░░░░] 43%
 | Phase 03 P06 | 45min | 2 tasks | 1 files |
 | Phase 05 P01 | 45min | 2 tasks | 15 files |
 | Phase 05 P02 | 45min | 2 tasks | 2 files |
+| Phase 05 P03 | 25min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Human approved fastapi 0.142.2, uvicorn 0.54.0 and prompt_toolkit 3.0.53 (Task 1 checkpoint) after verifying each PyPI project links to its canonical GitHub repo
 - [Phase 05]: Relock surfaced opentelemetry-api==1.45.1 as an unforeseen transitive dependency of fastapi; human separately approved it after confirming it is the CNCF open-telemetry-python project and correctly spelled
 - [Phase 05]: Relock used no --upgrade flag; uv treated the existing requirements-mac.txt as preferences so all 40 pre-existing pins stayed byte-for-byte identical
+- [Phase 05]: [Phase 05]: list_models is pub(crate), not pub like every other handler in rsg-server, because its return type exposes the crate-private ModelList struct
+- [Phase 05]: The non-streaming chat_completions branch keeps the ActiveRequest (and its AbortGuard) alive in the handler's own future rather than spawning a background stream, so a client disconnect before the response is ready still cancels the backend request
 
 ### Pending Todos
 
@@ -149,6 +152,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T22:01:58.536Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-10-06T22:19:14.769Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
