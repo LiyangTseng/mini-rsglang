@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 05
-current_phase_name: request-lifecycle-http-api
+current_phase_name: Request Lifecycle & HTTP API
 status: executing
-stopped_at: Phase 05 planned (9 plans, 5 waves); merged Phase 03 from origin/main
-last_updated: "2026-10-06T18:23:23.754Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-10-06T21:33:47.537Z"
 last_activity: 2026-10-06
-last_activity_desc: Phase 05 planned (9 plans, 5 waves); merged Phase 03 completion from origin/main
-state_head: c17f9e7559c72321354e24226da0ca4863c77a2b
+last_activity_desc: Phase 05 execution started
+state_head: be3c768d6bb923e9fc65da39f6ada99a3176cd93
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 37
-  completed_plans: 28
+  completed_plans: 29
   percent: 43
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 ## Current Position
 
-Phase: 05 (request-lifecycle-http-api) — READY TO EXECUTE
-Plan: 1 of 9
+Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-10-06 — Phase 05 planned (9 plans, 5 waves); Phase 03 merged in complete from origin/main
+Last activity: 2026-10-06 — Phase 05 execution started
 
 Progress: [████░░░░░░] 43%
 
@@ -72,6 +72,7 @@ Progress: [████░░░░░░] 43%
 | Phase 03 P04 | 50min | 3 tasks | 2 files |
 | Phase 03 P05 | 40min | 2 tasks | 2 files |
 | Phase 03 P06 | 45min | 2 tasks | 1 files |
+| Phase 05 P01 | 45min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,9 @@ Recent decisions affecting current work:
 - [Phase 01]: check_upstream.py adds UPSTREAM_SHA_INVALID, OFFLINE_UNSUPPORTED and TREE_HASH_MISMATCH categories; a parse error or invalid SHA stops the check before any fetch
 - [Phase 01]: test_wire_decode.py skips without DUMP_DIR inside the full suite; check_wire_decode.sh sets RSGLANG_REQUIRE_DUMP=1 so the gate cannot pass by skipping
 - [Phase 01]: scripts/check_all.sh [--offline] is the Phase 1 Mac gate: cargo tests, pytest, fixture freshness, WIRE-02 decode, check_upstream.py
+- [Phase 05]: Engine::new takes (writer, dispatch, codec, registry, config); the driver reports Received/Tokenizing/Submitted/Decoding/one-terminal through a single finish helper so LIFE-01's exactly-one-terminal invariant is structural
+- [Phase 05]: Registry actor removes a uid's entry the instant it reaches a terminal state; active is simply the map length at snapshot time, so a leaked or double-terminated request is directly visible
+- [Phase 05]: http_client::send() test helper writes and reads concurrently via tokio::join! on split TcpStream halves kept alive until the response is fully read, since OwnedWriteHalf shuts down the write direction on drop and an early half-close was read by the server as a client disconnect
 
 ### Pending Todos
 
@@ -141,6 +145,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T18:23:23.754Z
-Stopped at: Phase 05 planned (9 plans, 5 waves); Phase 03 merged in complete from origin/main
+Last session: 2026-10-06T21:33:47.491Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

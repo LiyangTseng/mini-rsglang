@@ -26,7 +26,7 @@
 
 ### Request Lifecycle
 
-- [ ] **LIFE-01**: Each request moves through received → tokenizing → submitted → decoding → finished / cancelled / failed, and each terminal state is reached exactly once
+- [x] **LIFE-01**: Each request moves through received → tokenizing → submitted → decoding → finished / cancelled / failed, and each terminal state is reached exactly once
 - [ ] **LIFE-02**: On client disconnect (streaming or non-streaming), Rust sends an abort to the backend immediately; tokens that arrive after the abort are dropped and counted
 - [ ] **LIFE-03**: A stress test with 128 concurrent requests and random cancellations ends with no leaked requests and no stuck connections
 - [ ] **LIFE-04**: Overlong prompts get an immediate 400 (upstream drops them silently and the request hangs), and a request whose backend stops responding times out with an error
@@ -34,7 +34,7 @@
 
 ### HTTP API
 
-- [ ] **API-01**: `/v1/chat/completions` (streaming and non-streaming), `/generate`, `/v1/models` and `/v1` behave identically to the Python frontend, including response format and SSE framing
+- [x] **API-01**: `/v1/chat/completions` (streaming and non-streaming), `/generate`, `/v1/models` and `/v1` behave identically to the Python frontend, including response format and SSE framing
 - [ ] **API-02**: `/health`, `/health/ready` and a minimal `/metrics` (request count, cancellation count, TTFT histogram)
 
 ### Mock Backend
@@ -103,12 +103,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOK-02 | Phase 4 | Pending |
 | TOK-03 | Phase 4 | Pending |
 | TOK-04 | Phase 4 | Pending |
-| LIFE-01 | Phase 5 | Pending |
+| LIFE-01 | Phase 5 | Complete |
 | LIFE-02 | Phase 5 | Pending |
 | LIFE-03 | Phase 5 | Pending |
 | LIFE-04 | Phase 5 | Pending |
 | LIFE-05 | Phase 5 | Pending |
-| API-01 | Phase 5 | Pending |
+| API-01 | Phase 5 | Complete |
 | API-02 | Phase 5 | Pending |
 | PAR-01 | Phase 6 | Pending |
 | PAR-02 | Phase 6 | Pending |
