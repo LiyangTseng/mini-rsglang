@@ -19,6 +19,7 @@ import shlex
 import socket
 import sys
 import time
+import types
 from pathlib import Path
 
 import pytest
@@ -162,5 +163,131 @@ def test_run_s1_concurrency(tmp_path):
         for r in records:
             if r.t_first is not None:
                 assert r.t_first >= r.t_send
+    finally:
+        procs.teardown(handle)
+
+
+# --- Task 2: scenario 2 (bench_simple adaptation) and first-request workload --
+
+
+def _install_s2_fakes(monkeypatch, *, benchmark_one, recorded_lengths=None):
+    def fake_generate_prompt(tokenizer, n):
+        if recorded_lengths is not None:
+            recorded_lengths.append(n)
+        return "p" * n
+
+    async def fake_get_model_name(client):
+        return "m"
+
+    fake_client_module = types.ModuleType("minisgl.benchmark.client")
+    fake_client_module.generate_prompt = fake_generate_prompt
+    fake_client_module.benchmark_one = benchmark_one
+    fake_client_module.get_model_name = fake_get_model_name
+
+    class _FakeAsyncOpenAI:
+        def __init__(self, *, base_url, api_key):
+            self.base_url = base_url
+            self.api_key = api_key
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc_info):
+            return False
+
+    fake_openai_module = types.ModuleType("openai")
+    fake_openai_module.AsyncOpenAI = _FakeAsyncOpenAI
+
+    class _FakeAutoTokenizer:
+        @staticmethod
+        def from_pretrained(model):
+            return object()
+
+    fake_transformers_module = types.ModuleType("transformers")
+    fake_transformers_module.AutoTokenizer = _FakeAutoTokenizer
+
+    monkeypatch.setitem(sys.modules, "minisgl.benchmark.client", fake_client_module)
+    monkeypatch.setitem(sys.modules, "openai", fake_openai_module)
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers_module)
+
+
+def test_run_s2_with_injected_helpers(monkeypatch):
+    class _RawResult:
+        def __init__(self, tics):
+            self.tics = tics
+
+    async def fake_benchmark_one(client, prompt, output_length, model, *, pbar=False):
+        t0 = time.perf_counter()
+        await asyncio.sleep(0.001)
+        return _RawResult([t0, t0 + 0.01, t0 + 0.02])
+
+    recorded_lengths: list[int] = []
+    _install_s2_fakes(monkeypatch, benchmark_one=fake_benchmark_one, recorded_lengths=recorded_lengths)
+
+    records = asyncio.run(
+        scenarios.run_s2("http://127.0.0.1:1", requests=40, max_input=32, output_tokens=32, seed=7)
+    )
+    assert len(records) == 40
+    for r in records:
+        assert r.outcome == "completed"
+        assert r.t_send <= r.t_first
+
+    first_lengths = list(recorded_lengths)
+    assert len(first_lengths) == 40
+    assert all(1 <= n <= 32 for n in first_lengths)
+
+    recorded_lengths.clear()
+    asyncio.run(
+        scenarios.run_s2("http://127.0.0.1:1", requests=40, max_input=32, output_tokens=32, seed=7)
+    )
+    assert recorded_lengths == first_lengths
+
+
+def test_run_s2_failure_recorded(monkeypatch):
+    call_index = {"i": -1}
+
+    async def fake_benchmark_one_raises_first(client, prompt, output_length, model, *, pbar=False):
+        call_index["i"] += 1
+        idx = call_index["i"]
+        if idx == 0:
+            raise RuntimeError("x")
+        await asyncio.sleep(0.001)
+        t0 = time.perf_counter()
+        return type("RawResult", (), {"tics": [t0, t0 + 0.01, t0 + 0.02]})()
+
+    _install_s2_fakes(monkeypatch, benchmark_one=fake_benchmark_one_raises_first)
+    records = asyncio.run(
+        scenarios.run_s2("http://127.0.0.1:1", requests=5, max_input=32, output_tokens=32, seed=11)
+    )
+    assert len(records) == 5
+    failed = [r for r in records if r.outcome == "failed"]
+    completed = [r for r in records if r.outcome == "completed"]
+    assert len(failed) == 1
+    assert failed[0].error == "x"
+    assert len(completed) == 4
+
+    async def fake_benchmark_one_single_tic(client, prompt, output_length, model, *, pbar=False):
+        t0 = time.perf_counter()
+        return type("RawResult", (), {"tics": [t0]})()
+
+    monkeypatch.undo()
+    _install_s2_fakes(monkeypatch, benchmark_one=fake_benchmark_one_single_tic)
+    records2 = asyncio.run(
+        scenarios.run_s2("http://127.0.0.1:1", requests=3, max_input=32, output_tokens=32, seed=12)
+    )
+    assert len(records2) == 3
+    for r in records2:
+        assert r.outcome == "failed"
+        assert r.t_first is None
+
+
+@pytest.mark.slow
+def test_run_first_request(tmp_path):
+    handle, base_url = _launch_stand_in(tmp_path)
+    try:
+        records = asyncio.run(scenarios.run_first_request(base_url, max_tokens=4))
+        assert len(records) == 1
+        assert records[0].outcome == "completed"
+        assert records[0].t_first is not None
     finally:
         procs.teardown(handle)
