@@ -43,6 +43,18 @@ def _write_pyspy_stub(tmp_path: Path) -> Path:
     return bin_dir
 
 
+def _write_hyperfine_stub(bin_dir: Path) -> Path:
+    """Write an executable `hyperfine` into bin_dir that execs the fake_profile_env
+    hyperfine stand-in."""
+    bin_dir.mkdir(exist_ok=True)
+    stub = bin_dir / "hyperfine"
+    stub.write_text(
+        f'#!/bin/bash\nexec "{sys.executable}" -m rsglang.testing.fake_profile_env hyperfine "$@"\n'
+    )
+    stub.chmod(0o755)
+    return bin_dir
+
+
 def _pid_alive(pid: int) -> bool:
     if not psutil.pid_exists(pid):
         return False
@@ -443,3 +455,94 @@ def test_validate_cli(tmp_path):
 
     result3 = _run_cli("validate", [str(bad_path)], timeout=30)
     assert result3.returncode == 1, f"stdout={result3.stdout!r} stderr={result3.stderr!r}"
+
+
+# --- run_s3_end_to_end (Plan 02-08, Task 2) -------------------------------------------
+
+
+@pytest.mark.slow
+def test_run_s3_end_to_end(tmp_path):
+    from rsglang.testing.fake_profile_env import FAKE_ACTIVE_SAMPLES, FAKE_RADIX_SAMPLES
+
+    bin_dir = _write_pyspy_stub(tmp_path)
+    _write_hyperfine_stub(bin_dir)
+    role_map_path = tmp_path / "roles.json"
+    port = _free_port()
+    out_path = tmp_path / "p3.json"
+    work_dir = tmp_path / "w3"
+
+    env = dict(os.environ)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+    env["RSGLANG_FAKE_PROFILE_ROLE_MAP"] = str(role_map_path)
+
+    result = _run_cli(
+        "run",
+        [
+            "--scenarios", "s3",
+            "--s3-runs", "2",
+            "--s3-warmup", "1",
+            "--s3-sample-s", "1",
+            "--s3-max-tokens", "4",
+            "--sample-interval-s", "0.2",
+            "--server-cmd",
+            "{python} -m rsglang.testing.fake_profile_env server --port {port}",
+            "--port", str(port),
+            "--timeout", "60",
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+        ],
+        env=env,
+        timeout=180,
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_sidecar(doc, require_scenarios=("s3_coldstart",)) == []
+
+    entry = doc["scenarios"]["s3_coldstart"]
+    coldstart = entry["coldstart"]
+    assert coldstart["hyperfine"]["runs"] == 2
+    assert len(coldstart["ready_s_self_timed"]) == 2
+    assert all(v > 0 for v in coldstart["ready_s_self_timed"])
+    assert len(coldstart["rss_tree_bytes_at_ready"]) == 2
+    assert all(isinstance(v, int) and v > 0 for v in coldstart["rss_tree_bytes_at_ready"])
+    if not sys.platform.startswith("linux"):
+        assert coldstart["pss_tree_bytes_at_ready"] == [None, None]
+
+    assert entry["requests"]["sent"] == 1
+    assert entry["requests"]["completed"] == 1
+
+    assert entry["radix"]["share"] == FAKE_RADIX_SAMPLES / FAKE_ACTIVE_SAMPLES
+
+    scheduler_events = entry["gc"]["scheduler"]["events"]
+    assert scheduler_events, "expected at least one boot-window GC event"
+    first_t_rel_s = min(e[0] for e in scheduler_events)
+    assert first_t_rel_s < entry["params"]["instrumented_ready_s"]
+
+    work_dir_path = Path(work_dir)
+    pgid_files = list(work_dir_path.glob("**/pgid")) + list(work_dir_path.glob("**/*.pgid"))
+    assert not pgid_files, f"leftover pgid file(s): {pgid_files}"
+
+    role_map = json.loads(role_map_path.read_text())
+    alive_pids = {int(pid) for pid in role_map}
+    still_alive = _wait_until_dead(alive_pids)
+    assert not still_alive, f"still alive: {still_alive}"
+
+
+# --- run_s3_hyperfine_missing_exits_2 (Plan 02-08, Task 2) ----------------------------
+
+
+@pytest.mark.slow
+def test_run_s3_hyperfine_missing_exits_2(tmp_path):
+    bin_dir = _write_pyspy_stub(tmp_path)
+    env = dict(os.environ)
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+
+    result = _run_cli(
+        "run",
+        ["--scenarios", "s3", "--out", str(tmp_path / "x.json"), "--work-dir", str(tmp_path / "w")],
+        env=env,
+        timeout=30,
+    )
+    assert result.returncode == 2, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert "hyperfine" in result.stderr
