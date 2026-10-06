@@ -1,8 +1,10 @@
 //! Router assembly, shared application state, and the JSON body-parsing
 //! helper every handler uses.
 
+pub mod chat;
 pub mod error;
 pub mod generate;
+pub mod pyjson;
 
 use std::sync::{Arc, OnceLock};
 
@@ -73,6 +75,7 @@ pub fn parse_json<T: serde::de::DeserializeOwned>(body: &[u8]) -> Result<T, ApiE
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/generate", post(generate::handler))
+        .route("/v1/chat/completions", post(chat::chat_completions))
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
         .with_state(state)
 }
