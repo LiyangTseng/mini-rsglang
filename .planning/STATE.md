@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Request Lifecycle & HTTP API
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-10-06T22:45:45.575Z"
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-10-06T23:05:54.148Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 05 execution started
-state_head: 687f018f0c0b18b6f879456d08dc3611caf8568e
+state_head: 4ce3a25cf78163de056dbc947f7bc11ea57c87fe
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 37
-  completed_plans: 32
+  completed_plans: 33
   percent: 43
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
-Plan: 5 of 9
+Plan: 6 of 9
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 05 execution started
 
@@ -76,6 +76,7 @@ Progress: [████░░░░░░] 43%
 | Phase 05 P02 | 45min | 2 tasks | 2 files |
 | Phase 05 P03 | 25min | 3 tasks | 6 files |
 | Phase 05 P04 | 70min | 3 tasks | 4 files |
+| Phase 05 P05 | 55min | 2 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,9 @@ Recent decisions affecting current work:
 - [Phase 05]: finish_silent reports a terminal state without sending a RequestEvent: every cancellation path is reached only because the AbortGuard/events receiver was already dropped, so nobody is listening
 - [Phase 05]: No tower-http timeout layer: the backend-inactivity deadline is a pinned, resettable tokio::time::sleep_until inside the driver, per CLAUDE.md's prohibition on tower_http::timeout for streaming routes
 - [Phase 05]: An abort reaching Cancelled in the registry only means the AbortBackendMsg was enqueued onto the writer's channel, not that mock-scheduler has received and recorded it in its observe file yet; tests must poll (wait_for_abort/wait_for_observed) rather than assert immediately after a registry snapshot goes idle
+- [Phase 05]: [Phase 05]: python_frontend.py reproduces upstream's start_subprocess spawn (detokenizer/tokenizer tokenize_worker processes) minus scheduler ranks, against an externally started mock-scheduler stand-in on the caller's --rsg-suffix addresses
+- [Phase 05]: gen_api_fixtures.py captured the 18-case API-01 golden fixture set from one fresh live run; chat_nonstream_eos_final's max_tokens is computed at capture time from the chat template so the echoed final token lands on EOS, exercising detokenize.py's finished+EOS exclusion
+- [Phase 05]: Treated the Task 1 precondition as met via a direct read-only check (local_files_only=True) rather than its literal HF_HUB_OFFLINE=1 command, which fails in this environment on a transformers 4.57.3 bug (_patch_mistral_regex calling model_info() for any large-vocab repo-id tokenizer) unrelated to cache completeness
 
 ### Pending Todos
 
@@ -158,6 +162,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T22:45:45.527Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-10-06T23:05:54.105Z
+Stopped at: Completed 05-05-PLAN.md
 Resume file: None
