@@ -1,8 +1,7 @@
 //! A streaming client disconnect becomes an abort on the backend, and late
 //! tokens the backend sends after that abort are dropped and counted
-//! (LIFE-02). A later task in this plan adds
-//! `queued_stream_disconnect_abort_bound`, measuring the D-03 bound on a
-//! request still queued (no token emitted yet) when the client
+//! (LIFE-02). `queued_stream_disconnect_abort_bound` measures the D-03
+//! bound on a request still queued (no token emitted yet) when the client
 //! disconnects.
 
 #[allow(dead_code)]
@@ -103,4 +102,37 @@ async fn tracer_stream_disconnect_sends_abort_and_counts_late_tokens() {
         "server must keep serving: {:?}",
         String::from_utf8_lossy(&resp.body)
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn queued_stream_disconnect_abort_bound() {
+    let server = TestServer::start(
+        &["--prefill-delay-ms", "1500", "--decode-delay-ms", "20"],
+        TestConfig::default(),
+    )
+    .await;
+
+    let body = br#"{"prompt":"abcdef","max_tokens":10}"#;
+    let stream = OpenStream::open(server.addr, "POST", "/generate", Some(body)).await;
+    assert_eq!(stream.status, 200);
+
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let t0 = Instant::now();
+    drop(stream);
+
+    let deadline = t0 + Duration::from_millis(2500);
+    loop {
+        if has_abort(&server.mock.observed(), 0) {
+            break;
+        }
+        assert!(Instant::now() < deadline, "timed out waiting for abort");
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    println!(
+        "queued_disconnect_to_abort_ms={} (mock-scheduler measurement on the Mac, not performance evidence)",
+        t0.elapsed().as_millis()
+    );
+
+    let snap = server.snapshot_when_idle(Duration::from_secs(5)).await;
+    assert_eq!(snap.cancelled, 1);
 }
