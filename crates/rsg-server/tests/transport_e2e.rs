@@ -104,7 +104,11 @@ fn many_concurrent_requests_route_by_uid() {
             let writer = writer.clone();
             let dispatcher = dispatcher.clone();
             set.spawn(async move {
-                let ids: [i32; 3] = [(u * 10 + 1) as i32, (u * 10 + 2) as i32, (u * 10 + 3) as i32];
+                let ids: [i32; 3] = [
+                    (u * 10 + 1) as i32,
+                    (u * 10 + 2) as i32,
+                    (u * 10 + 3) as i32,
+                ];
                 let mut stream = dispatcher.register(u);
                 let submitted = writer
                     .submit(
