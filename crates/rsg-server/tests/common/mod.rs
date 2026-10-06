@@ -37,10 +37,10 @@ fn parse_observed_line(line: &str) -> Observed {
         {
             return Observed::Submit { uid, input_len };
         }
-    } else if let Some(rest) = line.strip_prefix("abort ") {
-        if let Ok(uid) = rest.trim().parse() {
-            return Observed::Abort { uid };
-        }
+    } else if let Some(rest) = line.strip_prefix("abort ")
+        && let Ok(uid) = rest.trim().parse()
+    {
+        return Observed::Abort { uid };
     }
     panic!("unparseable observe-file line: {line:?}");
 }

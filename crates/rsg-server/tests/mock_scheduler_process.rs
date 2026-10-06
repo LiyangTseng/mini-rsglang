@@ -286,7 +286,8 @@ fn prefill_and_decode_delays_are_honored() {
         let gap = timestamps[i].duration_since(timestamps[i - 1]);
         assert!(
             gap >= Duration::from_millis(45),
-            "gap {i} too short: {gap:?}"
+            "gap {i} too short: {gap:?}; stderr:\n{}",
+            mock.stderr()
         );
     }
 }

@@ -4,22 +4,40 @@
 //! never as a new wire message. It emits deterministic echo tokens with
 //! fixed, uniform prefill/decode delays (D-10). It does no prefix or radix
 //! modeling (deferred to v2).
+//!
+//! Exit codes:
+//! - `0` (`EXIT_OK`): clean stop — `ExitMsg` received, or SIGINT/SIGTERM.
+//! - `1` (`EXIT_STARTUP`): socket, observe-file, or send/encode setup failed.
+//! - `2`: a clap CLI usage error (handled by clap itself, not this binary's code).
+//! - `3` (`EXIT_STDIN_EOF`): the parent went away (stdin closed). A harness
+//!   must keep stdin piped and open for the whole run, or this fires
+//!   immediately; this guard exists so a crashed test run never leaves an
+//!   orphaned mock-scheduler process behind.
+//! - `4` (`EXIT_BAD_FRAME`): a backend frame could not be decoded, or a
+//!   `UserMsg`'s `input_ids` tensor was malformed. Mirrors the real
+//!   scheduler dying on a message it cannot decode.
 
 use std::collections::BTreeMap;
-use std::io::Write as _;
+use std::fs::File;
+use std::io::{BufRead, BufWriter, Write as _};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use clap::Parser;
+use tokio::signal::unix::{Signal, SignalKind, signal};
+use tokio::sync::mpsc;
 use tracing_subscriber::EnvFilter;
 
 use rsg_server::handshake::{EXPECTED_UPSTREAM_SHA, HANDSHAKE_VERSION, Handshake};
 use rsg_server::transport::{Endpoint, Role, ZmqSchedulerTransport};
 use rsg_wire::{BackendMsg, TokenizerMsg};
 
-/// Clean stop: `ExitMsg` received.
+/// Clean stop: `ExitMsg` received, or SIGINT/SIGTERM.
 const EXIT_OK: i32 = 0;
-/// Socket setup, or a send/encode on the detokenizer socket, failed.
+/// Socket, observe-file, or send/encode setup failed.
 const EXIT_STARTUP: i32 = 1;
+/// The parent went away (stdin EOF) — see the module doc.
+const EXIT_STDIN_EOF: i32 = 3;
 /// A backend frame could not be decoded, or a `UserMsg`'s `input_ids` tensor
 /// was malformed. Mirrors the real scheduler dying on a message it cannot
 /// decode.
@@ -32,6 +50,9 @@ const MOCK_MAX_RUNNING_REQ: u64 = 256;
 const MOCK_NUM_PAGES: u64 = 4096;
 /// How long the engine blocks on `recv_backend` while no request is due.
 const IDLE_POLL_MS: i64 = 100;
+/// Linger (ms) given to both sockets on a clean `ExitMsg` shutdown, so
+/// replies already queued in libzmq are still delivered.
+const SHUTDOWN_LINGER_MS: i32 = 1000;
 
 /// Static configuration, passed by a test harness at spawn.
 #[derive(Parser, Debug)]
@@ -58,6 +79,11 @@ struct Cli {
     /// Reported in the handshake; also governs nothing else in this mock.
     #[arg(long, default_value_t = 4096)]
     max_seq_len: u64,
+    /// Every processed backend message, one line per message, in processing
+    /// order (`submit <uid> <input_len>` | `abort <uid>` | `exit`). Never
+    /// part of the wire protocol — observation goes only to this side file.
+    #[arg(long, value_name = "PATH")]
+    observe_file: Option<PathBuf>,
 }
 
 /// One in-flight request the engine is emitting echo tokens for.
@@ -72,6 +98,53 @@ struct Running {
     due: Instant,
 }
 
+/// What the stdin reader thread reports.
+enum StdinEvent {
+    Line(String),
+    Eof,
+    Error(String),
+}
+
+/// Read stdin on a dedicated OS thread, mirroring rsg-server's own
+/// `spawn_stdin_reader`: tokio's stdin is a blocking read that cannot be
+/// cancelled and would hang runtime shutdown.
+fn spawn_stdin_reader() -> mpsc::Receiver<StdinEvent> {
+    let (tx, rx) = mpsc::channel(16);
+    std::thread::spawn(move || {
+        for line in std::io::stdin().lock().lines() {
+            let event = match line {
+                Ok(line) => StdinEvent::Line(line),
+                Err(e) => {
+                    let _ = tx.blocking_send(StdinEvent::Error(e.to_string()));
+                    return;
+                }
+            };
+            if tx.blocking_send(event).is_err() {
+                return;
+            }
+        }
+        let _ = tx.blocking_send(StdinEvent::Eof);
+    });
+    rx
+}
+
+fn install_signal(kind: SignalKind, name: &str) -> Signal {
+    match signal(kind) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("failed to install {name} handler: {e}");
+            std::process::exit(EXIT_STARTUP);
+        }
+    }
+}
+
+/// Exit without running destructors, so no zmq context term or blocked stdin
+/// read can hang shutdown (sockets use linger 0 unless `shutdown` ran first).
+fn exit_on_signal(name: &str) -> ! {
+    tracing::info!("received {name}; exiting");
+    std::process::exit(EXIT_OK);
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let cli = Cli::parse();
@@ -83,6 +156,10 @@ async fn main() {
         )
         .init();
 
+    // Installed before the sockets open, as rsg-server does.
+    let mut sigint = install_signal(SignalKind::interrupt(), "SIGINT");
+    let mut sigterm = install_signal(SignalKind::terminate(), "SIGTERM");
+
     let backend = Endpoint {
         addr: cli.backend_addr.clone(),
         role: cli.backend_role,
@@ -91,46 +168,84 @@ async fn main() {
         addr: cli.detok_addr.clone(),
         role: cli.detok_role,
     };
-
-    let transport = match ZmqSchedulerTransport::open(&backend, &detok) {
-        Ok(t) => t,
-        Err(e) => {
-            tracing::error!("failed to open sockets: {e:#}");
-            std::process::exit(EXIT_STARTUP);
-        }
-    };
-    tracing::info!("sockets ready");
-
-    let handshake = Handshake {
-        handshake_version: HANDSHAKE_VERSION,
-        upstream_sha: EXPECTED_UPSTREAM_SHA.to_string(),
-        max_seq_len: cli.max_seq_len,
-        eos_token_id: Some(MOCK_EOS_TOKEN_ID),
-        page_size: MOCK_PAGE_SIZE,
-        max_running_req: MOCK_MAX_RUNNING_REQ,
-        num_pages: MOCK_NUM_PAGES,
-    };
-    println!("{}", handshake.to_json_line());
-    if let Err(e) = std::io::stdout().flush() {
-        tracing::error!("failed to flush stdout handshake line: {e}");
-        std::process::exit(EXIT_STARTUP);
-    }
-    tracing::info!("mock-scheduler ready");
-
+    let observe_file = cli.observe_file.clone();
+    let max_seq_len = cli.max_seq_len;
     let prefill_delay = Duration::from_millis(cli.prefill_delay_ms);
     let decode_delay = Duration::from_millis(cli.decode_delay_ms);
 
-    let (tx, rx) = tokio::sync::oneshot::channel();
+    // Everything that touches the scheduler-side sockets — opening them,
+    // the engine's own recv/send loop — runs on this one dedicated thread
+    // (the project's tx-zmq/rx-zmq convention), matching libzmq's own
+    // requirement that a socket be used only from the thread that created
+    // it: handing an already-opened socket to a different thread for its
+    // first use measurably delays that thread's first send (confirmed with
+    // a minimal repro outside this test suite).
+    let (tx, mut rx) = tokio::sync::oneshot::channel();
     std::thread::Builder::new()
         .name("mock-engine".to_string())
         .spawn(move || {
-            let code = run_engine(&transport, prefill_delay, decode_delay);
+            let transport = match ZmqSchedulerTransport::open(&backend, &detok) {
+                Ok(t) => t,
+                Err(e) => {
+                    tracing::error!("failed to open sockets: {e:#}");
+                    std::process::exit(EXIT_STARTUP);
+                }
+            };
+            tracing::info!("sockets ready");
+
+            let observe = match &observe_file {
+                Some(path) => match File::create(path) {
+                    Ok(f) => Some(BufWriter::new(f)),
+                    Err(e) => {
+                        tracing::error!("failed to create observe file {}: {e}", path.display());
+                        std::process::exit(EXIT_STARTUP);
+                    }
+                },
+                None => None,
+            };
+
+            let handshake = Handshake {
+                handshake_version: HANDSHAKE_VERSION,
+                upstream_sha: EXPECTED_UPSTREAM_SHA.to_string(),
+                max_seq_len,
+                eos_token_id: Some(MOCK_EOS_TOKEN_ID),
+                page_size: MOCK_PAGE_SIZE,
+                max_running_req: MOCK_MAX_RUNNING_REQ,
+                num_pages: MOCK_NUM_PAGES,
+            };
+            println!("{}", handshake.to_json_line());
+            if let Err(e) = std::io::stdout().flush() {
+                tracing::error!("failed to flush stdout handshake line: {e}");
+                std::process::exit(EXIT_STARTUP);
+            }
+            tracing::info!("mock-scheduler ready");
+
+            let code = run_engine(transport, prefill_delay, decode_delay, observe);
             let _ = tx.send(code);
         })
         .expect("spawn mock-engine thread");
 
-    let code = rx.await.unwrap_or(EXIT_STARTUP);
-    std::process::exit(code);
+    let mut stdin = spawn_stdin_reader();
+    loop {
+        tokio::select! {
+            code = &mut rx => {
+                std::process::exit(code.unwrap_or(EXIT_STARTUP));
+            }
+            event = stdin.recv() => match event {
+                Some(StdinEvent::Line(line)) => tracing::warn!(%line, "ignoring unexpected stdin line"),
+                Some(StdinEvent::Error(e)) => {
+                    tracing::error!("parent went away (stdin EOF): {e}");
+                    std::process::exit(EXIT_STDIN_EOF);
+                }
+                Some(StdinEvent::Eof) | None => {
+                    tracing::error!("parent went away (stdin EOF)");
+                    std::process::exit(EXIT_STDIN_EOF);
+                }
+            },
+            _ = sigint.recv() => exit_on_signal("SIGINT"),
+            _ = sigterm.recv() => exit_on_signal("SIGTERM"),
+        }
+    }
 }
 
 /// The result of processing one decoded `BackendMsg`.
@@ -142,14 +257,31 @@ enum ProcessOutcome {
     Exit(i32),
 }
 
+/// Writes one line to the observe file (if any) and flushes immediately, so
+/// every write is durable before the next one (satisfies "flush after each
+/// drained frame" and "before any exit" trivially: every write is already
+/// flushed). `Err(EXIT_STARTUP)` on a write/flush failure.
+fn record_observe(observe: &mut Option<BufWriter<File>>, line: &str) -> Result<(), i32> {
+    let Some(w) = observe else {
+        return Ok(());
+    };
+    writeln!(w, "{line}")
+        .and_then(|()| w.flush())
+        .map_err(|e| {
+            tracing::error!("write observe-file line {line:?}: {e}");
+            EXIT_STARTUP
+        })
+}
+
 /// The engine loop: (1) waits for a frame or the next due time, (2) takes one
 /// step clock `now`, (3) drains every available backend frame and processes
 /// them with arrival time `now`, (4) makes every running request whose due
 /// time is <= `now` emit exactly one token, in ascending uid order.
 fn run_engine(
-    transport: &ZmqSchedulerTransport,
+    transport: ZmqSchedulerTransport,
     prefill_delay: Duration,
     decode_delay: Duration,
+    mut observe: Option<BufWriter<File>>,
 ) -> i32 {
     let mut running: BTreeMap<i64, Running> = BTreeMap::new();
 
@@ -159,6 +291,7 @@ fn run_engine(
             Ok(frame) => frame,
             Err(e) => {
                 tracing::error!("poll/recv backend socket: {e:#}");
+                let _ = observe.as_mut().map(BufWriter::flush);
                 return EXIT_STARTUP;
             }
         };
@@ -172,6 +305,7 @@ fn run_engine(
                     Ok(None) => break,
                     Err(e) => {
                         tracing::error!("poll/recv backend socket: {e:#}");
+                        let _ = observe.as_mut().map(BufWriter::flush);
                         return EXIT_STARTUP;
                     }
                 }
@@ -181,18 +315,33 @@ fn run_engine(
                     Ok(m) => m,
                     Err(e) => {
                         tracing::error!("decode backend frame: {e}");
+                        let _ = observe.as_mut().map(BufWriter::flush);
                         return EXIT_BAD_FRAME;
                     }
                 };
-                match process_msg(msg, now, prefill_delay, &mut running) {
+                match process_msg(msg, now, prefill_delay, &mut running, &mut observe) {
                     Ok(ProcessOutcome::Continue) => {}
-                    Ok(ProcessOutcome::Exit(code)) => return code,
-                    Err(()) => return EXIT_BAD_FRAME,
+                    Ok(ProcessOutcome::Exit(EXIT_OK)) => {
+                        let _ = observe.as_mut().map(BufWriter::flush);
+                        if let Err(e) = transport.shutdown(SHUTDOWN_LINGER_MS) {
+                            tracing::error!("shutdown scheduler transport: {e:#}");
+                        }
+                        return EXIT_OK;
+                    }
+                    Ok(ProcessOutcome::Exit(code)) => {
+                        let _ = observe.as_mut().map(BufWriter::flush);
+                        return code;
+                    }
+                    Err(code) => {
+                        let _ = observe.as_mut().map(BufWriter::flush);
+                        return code;
+                    }
                 }
             }
         }
 
-        if let Err(code) = emit_due_tokens(transport, now, decode_delay, &mut running) {
+        if let Err(code) = emit_due_tokens(&transport, now, decode_delay, &mut running) {
+            let _ = observe.as_mut().map(BufWriter::flush);
             return code;
         }
     }
@@ -215,26 +364,33 @@ fn next_wait_ms(running: &BTreeMap<i64, Running>) -> i64 {
 }
 
 /// Processes one decoded message, mirroring upstream's
-/// `scheduler.py::_process_one_msg`. `Err(())` means the frame's payload
-/// (a `UserMsg`'s tensor) was malformed; the caller maps that to
-/// `EXIT_BAD_FRAME`.
+/// `scheduler.py::_process_one_msg`, and records it to the observe file. The
+/// real scheduler is considered to have received a message whether or not it
+/// acts on it, so every processed `UserMsg`/`AbortBackendMsg`/`ExitMsg` is
+/// recorded regardless of outcome. `Err(code)` means the engine must stop
+/// immediately and exit with `code` (a malformed tensor, or an observe-file
+/// write failure).
 fn process_msg(
     msg: BackendMsg,
     now: Instant,
     prefill_delay: Duration,
     running: &mut BTreeMap<i64, Running>,
-) -> Result<ProcessOutcome, ()> {
+    observe: &mut Option<BufWriter<File>>,
+) -> Result<ProcessOutcome, i32> {
     match msg {
         BackendMsg::BatchBackendMsg { data } => {
             for item in data {
-                match process_msg(item, now, prefill_delay, running)? {
+                match process_msg(item, now, prefill_delay, running, observe)? {
                     ProcessOutcome::Continue => {}
                     exit @ ProcessOutcome::Exit(_) => return Ok(exit),
                 }
             }
             Ok(ProcessOutcome::Continue)
         }
-        BackendMsg::ExitMsg {} => Ok(ProcessOutcome::Exit(EXIT_OK)),
+        BackendMsg::ExitMsg {} => {
+            record_observe(observe, "exit")?;
+            Ok(ProcessOutcome::Exit(EXIT_OK))
+        }
         BackendMsg::UserMsg {
             uid,
             input_ids,
@@ -242,7 +398,9 @@ fn process_msg(
         } => {
             let prompt_ids = input_ids.to_i32_vec().map_err(|e| {
                 tracing::error!(uid, "decode UserMsg input_ids tensor: {e}");
+                EXIT_BAD_FRAME
             })?;
+            let input_len = prompt_ids.len();
             if running.contains_key(&uid) {
                 tracing::warn!(uid, "UserMsg for already-running uid; replacing");
             }
@@ -255,10 +413,12 @@ fn process_msg(
                     due: now + prefill_delay,
                 },
             );
+            record_observe(observe, &format!("submit {uid} {input_len}"))?;
             Ok(ProcessOutcome::Continue)
         }
         BackendMsg::AbortBackendMsg { uid } => {
             running.remove(&uid);
+            record_observe(observe, &format!("abort {uid}"))?;
             Ok(ProcessOutcome::Continue)
         }
     }

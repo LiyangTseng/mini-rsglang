@@ -195,7 +195,31 @@ impl ZmqSchedulerTransport {
             .send(frame, 0)
             .context("send on detokenizer socket")
     }
+
+    /// Sets `linger_ms` on both sockets and drops them, so frames already
+    /// queued in libzmq are still delivered before the sockets close; the
+    /// zmq context terminates once both sockets are closed.
+    /// `std::process::exit` runs no destructors, so a caller that needs
+    /// queued frames flushed before exiting must call this explicitly first.
+    pub fn shutdown(self, linger_ms: i32) -> anyhow::Result<()> {
+        self.backend
+            .set_linger(linger_ms)
+            .context("set linger on backend socket")?;
+        self.detok
+            .set_linger(linger_ms)
+            .context("set linger on detokenizer socket")?;
+        Ok(())
+    }
 }
+
+/// How quickly a `Connect`-role socket retries after a connect attempt that
+/// raced an not-yet-bound peer (RESEARCH.md Pitfall 1). libzmq's own default
+/// (`ZMQ_RECONNECT_IVL` = 100ms) is tuned for long-lived network peers; for
+/// this project's own-process/own-host bind-then-connect startup race, a
+/// short interval turns a possible ~100ms first-message stall into one well
+/// under a test's or caller's own timeout budget. Irrelevant to `Bind`-role
+/// sockets, so set unconditionally for simplicity.
+const RECONNECT_IVL_MS: i32 = 1;
 
 fn open_socket(
     ctx: &zmq::Context,
@@ -208,6 +232,8 @@ fn open_socket(
         .with_context(|| format!("create {name} socket"))?;
     sock.set_linger(0)
         .with_context(|| format!("set linger on {name} socket"))?;
+    sock.set_reconnect_ivl(RECONNECT_IVL_MS)
+        .with_context(|| format!("set reconnect interval on {name} socket"))?;
     match ep.role {
         Role::Bind => sock.bind(&ep.addr),
         Role::Connect => sock.connect(&ep.addr),
