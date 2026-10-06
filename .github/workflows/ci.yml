@@ -1,0 +1,96 @@
+name: CI
+
+# Runs the same local gate every phase branch already relies on
+# (scripts/check_all.sh) so that landing a PR against main gives a real
+# pass/fail signal instead of none at all. See scripts/check_all.sh for the
+# authoritative definition of "passing" — this workflow wraps it rather than
+# reimplementing its steps, so CI and a developer's local run check the same
+# thing.
+#
+# The real GPU/CUDA backend only runs on Linux hardware with a GPU. Nothing
+# here needs a GPU: scripts/check_all.sh --offline covers cargo tests (which
+# include the mock-scheduler end-to-end tests), the Python test suite (which
+# runs entirely against the mock scheduler / fakes, no CUDA), wire-fixture
+# freshness, the WIRE-02 decode check, and the vendored-tree check in its
+# network-free mode.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check-all:
+    name: check_all.sh --offline (cargo test, pytest, fixtures, wire decode, vendored tree)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Cache cargo registry and target dir
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "requirements-mac.txt"
+
+      - name: Bootstrap Python env (uv venv + hash-locked deps + editable installs)
+        run: scripts/bootstrap_mac_env.sh
+
+      - name: check_all.sh --offline
+        run: scripts/check_all.sh --offline
+
+  clippy:
+    name: cargo clippy --all-targets -D warnings
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: Cache cargo registry and target dir
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  fmt-check:
+    # Advisory only: main is not cargo-fmt-clean today (pre-existing drift
+    # found while wiring up this workflow, tracked in the PR description, not
+    # fixed here). This job surfaces drift in the PR checks list without
+    # blocking merges until that cleanup lands and this can be promoted to a
+    # required gate.
+    name: cargo fmt --check (advisory, non-blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust toolchain (from rust-toolchain.toml)
+        run: rustup show
+
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
