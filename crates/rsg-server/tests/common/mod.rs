@@ -1,7 +1,11 @@
 //! Shared subprocess-test harness for spawning `mock-scheduler`, modeled on
 //! `tests/cli.rs`'s own `Server` harness for `rsg-server`. Reused by every
 //! Phase 3 test file that needs a real mock-scheduler subprocess over real
-//! `ipc://` sockets.
+//! `ipc://` sockets, and by Phase 5's HTTP integration tests
+//! (`http_client`, `test_server`).
+
+pub mod http_client;
+pub mod test_server;
 
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
