@@ -35,6 +35,14 @@ pub const WRITER_QUEUE_CAPACITY: usize = 1024;
 /// and (being a plain `i64` underneath) `Send`, so a task other than the
 /// one that called `submit` may hold a clone of the ticket and call
 /// [`WriterHandle::abort`] with it.
+///
+/// `uid` cannot be forged from outside this module — the field is private,
+/// so the only way to build a `Submitted` is through `submit`'s own enqueue:
+///
+/// ```compile_fail
+/// // `uid` is a private field: this must fail to compile outside writer.rs.
+/// let _ = rsg_server::writer::Submitted { uid: 7 };
+/// ```
 #[derive(Debug, Clone)]
 pub struct Submitted {
     uid: i64,
@@ -315,6 +323,112 @@ mod tests {
         assert_eq!(frames.lock().unwrap().len(), 2, "no third frame");
     }
 
+    /// Unwraps any `BatchBackendMsg` nesting, in order, into a flat list of
+    /// leaf messages. Lets a test assert exact message order regardless of
+    /// how the writer happened to coalesce them into frames.
+    fn flatten_batches(msgs: Vec<BackendMsg>) -> Vec<BackendMsg> {
+        msgs.into_iter()
+            .flat_map(|m| match m {
+                BackendMsg::BatchBackendMsg { data } => flatten_batches(data),
+                other => vec![other],
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn submit_and_abort_coalesce_in_enqueue_order() {
+        let (sink, frames, entered_rx, release_tx) = FakeSink::gated();
+        let (writer, _join) = spawn_writer(sink).expect("spawn writer");
+
+        let t1 = writer
+            .submit(1, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await
+            .expect("submit 1");
+        entered_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("writer entered first send");
+
+        let t2 = writer
+            .submit(2, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await
+            .expect("submit 2");
+        writer.abort(&t2).await.expect("abort 2");
+        writer.abort(&t1).await.expect("abort 1");
+
+        let _ = release_tx.send(());
+
+        let frame1 = wait_for(|| frames.lock().unwrap().first().cloned());
+        match decode_backend(&frame1).expect("decode frame 1") {
+            BackendMsg::UserMsg { uid, .. } => assert_eq!(uid, 1),
+            other => panic!("expected bare UserMsg 1, got {other:?}"),
+        }
+
+        let frame2 = wait_for(|| frames.lock().unwrap().get(1).cloned());
+        match decode_backend(&frame2).expect("decode frame 2") {
+            BackendMsg::BatchBackendMsg { data } => {
+                assert_eq!(data.len(), 3, "batch has UserMsg 2, Abort 2, Abort 1");
+                match &data[0] {
+                    BackendMsg::UserMsg { uid, .. } => assert_eq!(*uid, 2),
+                    other => panic!("expected UserMsg 2 first, got {other:?}"),
+                }
+                match &data[1] {
+                    BackendMsg::AbortBackendMsg { uid } => assert_eq!(*uid, 2),
+                    other => panic!("expected AbortBackendMsg 2 second, got {other:?}"),
+                }
+                match &data[2] {
+                    BackendMsg::AbortBackendMsg { uid } => assert_eq!(*uid, 1),
+                    other => panic!("expected AbortBackendMsg 1 third, got {other:?}"),
+                }
+            }
+            other => panic!("expected BatchBackendMsg, got {other:?}"),
+        }
+
+        std::thread::sleep(Duration::from_millis(50));
+        assert_eq!(frames.lock().unwrap().len(), 2, "no third frame");
+    }
+
+    #[tokio::test]
+    async fn abort_twice_is_forwarded_twice_in_order() {
+        let (sink, frames) = FakeSink::new();
+        let (writer, _join) = spawn_writer(sink).expect("spawn writer");
+
+        let t5 = writer
+            .submit(5, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await
+            .expect("submit 5");
+        writer.abort(&t5).await.expect("abort 5 first");
+        writer.abort(&t5).await.expect("abort 5 second");
+
+        let flattened = wait_for(|| {
+            let raw: Vec<BackendMsg> = frames
+                .lock()
+                .unwrap()
+                .iter()
+                .map(|f| decode_backend(f).expect("decode"))
+                .collect();
+            let flat = flatten_batches(raw);
+            (flat.len() >= 3).then_some(flat)
+        });
+
+        assert_eq!(
+            flattened.len(),
+            3,
+            "exactly UserMsg 5, AbortBackendMsg 5, AbortBackendMsg 5"
+        );
+        match &flattened[0] {
+            BackendMsg::UserMsg { uid, .. } => assert_eq!(*uid, 5),
+            other => panic!("expected UserMsg 5 first, got {other:?}"),
+        }
+        match &flattened[1] {
+            BackendMsg::AbortBackendMsg { uid } => assert_eq!(*uid, 5),
+            other => panic!("expected AbortBackendMsg 5 second, got {other:?}"),
+        }
+        match &flattened[2] {
+            BackendMsg::AbortBackendMsg { uid } => assert_eq!(*uid, 5),
+            other => panic!("expected AbortBackendMsg 5 third, got {other:?}"),
+        }
+    }
+
     #[tokio::test]
     async fn exit_sends_bare_exit_msg() {
         let (sink, frames) = FakeSink::new();
@@ -350,6 +464,24 @@ mod tests {
             .await;
         assert!(matches!(after, Err(WriterClosed)));
         assert!(matches!(writer.exit().await, Err(WriterClosed)));
+    }
+
+    #[tokio::test]
+    async fn abort_after_writer_stopped_returns_writer_closed() {
+        let sink = FakeSink::always_fail();
+        let (writer, join) = spawn_writer(sink).expect("spawn writer");
+
+        let t1 = writer
+            .submit(1, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await
+            .expect("submit enqueues ok even though the sink will fail");
+
+        let joined = tokio::task::spawn_blocking(move || join.join().expect("thread panicked"))
+            .await
+            .expect("spawn_blocking panicked");
+        assert!(joined.is_err(), "writer thread ends with Err");
+
+        assert!(matches!(writer.abort(&t1).await, Err(WriterClosed)));
     }
 
     #[tokio::test]
