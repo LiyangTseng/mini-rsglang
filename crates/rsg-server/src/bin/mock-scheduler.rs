@@ -5,6 +5,30 @@
 //! fixed, uniform prefill/decode delays (D-10). It does no prefix or radix
 //! modeling (deferred to v2).
 //!
+//! Misbehaviors (MOCK-01, D-09): `--misbehave-uids <LIST>` (repeatable,
+//! comma-separated uids or inclusive `A-B` ranges, stored and matched as
+//! intervals so a huge range costs nothing — T-03-11) paired by position
+//! with `--behavior <late-abort-token|drop-overlong>` (repeatable). One
+//! process can combine several behaviors on different uids at once. Bad
+//! configuration (unequal list/behavior counts, a uid in two lists, a
+//! malformed/reversed range, or `--batch-size 0`) exits 2 before any socket
+//! opens or handshake line is written.
+//!
+//! `late-abort-token`: a flagged uid that is running when its abort arrives
+//! switches to "draining" instead of being removed, and keeps emitting its
+//! echo sequence (always `finished=false`) for `LATE_TOKENS_AFTER_ABORT`
+//! more tokens before being removed. This is a deliberate stand-in for the
+//! suspected upstream abort-during-prefill late-token behavior (STATE Phase
+//! 6 blocker) — it is not a claim that the real scheduler behaves exactly
+//! this way, only a controllable fixture for Phase 5/6 cancellation tests.
+//!
+//! `drop-overlong` and the upstream overlong rule, and reply batching via
+//! `--batch-size`, are documented where they are implemented (Task 2).
+//!
+//! All of this mock's delays and misbehaviors are fixed synthetic values for
+//! test control, never performance evidence: performance claims are measured
+//! on Linux against the real backend (PROJECT constraint).
+//!
 //! Exit codes:
 //! - `0` (`EXIT_OK`): clean stop — `ExitMsg` received, or SIGINT/SIGTERM.
 //! - `1` (`EXIT_STARTUP`): socket, observe-file, or send/encode setup failed.
@@ -23,7 +47,7 @@ use std::io::{BufRead, BufWriter, Write as _};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio::sync::mpsc;
 use tracing_subscriber::EnvFilter;
@@ -53,6 +77,112 @@ const IDLE_POLL_MS: i64 = 100;
 /// Linger (ms) given to both sockets on a clean `ExitMsg` shutdown, so
 /// replies already queued in libzmq are still delivered.
 const SHUTDOWN_LINGER_MS: i32 = 1000;
+/// How many more echo tokens a `late-abort-token` uid emits after its abort
+/// arrives, all with `finished=false` (D-09, MOCK-01).
+const LATE_TOKENS_AFTER_ABORT: u32 = 3;
+
+/// A backend misbehavior selectable per uid via `--misbehave-uids`/`--behavior`.
+/// Clap's `ValueEnum` derive renders these in kebab-case by default
+/// (`late-abort-token`, `drop-overlong`), matching the D-09 vocabulary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+enum Behavior {
+    LateAbortToken,
+    DropOverlong,
+}
+
+/// An inclusive uid set, parsed from a comma-separated list of single uids
+/// or `A-B` ranges. Stored as intervals and never expanded into a set, so a
+/// huge range (e.g. `0-1000000000`) costs nothing to store or match
+/// (T-03-11).
+#[derive(Clone, Debug)]
+struct UidList {
+    ranges: Vec<(i64, i64)>,
+}
+
+impl UidList {
+    fn contains(&self, uid: i64) -> bool {
+        self.ranges.iter().any(|&(a, b)| a <= uid && uid <= b)
+    }
+
+    /// The smallest uid present in both `self` and `other`, if any, found by
+    /// pairwise interval intersection (no expansion).
+    fn first_overlap(&self, other: &UidList) -> Option<i64> {
+        let mut found: Option<i64> = None;
+        for &(a_start, a_end) in &self.ranges {
+            for &(b_start, b_end) in &other.ranges {
+                let lo = a_start.max(b_start);
+                let hi = a_end.min(b_end);
+                if lo <= hi {
+                    found = Some(match found {
+                        Some(prev) => prev.min(lo),
+                        None => lo,
+                    });
+                }
+            }
+        }
+        found
+    }
+}
+
+/// Parses a `--misbehave-uids` value: comma-separated non-negative integers
+/// or inclusive `A-B` ranges (`A <= B`). Rejects an empty item, a non-number,
+/// a negative number, or a reversed range, with a message naming the bad
+/// item; clap then exits 2.
+fn parse_uid_list(s: &str) -> Result<UidList, String> {
+    let mut ranges = Vec::new();
+    for item in s.split(',') {
+        let item = item.trim();
+        if item.is_empty() {
+            return Err(format!("empty item in uid list {s:?}"));
+        }
+        match item.split_once('-') {
+            Some((a, b)) => {
+                let a: i64 = a
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("invalid uid range {item:?} in {s:?}"))?;
+                let b: i64 = b
+                    .trim()
+                    .parse()
+                    .map_err(|_| format!("invalid uid range {item:?} in {s:?}"))?;
+                if a > b {
+                    return Err(format!(
+                        "reversed uid range {item:?} in {s:?} (start must be <= end)"
+                    ));
+                }
+                ranges.push((a, b));
+            }
+            None => {
+                let n: i64 = item
+                    .parse()
+                    .map_err(|_| format!("invalid uid {item:?} in {s:?}"))?;
+                ranges.push((n, n));
+            }
+        }
+    }
+    Ok(UidList { ranges })
+}
+
+/// Maps a uid to the behavior configured for it, if any, by scanning
+/// `--misbehave-uids`/`--behavior` pairs in the order given on the CLI.
+struct BehaviorTable {
+    entries: Vec<(UidList, Behavior)>,
+}
+
+impl BehaviorTable {
+    fn new(uid_lists: Vec<UidList>, behaviors: Vec<Behavior>) -> BehaviorTable {
+        BehaviorTable {
+            entries: uid_lists.into_iter().zip(behaviors).collect(),
+        }
+    }
+
+    fn behavior_of(&self, uid: i64) -> Option<Behavior> {
+        self.entries
+            .iter()
+            .find(|(list, _)| list.contains(uid))
+            .map(|(_, b)| *b)
+    }
+}
 
 /// Static configuration, passed by a test harness at spawn.
 #[derive(Parser, Debug)]
@@ -76,7 +206,8 @@ struct Cli {
     /// Fixed delay between a request's consecutive tokens (D-10).
     #[arg(long, default_value_t = 0)]
     decode_delay_ms: u64,
-    /// Reported in the handshake; also governs nothing else in this mock.
+    /// Reported in the handshake; also drives the upstream overlong
+    /// drop/clamp rule (Task 2).
     #[arg(long, default_value_t = 4096)]
     max_seq_len: u64,
     /// Every processed backend message, one line per message, in processing
@@ -84,6 +215,58 @@ struct Cli {
     /// part of the wire protocol — observation goes only to this side file.
     #[arg(long, value_name = "PATH")]
     observe_file: Option<PathBuf>,
+    /// Uids a `--behavior` applies to (comma-separated uids/`A-B` ranges),
+    /// repeatable and paired by position with `--behavior` (D-09).
+    #[arg(long = "misbehave-uids", action = clap::ArgAction::Append, value_parser = parse_uid_list)]
+    misbehave_uids: Vec<UidList>,
+    /// The behavior applied to the paired `--misbehave-uids` list,
+    /// repeatable and paired by position (D-09).
+    #[arg(long = "behavior", action = clap::ArgAction::Append, value_enum)]
+    behavior: Vec<Behavior>,
+}
+
+/// Exits 2 (via clap's own error path) if `--misbehave-uids`/`--behavior`
+/// don't pair 1:1, or if any uid falls in two different `--misbehave-uids`
+/// lists. Runs before any socket opens or handshake line is written, so a
+/// bad configuration never looks ready.
+fn validate_misbehave_config(cli: &Cli) {
+    if cli.misbehave_uids.len() != cli.behavior.len() {
+        Cli::command()
+            .error(
+                clap::error::ErrorKind::ArgumentConflict,
+                format!(
+                    "--misbehave-uids given {} time(s) but --behavior given {} time(s); \
+                     they must pair 1:1",
+                    cli.misbehave_uids.len(),
+                    cli.behavior.len()
+                ),
+            )
+            .exit();
+    }
+    for i in 0..cli.misbehave_uids.len() {
+        for j in (i + 1)..cli.misbehave_uids.len() {
+            if let Some(uid) = cli.misbehave_uids[i].first_overlap(&cli.misbehave_uids[j]) {
+                Cli::command()
+                    .error(
+                        clap::error::ErrorKind::ArgumentConflict,
+                        format!(
+                            "uid {uid} appears in more than one --misbehave-uids list \
+                             (lists {i} and {j})"
+                        ),
+                    )
+                    .exit();
+            }
+        }
+    }
+}
+
+/// Whether a running request is proceeding normally or draining its
+/// `late-abort-token` late tokens after an abort (D-09, MOCK-01).
+enum RunningState {
+    Normal,
+    /// `remaining` more echo tokens to send, all `finished=false`, before
+    /// removal.
+    Draining { remaining: u32 },
 }
 
 /// One in-flight request the engine is emitting echo tokens for.
@@ -96,6 +279,8 @@ struct Running {
     emitted: i64,
     /// When this request's next token is due.
     due: Instant,
+    /// Normal, or draining late tokens after a `late-abort-token` abort.
+    state: RunningState,
 }
 
 /// What the stdin reader thread reports.
@@ -148,6 +333,7 @@ fn exit_on_signal(name: &str) -> ! {
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     let cli = Cli::parse();
+    validate_misbehave_config(&cli);
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_ansi(false)
@@ -172,6 +358,7 @@ async fn main() {
     let max_seq_len = cli.max_seq_len;
     let prefill_delay = Duration::from_millis(cli.prefill_delay_ms);
     let decode_delay = Duration::from_millis(cli.decode_delay_ms);
+    let behavior_table = BehaviorTable::new(cli.misbehave_uids.clone(), cli.behavior.clone());
 
     // Everything that touches the scheduler-side sockets — opening them,
     // the engine's own recv/send loop — runs on this one dedicated thread
@@ -220,7 +407,13 @@ async fn main() {
             }
             tracing::info!("mock-scheduler ready");
 
-            let code = run_engine(transport, prefill_delay, decode_delay, observe);
+            let code = run_engine(
+                transport,
+                prefill_delay,
+                decode_delay,
+                &behavior_table,
+                observe,
+            );
             let _ = tx.send(code);
         })
         .expect("spawn mock-engine thread");
@@ -281,6 +474,7 @@ fn run_engine(
     transport: ZmqSchedulerTransport,
     prefill_delay: Duration,
     decode_delay: Duration,
+    behavior_table: &BehaviorTable,
     mut observe: Option<BufWriter<File>>,
 ) -> i32 {
     let mut running: BTreeMap<i64, Running> = BTreeMap::new();
@@ -319,7 +513,15 @@ fn run_engine(
                         return EXIT_BAD_FRAME;
                     }
                 };
-                match process_msg(msg, now, prefill_delay, &mut running, &mut observe) {
+                match process_msg(
+                    msg,
+                    now,
+                    prefill_delay,
+                    decode_delay,
+                    behavior_table,
+                    &mut running,
+                    &mut observe,
+                ) {
                     Ok(ProcessOutcome::Continue) => {}
                     Ok(ProcessOutcome::Exit(EXIT_OK)) => {
                         let _ = observe.as_mut().map(BufWriter::flush);
@@ -374,13 +576,23 @@ fn process_msg(
     msg: BackendMsg,
     now: Instant,
     prefill_delay: Duration,
+    decode_delay: Duration,
+    behavior_table: &BehaviorTable,
     running: &mut BTreeMap<i64, Running>,
     observe: &mut Option<BufWriter<File>>,
 ) -> Result<ProcessOutcome, i32> {
     match msg {
         BackendMsg::BatchBackendMsg { data } => {
             for item in data {
-                match process_msg(item, now, prefill_delay, running, observe)? {
+                match process_msg(
+                    item,
+                    now,
+                    prefill_delay,
+                    decode_delay,
+                    behavior_table,
+                    running,
+                    observe,
+                )? {
                     ProcessOutcome::Continue => {}
                     exit @ ProcessOutcome::Exit(_) => return Ok(exit),
                 }
@@ -411,13 +623,28 @@ fn process_msg(
                     total: sampling_params.max_tokens.max(1),
                     emitted: 0,
                     due: now + prefill_delay,
+                    state: RunningState::Normal,
                 },
             );
             record_observe(observe, &format!("submit {uid} {input_len}"))?;
             Ok(ProcessOutcome::Continue)
         }
         BackendMsg::AbortBackendMsg { uid } => {
-            running.remove(&uid);
+            if let Some(r) = running.get_mut(&uid) {
+                if behavior_table.behavior_of(uid) == Some(Behavior::LateAbortToken) {
+                    r.state = RunningState::Draining {
+                        remaining: LATE_TOKENS_AFTER_ABORT,
+                    };
+                    r.due = now + decode_delay;
+                    tracing::info!(
+                        uid,
+                        late_tokens = LATE_TOKENS_AFTER_ABORT,
+                        "late-abort-token: sending tokens after abort"
+                    );
+                } else {
+                    running.remove(&uid);
+                }
+            }
             record_observe(observe, &format!("abort {uid}"))?;
             Ok(ProcessOutcome::Continue)
         }
@@ -451,7 +678,20 @@ fn emit_due_tokens(
             r.prompt_ids[idx] as i64
         };
         r.emitted += 1;
-        let finished = r.emitted >= r.total;
+
+        // A draining (late-abort-token) request always reports
+        // `finished=false` and counts down instead of comparing against
+        // `total`; a normal request finishes when it reaches `total`.
+        let (finished, remove_after) = match &mut r.state {
+            RunningState::Normal => {
+                let finished = r.emitted >= r.total;
+                (finished, finished)
+            }
+            RunningState::Draining { remaining } => {
+                *remaining -= 1;
+                (false, *remaining == 0)
+            }
+        };
 
         let msg = TokenizerMsg::DetokenizeMsg {
             uid,
@@ -470,7 +710,7 @@ fn emit_due_tokens(
             return Err(EXIT_STARTUP);
         }
 
-        if finished {
+        if remove_after {
             running.remove(&uid);
         } else if let Some(r) = running.get_mut(&uid) {
             r.due = now + decode_delay;
