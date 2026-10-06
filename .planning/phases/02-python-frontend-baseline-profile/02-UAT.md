@@ -8,7 +8,7 @@ updated: 2026-10-05T00:00:01Z
 
 ## Current Test
 
-None — all tests complete.
+[testing complete]
 
 ## Tests
 
@@ -19,12 +19,7 @@ expected: |
   Phase 2 success criteria — not a shortfall dressed up as a reasoned substitution. In
   particular: SC2's explanation of why no single cross-process "GIL contention" number exists
   in this 3-process topology, and the RADIX-01 recommendation framing, are judged acceptable.
-result: PASS — user approved after walkthrough of the scheduler-saturation finding (scenario 1,
-  93.13% scheduler CPU-active, implying Rust-frontend gains are likelier to show in scenario 2
-  where no process is saturated), the ipc_zmq+serde per-request ceiling (6.77ms/11.01ms vs.
-  98.14ms p50 TTFT), and the radix-cache share (<2%, all three scenarios) with its RADIX-01
-  recommendation. User agreed both the SC2 substitution and the RADIX-01 recommendation are
-  honest, measurement-backed answers, not shortfalls.
+result: pass
 
 ## Summary
 
