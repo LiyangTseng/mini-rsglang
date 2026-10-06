@@ -4,6 +4,7 @@
 //! `ipc://` sockets.
 
 use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -16,10 +17,39 @@ use rsg_wire::{BackendMsg, SamplingParams, Tensor, TokenizerMsg};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+/// One line of `mock-scheduler`'s `--observe-file` output: every backend
+/// message it processed, in processing order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Observed {
+    Submit { uid: i64, input_len: usize },
+    Abort { uid: i64 },
+    Exit,
+}
+
+fn parse_observed_line(line: &str) -> Observed {
+    if line == "exit" {
+        return Observed::Exit;
+    }
+    if let Some(rest) = line.strip_prefix("submit ") {
+        let mut parts = rest.split_whitespace();
+        if let (Some(uid), Some(input_len), None) = (parts.next(), parts.next(), parts.next())
+            && let (Ok(uid), Ok(input_len)) = (uid.parse::<i64>(), input_len.parse::<usize>())
+        {
+            return Observed::Submit { uid, input_len };
+        }
+    } else if let Some(rest) = line.strip_prefix("abort ") {
+        if let Ok(uid) = rest.trim().parse() {
+            return Observed::Abort { uid };
+        }
+    }
+    panic!("unparseable observe-file line: {line:?}");
+}
+
 /// A spawned `mock-scheduler` subprocess, speaking real `ipc://` sockets.
 pub struct MockScheduler {
     pub backend_addr: String,
     pub detok_addr: String,
+    observe_path: PathBuf,
     child: Child,
     stdin: Option<ChildStdin>,
     stdout_lines: Arc<Mutex<Vec<String>>>,
@@ -35,6 +65,7 @@ impl MockScheduler {
         let pid = std::process::id();
         let backend_addr = format!("ipc:///tmp/rsgm-{pid}-{n}-0");
         let detok_addr = format!("ipc:///tmp/rsgm-{pid}-{n}-1");
+        let observe_path = std::env::temp_dir().join(format!("rsgm-{pid}-{n}.observe"));
 
         let mut child = Command::new(env!("CARGO_BIN_EXE_mock-scheduler"))
             .args([
@@ -47,6 +78,8 @@ impl MockScheduler {
                 "--detok-role",
                 "connect",
             ])
+            .arg("--observe-file")
+            .arg(&observe_path)
             .args(extra_args)
             .env("RUST_LOG", "info")
             .stdin(Stdio::piped())
@@ -78,11 +111,19 @@ impl MockScheduler {
         MockScheduler {
             backend_addr,
             detok_addr,
+            observe_path,
             child,
             stdin,
             stdout_lines,
             stderr_lines,
         }
+    }
+
+    /// Reads and parses every line of the `--observe-file`, in processing
+    /// order. Panics on an unparseable line.
+    pub fn observed(&self) -> Vec<Observed> {
+        let content = std::fs::read_to_string(&self.observe_path).unwrap_or_default();
+        content.lines().map(parse_observed_line).collect()
     }
 
     /// Blocks on the first stdout line (the handshake JSON) and returns the
@@ -195,6 +236,7 @@ impl Drop for MockScheduler {
         let _ = self.child.wait();
         let _ = std::fs::remove_file(self.backend_addr.trim_start_matches("ipc://"));
         let _ = std::fs::remove_file(self.detok_addr.trim_start_matches("ipc://"));
+        let _ = std::fs::remove_file(&self.observe_path);
     }
 }
 
