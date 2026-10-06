@@ -35,7 +35,7 @@
 ### HTTP API
 
 - [x] **API-01**: `/v1/chat/completions` (streaming and non-streaming), `/generate`, `/v1/models` and `/v1` behave identically to the Python frontend, including response format and SSE framing
-- [ ] **API-02**: `/health`, `/health/ready` and a minimal `/metrics` (request count, cancellation count, TTFT histogram)
+- [x] **API-02**: `/health`, `/health/ready` and a minimal `/metrics` (request count, cancellation count, TTFT histogram)
 
 ### Mock Backend
 
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIFE-04 | Phase 5 | Complete |
 | LIFE-05 | Phase 5 | Complete |
 | API-01 | Phase 5 | Complete |
-| API-02 | Phase 5 | Pending |
+| API-02 | Phase 5 | Complete |
 | PAR-01 | Phase 6 | Pending |
 | PAR-02 | Phase 6 | Pending |
 | BENCH-02 | Phase 7 | Pending |
