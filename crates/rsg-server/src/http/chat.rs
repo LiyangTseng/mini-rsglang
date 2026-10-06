@@ -8,23 +8,22 @@
 //! [DONE]\n\n`. Every streaming chunk's JSON text comes from
 //! [`super::pyjson::chat_stream_chunk`], never `serde_json` — Python's
 //! `json.dumps(ensure_ascii=True)` escapes non-ASCII characters that
-//! `serde_json`'s compact encoder would leave as literal UTF-8 bytes.
-//!
-//! Task 2 (this same plan) fills in the non-streaming branch and the
-//! Python-escaping/defaults unit tests; this task's state only needs the
-//! streaming path to compile and pass its tracer test.
+//! `serde_json`'s compact encoder would leave as literal UTF-8 bytes. The
+//! non-streaming response goes through plain `serde_json`/`axum::Json`
+//! instead, matching Starlette's own `JSONResponse` (`ensure_ascii=False`).
 
 use std::collections::VecDeque;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::{Body, Bytes};
 use axum::extract::State;
 use axum::http::{StatusCode, header};
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use futures::stream;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::codec::{ChatMessage, Prompt};
-use crate::engine::{AbortGuard, RequestEvent};
+use crate::engine::{AbortGuard, ActiveRequest, RequestEvent};
 use rsg_wire::SamplingParams;
 
 use super::pyjson::chat_stream_chunk;
@@ -50,12 +49,11 @@ fn default_n() -> i64 {
 /// `deny_unknown_fields` — Pydantic ignores extra keys, and this struct
 /// matches that permissiveness. `n`, `stop`, `presence_penalty` and
 /// `frequency_penalty` parse (so a request setting them doesn't 422) but
-/// are never read, same as upstream's own TODO. `model` is read by Task 2's
-/// non-streaming response; `#[allow(dead_code)]` here is this task's own
-/// placeholder non-streaming branch not yet reading any of these fields —
-/// Task 2 (this same plan) removes it.
+/// are never read by the handler, same as upstream's own TODO — they are
+/// read only by this module's own unit test, which is why production code
+/// still needs `#[allow(dead_code)]` on them (the plain `lib` compilation
+/// has no `#[cfg(test)]`).
 #[derive(Deserialize)]
-#[allow(dead_code)]
 pub(crate) struct ChatCompletionRequest {
     pub model: String,
     pub prompt: Option<String>,
@@ -68,14 +66,18 @@ pub(crate) struct ChatCompletionRequest {
     pub top_k: i64,
     #[serde(default = "default_top_p")]
     pub top_p: f64,
+    #[allow(dead_code)]
     #[serde(default = "default_n")]
     pub n: i64,
     #[serde(default)]
     pub stream: bool,
+    #[allow(dead_code)]
     #[serde(default)]
     pub stop: Vec<String>,
+    #[allow(dead_code)]
     #[serde(default)]
     pub presence_penalty: f64,
+    #[allow(dead_code)]
     #[serde(default)]
     pub frequency_penalty: f64,
     #[serde(default)]
@@ -129,50 +131,72 @@ struct ChatStream {
     first: bool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[derive(Serialize)]
+struct ChatResponseMessage {
+    role: &'static str,
+    content: String,
+}
 
-    fn parse(json: &str) -> ChatCompletionRequest {
-        serde_json::from_str(json).expect("valid request")
-    }
+#[derive(Serialize)]
+struct ChatChoice {
+    index: u32,
+    message: ChatResponseMessage,
+    finish_reason: &'static str,
+}
 
-    #[test]
-    fn defaults_mirror_upstream() {
-        let req = parse(r#"{"model":"m","messages":[{"role":"user","content":"x"}]}"#);
-        assert_eq!(
-            req.sampling_params(),
-            SamplingParams {
-                temperature: 1.0,
-                top_k: -1,
-                top_p: 1.0,
-                ignore_eos: false,
-                max_tokens: 16,
+#[derive(Serialize)]
+struct ChatUsage {
+    prompt_tokens: u32,
+    completion_tokens: u32,
+    total_tokens: u32,
+}
+
+/// Field order is exactly id, object, created, model, choices, usage
+/// (`api_server.py:313-330`'s dict literal order), which `serde_json`
+/// preserves for a struct (field-declaration order, not sorted).
+#[derive(Serialize)]
+struct ChatCompletionResponse {
+    id: String,
+    object: &'static str,
+    created: u64,
+    model: String,
+    choices: Vec<ChatChoice>,
+    usage: ChatUsage,
+}
+
+fn now_unix() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+/// Reads events from `active` until the finished `Token`, concatenating
+/// each increment into the full response content. `active` (and so its
+/// `AbortGuard`) stays alive in the caller's own future for the whole wait
+/// — a dropped handler future (client disconnect) cancels the request the
+/// same way the streaming branch's body-stream guard does.
+async fn collect_full_content(active: &mut ActiveRequest) -> Result<String, ApiError> {
+    let mut content = String::new();
+    loop {
+        match active.next_event().await {
+            Some(RequestEvent::Token { text, finished }) => {
+                content.push_str(&text);
+                if finished {
+                    return Ok(content);
+                }
             }
-        );
-        assert!(!req.stream);
-
-        let req = parse(
-            r#"{"model":"m","messages":[{"role":"user","content":"x"}],"temperature":0.5,"top_k":4,"top_p":0.9,"ignore_eos":true,"max_tokens":7}"#,
-        );
-        assert_eq!(
-            req.sampling_params(),
-            SamplingParams {
-                temperature: 0.5,
-                top_k: 4,
-                top_p: 0.9,
-                ignore_eos: true,
-                max_tokens: 7,
+            Some(RequestEvent::Failed(e)) => return Err(ApiError::from(e)),
+            Some(other) => {
+                tracing::error!(?other, "unexpected engine event after acceptance");
+                return Err(ApiError::Internal("unexpected engine event".to_string()));
             }
-        );
-
-        let req = parse(
-            r#"{"model":"m","messages":[{"role":"user","content":"x"}],"n":3,"stop":["a","b"],"presence_penalty":0.2,"frequency_penalty":0.3}"#,
-        );
-        assert_eq!(req.n, 3);
-        assert_eq!(req.stop, vec!["a".to_string(), "b".to_string()]);
-        assert_eq!(req.presence_penalty, 0.2);
-        assert_eq!(req.frequency_penalty, 0.3);
+            None => {
+                return Err(ApiError::Internal(
+                    "request ended without a result".to_string(),
+                ));
+            }
+        }
     }
 }
 
@@ -248,11 +272,73 @@ pub async fn chat_completions(State(state): State<AppState>, body: Bytes) -> Res
             .body(Body::from_stream(body_stream))
             .map_err(|e| ApiError::Internal(e.to_string()))
     } else {
-        // Task 2 (this same plan) replaces this with the real non-streaming
-        // response. `uid` is already captured above for that task to use.
-        let _ = uid;
-        Err(ApiError::Internal(
-            "non-streaming chat completions not yet implemented".to_string(),
-        ))
+        let content = collect_full_content(&mut active).await?;
+        let body = ChatCompletionResponse {
+            id: format!("chatcmpl-{uid}"),
+            object: "chat.completion",
+            created: now_unix(),
+            model: req.model,
+            choices: vec![ChatChoice {
+                index: 0,
+                message: ChatResponseMessage {
+                    role: "assistant",
+                    content,
+                },
+                finish_reason: "stop",
+            }],
+            usage: ChatUsage {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+            },
+        };
+        Ok(axum::Json(body).into_response())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(json: &str) -> ChatCompletionRequest {
+        serde_json::from_str(json).expect("valid request")
+    }
+
+    #[test]
+    fn defaults_mirror_upstream() {
+        let req = parse(r#"{"model":"m","messages":[{"role":"user","content":"x"}]}"#);
+        assert_eq!(
+            req.sampling_params(),
+            SamplingParams {
+                temperature: 1.0,
+                top_k: -1,
+                top_p: 1.0,
+                ignore_eos: false,
+                max_tokens: 16,
+            }
+        );
+        assert!(!req.stream);
+
+        let req = parse(
+            r#"{"model":"m","messages":[{"role":"user","content":"x"}],"temperature":0.5,"top_k":4,"top_p":0.9,"ignore_eos":true,"max_tokens":7}"#,
+        );
+        assert_eq!(
+            req.sampling_params(),
+            SamplingParams {
+                temperature: 0.5,
+                top_k: 4,
+                top_p: 0.9,
+                ignore_eos: true,
+                max_tokens: 7,
+            }
+        );
+
+        let req = parse(
+            r#"{"model":"m","messages":[{"role":"user","content":"x"}],"n":3,"stop":["a","b"],"presence_penalty":0.2,"frequency_penalty":0.3}"#,
+        );
+        assert_eq!(req.n, 3);
+        assert_eq!(req.stop, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(req.presence_penalty, 0.2);
+        assert_eq!(req.frequency_penalty, 0.3);
     }
 }
