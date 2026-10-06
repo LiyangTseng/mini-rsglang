@@ -20,11 +20,21 @@ host-selecting flag, so load can never be pointed at a non-local host.
 from __future__ import annotations
 
 import asyncio
+import json
+import os
 import random
+import shlex
+import signal
+import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Sequence
 
 import aiohttp
+import psutil
+
+from . import procs
 
 OUTCOMES = ("completed", "cancelled", "failed")
 
@@ -240,3 +250,198 @@ async def run_first_request(base_url: str, *, max_tokens: int = 16) -> list[Requ
         return [record]
     finally:
         await session.close()
+
+
+# --- Scenario 3: hyperfine cold start + whole-tree RSS/PSS (D-08) -----------
+
+_STRIPPED_PROFILE_ENV_KEYS = ("RSGLANG_PROFILE_DIR", "RSGLANG_PROFILE_INTERVAL_S")
+
+
+def hyperfine_argv(
+    *,
+    hyperfine: str,
+    runs: int,
+    warmup: int,
+    export_json: str | Path,
+    once_cmd: Sequence[str],
+    stop_cmd: Sequence[str],
+) -> list[str]:
+    # hyperfine runs --conclude/the timed command through its own shell, so
+    # these must be built with shlex.join, never by string concatenation.
+    return [
+        hyperfine,
+        "--runs", str(runs),
+        "--warmup", str(warmup),
+        "--export-json", str(export_json),
+        "--conclude", shlex.join(list(stop_cmd)),
+        shlex.join(list(once_cmd)),
+    ]
+
+
+def parse_hyperfine_json(path: str | Path) -> dict:
+    doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    results = doc.get("results")
+    if not results:
+        raise ValueError(f"{path}: hyperfine export has no 'results'")
+    result = results[0]
+    times = list(result["times"])
+    return {
+        "mean_s": result["mean"],
+        "stddev_s": result["stddev"],
+        "median_s": result["median"],
+        "min_s": result["min"],
+        "max_s": result["max"],
+        "times_s": times,
+        "runs": len(times),
+    }
+
+
+def _pid_alive(pid: int) -> bool:
+    if not psutil.pid_exists(pid):
+        return False
+    try:
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
+def _kill_group(pgid: int, *, grace_s: float = 5.0) -> None:
+    # Once the group leader has already exited, the pgid number can be
+    # reclaimed by the OS; a follow-up signal to it then raises EPERM rather
+    # than ESRCH (observed on macOS). Either means "nothing left to signal".
+    try:
+        os.killpg(pgid, signal.SIGINT)
+    except (ProcessLookupError, PermissionError):
+        return
+    deadline = time.monotonic() + grace_s
+    while time.monotonic() < deadline and _pid_alive(pgid):
+        time.sleep(0.2)
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def coldstart_once(
+    *,
+    argv: Sequence[str],
+    port: int,
+    timeout_s: float,
+    pgid_file: str | Path,
+    record_file: str | Path,
+    log_path: str | Path,
+) -> int:
+    pgid_file = Path(pgid_file)
+    record_file = Path(record_file)
+    log_path = Path(log_path)
+
+    if pgid_file.exists():
+        # Self-heal: a --conclude that did not run (e.g. after a warmup) can
+        # leave a group still recorded here. Stop it before launching a fresh
+        # one, so two cold-start runs never fight over the same port.
+        try:
+            stale_pgid = int(pgid_file.read_text().strip())
+        except (OSError, ValueError):
+            stale_pgid = None
+        if stale_pgid is not None:
+            _kill_group(stale_pgid)
+        try:
+            pgid_file.unlink()
+        except OSError:
+            pass
+
+    env = {k: v for k, v in os.environ.items() if k not in _STRIPPED_PROFILE_ENV_KEYS}
+
+    handle = procs.launch_server(list(argv), env=env, log_path=log_path)
+    try:
+        t_ready = procs.wait_ready(handle, port=port, timeout_s=timeout_s)
+    except (procs.ServerExited, TimeoutError) as exc:
+        _kill_group(handle.pgid)
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    ready_s = t_ready - handle.t_launch
+    record_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(record_file, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"kind": "ready", "ready_s": ready_s}) + "\n")
+
+    pgid_file.parent.mkdir(parents=True, exist_ok=True)
+    pgid_file.write_text(str(handle.pgid))
+    # Leave the server running: hyperfine's timer stops here, at readiness,
+    # not at teardown -- --conclude (coldstart_stop) tears it down afterward.
+    return 0
+
+
+def coldstart_stop(*, pgid_file: str | Path, record_file: str | Path) -> int:
+    pgid_file = Path(pgid_file)
+    record_file = Path(record_file)
+
+    if not pgid_file.exists():
+        print(f"coldstart_stop: no pgid file at {pgid_file}", file=sys.stderr)
+        return 1
+    try:
+        pgid = int(pgid_file.read_text().strip())
+    except (OSError, ValueError) as exc:
+        print(f"coldstart_stop: could not read pgid file {pgid_file}: {exc}", file=sys.stderr)
+        return 1
+
+    mem = procs.tree_memory(pgid)
+    record_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(record_file, "a", encoding="utf-8") as f:
+        f.write(
+            json.dumps({"kind": "mem", "rss_tree_bytes": mem["rss_bytes"], "pss_tree_bytes": mem["pss_bytes"]}) + "\n"
+        )
+
+    pids = list(mem["pids"]) or [pgid]
+
+    try:
+        os.killpg(pgid, signal.SIGINT)
+    except (ProcessLookupError, PermissionError):
+        pass
+    deadline = time.monotonic() + 60.0
+    while time.monotonic() < deadline and any(_pid_alive(p) for p in pids):
+        time.sleep(0.2)
+
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    kill_deadline = time.monotonic() + 10.0
+    while time.monotonic() < kill_deadline and any(_pid_alive(p) for p in pids):
+        time.sleep(0.2)
+
+    try:
+        pgid_file.unlink()
+    except OSError:
+        pass
+
+    survivors = [p for p in pids if _pid_alive(p)]
+    return 1 if survivors else 0
+
+
+def _tail(values: list, n: int) -> list:
+    if n <= 0:
+        return []
+    return values[-n:]
+
+
+def read_coldstart_records(record_file: str | Path, *, warmup: int, runs: int) -> dict:
+    path = Path(record_file)
+    ready: list[float] = []
+    rss: list[int] = []
+    pss: list = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        record = json.loads(line)
+        if record.get("kind") == "ready":
+            ready.append(record["ready_s"])
+        elif record.get("kind") == "mem":
+            rss.append(record["rss_tree_bytes"])
+            pss.append(record["pss_tree_bytes"])
+    return {
+        "ready_s_self_timed": ready[warmup:],
+        "rss_tree_bytes_at_ready": _tail(rss, runs),
+        "pss_tree_bytes_at_ready": _tail(pss, runs),
+    }
