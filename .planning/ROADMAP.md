@@ -121,7 +121,23 @@ Plans:
   3. The mock can be configured to send late tokens after an abort, silently drop overlong prompts, and batch replies for several requests in one message. A test exercises each behavior.
   4. The transport drops replies for unknown uids, such as late tokens after an abort, without crashing. A slow consumer on one request does not stall replies for the others.
 
-**Plans**: TBD
+**Plans:** 6 plans
+
+Plans:
+
+**Wave 1**
+- [ ] 03-01-PLAN.md — Tracer: rsg-server becomes a library plus two binaries. The mock-scheduler subprocess binds the scheduler-side sockets, prints the handshake line on stdout and echoes tokens. Process contract: exit codes 0/1/2/3/4, observe file, stdin-EOF guard (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — Single ordered writer (tx-zmq, D-01) and per-uid broadcast dispatcher (rx-zmq, D-04/D-05/D-07): a submit through the writer gets its tokens back by uid; bare-vs-batch coalescing; 32-way concurrent routing (wave 2)
+- [ ] 03-03-PLAN.md — mock-scheduler misbehaviors (D-09): late-abort-token, drop-overlong plus upstream's max_seq_len rule, --batch-size with a flush timer, uid-range flags, one test per behavior (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-04-PLAN.md — Ticket-gated WriterHandle::abort(&Submitted) and the D-02/D-03 proptest through the real mock: an abort never overtakes its submit (wave 3)
+- [ ] 03-05-PLAN.md — Dispatcher drop accounting (D-06: in-band Dropped(n), counter, warn), deregister, stats for unknown/closed/malformed, slow-consumer isolation end to end (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-06-PLAN.md — Misbehaving mock through the full transport (late tokens dropped and counted, batched replies routed, silent uids stall no one); rsg-server accepts the mock's handshake; check_all gate (wave 4)
 
 ### Phase 4: Tokenizer & Detokenizer Parity
 
