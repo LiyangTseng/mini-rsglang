@@ -4,13 +4,14 @@
 pub mod chat;
 pub mod error;
 pub mod generate;
+pub mod models;
 pub mod pyjson;
 
 use std::sync::{Arc, OnceLock};
 
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use axum::routing::post;
+use axum::routing::{get, post};
 
 pub use error::ApiError;
 
@@ -76,6 +77,14 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/generate", post(generate::handler))
         .route("/v1/chat/completions", post(chat::chat_completions))
+        .route("/v1/models", get(models::list_models))
+        .route(
+            "/v1",
+            get(models::v1_root)
+                .post(models::v1_root)
+                .head(models::v1_root)
+                .options(models::v1_root),
+        )
         .layer(DefaultBodyLimit::max(MAX_REQUEST_BODY_BYTES))
         .with_state(state)
 }
