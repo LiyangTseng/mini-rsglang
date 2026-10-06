@@ -113,3 +113,224 @@ pub fn spawn_writer<S: BackendSink + 'static>(
         })?;
     Ok((WriterHandle { tx }, join))
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+
+    use rsg_wire::{BackendMsg, decode_backend};
+
+    use super::*;
+
+    /// What [`FakeSink::gated`] returns: the sink, its recorded frames, and
+    /// the entered/release signal pair.
+    type GatedSink = (
+        FakeSink,
+        Arc<Mutex<Vec<Vec<u8>>>>,
+        std::sync::mpsc::Receiver<()>,
+        std::sync::mpsc::Sender<()>,
+    );
+
+    /// A test-local [`BackendSink`] that records every sent frame, and can
+    /// optionally gate its first send (to make coalescing deterministic) or
+    /// always fail.
+    struct FakeSink {
+        frames: Arc<Mutex<Vec<Vec<u8>>>>,
+        gate: Option<(
+            std::sync::mpsc::Sender<()>,
+            Mutex<std::sync::mpsc::Receiver<()>>,
+        )>,
+        always_fail: bool,
+    }
+
+    impl FakeSink {
+        fn new() -> (Self, Arc<Mutex<Vec<Vec<u8>>>>) {
+            let frames = Arc::new(Mutex::new(Vec::new()));
+            (
+                FakeSink {
+                    frames: Arc::clone(&frames),
+                    gate: None,
+                    always_fail: false,
+                },
+                frames,
+            )
+        }
+
+        fn always_fail() -> Self {
+            let (_, frames) = Self::new();
+            FakeSink {
+                frames,
+                gate: None,
+                always_fail: true,
+            }
+        }
+
+        /// Returns the sink plus (entered_rx, release_tx): the sink's first
+        /// `send_backend` call sends on `entered` and then blocks until a
+        /// unit is sent on `release`.
+        fn gated() -> GatedSink {
+            let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+            let (release_tx, release_rx) = std::sync::mpsc::channel();
+            let frames = Arc::new(Mutex::new(Vec::new()));
+            let sink = FakeSink {
+                frames: Arc::clone(&frames),
+                gate: Some((entered_tx, Mutex::new(release_rx))),
+                always_fail: false,
+            };
+            (sink, frames, entered_rx, release_tx)
+        }
+    }
+
+    impl BackendSink for FakeSink {
+        fn send_backend(&self, frame: &[u8]) -> anyhow::Result<()> {
+            if let Some((entered_tx, release_rx)) = &self.gate {
+                self.frames.lock().unwrap().push(frame.to_vec());
+                let _ = entered_tx.send(());
+                let _ = release_rx.lock().unwrap().recv();
+                return Ok(());
+            }
+            if self.always_fail {
+                return Err(anyhow::anyhow!("sink down"));
+            }
+            self.frames.lock().unwrap().push(frame.to_vec());
+            Ok(())
+        }
+    }
+
+    fn wait_for<T>(mut f: impl FnMut() -> Option<T>) -> T {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(v) = f() {
+                return v;
+            }
+            assert!(Instant::now() < deadline, "timed out waiting for condition");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[tokio::test]
+    async fn single_message_is_sent_bare() {
+        let (sink, frames) = FakeSink::new();
+        let (writer, _join) = spawn_writer(sink).expect("spawn writer");
+
+        writer
+            .submit(1, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await
+            .expect("submit");
+
+        let frame = wait_for(|| frames.lock().unwrap().first().cloned());
+        assert_eq!(frames.lock().unwrap().len(), 1, "exactly one frame");
+        match decode_backend(&frame).expect("decode") {
+            BackendMsg::UserMsg { uid, .. } => assert_eq!(uid, 1),
+            other => panic!("expected bare UserMsg, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn queued_messages_coalesce_into_one_batch_in_order() {
+        let (sink, frames, entered_rx, release_tx) = FakeSink::gated();
+        let (writer, _join) = spawn_writer(sink).expect("spawn writer");
+
+        writer
+            .submit(1, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await
+            .expect("submit 1");
+        entered_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("writer entered first send");
+
+        writer
+            .submit(2, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await
+            .expect("submit 2");
+        writer
+            .submit(3, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await
+            .expect("submit 3");
+        writer.exit().await.expect("exit");
+
+        let _ = release_tx.send(());
+
+        let frame1 = wait_for(|| frames.lock().unwrap().first().cloned());
+        match decode_backend(&frame1).expect("decode frame 1") {
+            BackendMsg::UserMsg { uid, .. } => assert_eq!(uid, 1),
+            other => panic!("expected bare UserMsg 1, got {other:?}"),
+        }
+
+        let frame2 = wait_for(|| frames.lock().unwrap().get(1).cloned());
+        match decode_backend(&frame2).expect("decode frame 2") {
+            BackendMsg::BatchBackendMsg { data } => {
+                assert_eq!(data.len(), 3, "batch has uid 2, uid 3, ExitMsg");
+                match &data[0] {
+                    BackendMsg::UserMsg { uid, .. } => assert_eq!(*uid, 2),
+                    other => panic!("expected UserMsg 2 first, got {other:?}"),
+                }
+                match &data[1] {
+                    BackendMsg::UserMsg { uid, .. } => assert_eq!(*uid, 3),
+                    other => panic!("expected UserMsg 3 second, got {other:?}"),
+                }
+                match &data[2] {
+                    BackendMsg::ExitMsg {} => {}
+                    other => panic!("expected ExitMsg third, got {other:?}"),
+                }
+            }
+            other => panic!("expected BatchBackendMsg, got {other:?}"),
+        }
+
+        std::thread::sleep(Duration::from_millis(50));
+        assert_eq!(frames.lock().unwrap().len(), 2, "no third frame");
+    }
+
+    #[tokio::test]
+    async fn exit_sends_bare_exit_msg() {
+        let (sink, frames) = FakeSink::new();
+        let (writer, _join) = spawn_writer(sink).expect("spawn writer");
+
+        writer.exit().await.expect("exit");
+
+        let frame = wait_for(|| frames.lock().unwrap().first().cloned());
+        assert_eq!(frames.lock().unwrap().len(), 1, "exactly one frame");
+        match decode_backend(&frame).expect("decode") {
+            BackendMsg::ExitMsg {} => {}
+            other => panic!("expected bare ExitMsg, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn sink_error_closes_writer() {
+        let sink = FakeSink::always_fail();
+        let (writer, join) = spawn_writer(sink).expect("spawn writer");
+
+        let first = writer
+            .submit(1, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await;
+        assert!(first.is_ok(), "the enqueue itself succeeds");
+
+        let joined = tokio::task::spawn_blocking(move || join.join().expect("thread panicked"))
+            .await
+            .expect("spawn_blocking panicked");
+        assert!(joined.is_err(), "writer thread ends with Err");
+
+        let after = writer
+            .submit(2, Tensor::from_i32_slice(&[]), SamplingParams::default())
+            .await;
+        assert!(matches!(after, Err(WriterClosed)));
+        assert!(matches!(writer.exit().await, Err(WriterClosed)));
+    }
+
+    #[tokio::test]
+    async fn dropping_every_handle_stops_writer_cleanly() {
+        let (sink, _frames) = FakeSink::new();
+        let (writer, join) = spawn_writer(sink).expect("spawn writer");
+        drop(writer);
+
+        let joined = tokio::task::spawn_blocking(move || join.join().expect("thread panicked"))
+            .await
+            .expect("spawn_blocking panicked");
+        assert!(
+            joined.is_ok(),
+            "writer thread ends Ok after every handle drops"
+        );
+    }
+}
