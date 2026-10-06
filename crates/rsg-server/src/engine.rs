@@ -344,6 +344,7 @@ async fn drive_request(
     tx: mpsc::UnboundedSender<RequestEvent>,
     cancel: CancellationToken,
 ) {
+    let config = &engine.config;
     engine.registry.report(uid, LifecycleState::Received);
     engine.registry.report(uid, LifecycleState::Tokenizing);
 
@@ -363,6 +364,31 @@ async fn drive_request(
     };
     let input_len = input_ids.len();
     let max_tokens = params.max_tokens;
+
+    // LIFE-04: mirrors the scheduler's own silent-drop rule
+    // (scheduler.py:177-188) — every prompt the backend would drop gets a
+    // 400 instead, and nothing shorter is rejected. No register, submit or
+    // abort for a rejected prompt. The limit comes only from the
+    // handshake's max_seq_len, never a hardcoded constant.
+    if input_len as u64 >= config.max_seq_len {
+        tracing::warn!(
+            uid,
+            input_len,
+            max_seq_len = config.max_seq_len,
+            "prompt too long"
+        );
+        finish(
+            &engine,
+            &tx,
+            uid,
+            LifecycleState::Failed,
+            RequestEvent::Rejected(SubmitError::PromptTooLong {
+                input_len,
+                max_seq_len: config.max_seq_len,
+            }),
+        );
+        return;
+    }
 
     // A cancellation observed before anything was ever sent to the backend
     // needs no abort at all: there is no ticket to abort with.
@@ -411,6 +437,11 @@ async fn drive_request(
     let mut decoder = engine.codec.decoder();
     let mut reported_decoding = false;
 
+    // LIFE-04: armed here, re-armed after every Token; a backend silent
+    // longer than this is treated as unresponsive.
+    let sleep = tokio::time::sleep_until(Instant::now() + config.backend_timeout);
+    tokio::pin!(sleep);
+
     loop {
         tokio::select! {
             biased;
@@ -419,9 +450,26 @@ async fn drive_request(
                 finish_silent(&engine, uid, LifecycleState::Cancelled);
                 return;
             }
+            _ = &mut sleep => {
+                engine.dispatch.deregister(uid);
+                if let Err(WriterClosed) = engine.writer.abort(&submitted).await {
+                    tracing::warn!(uid, "writer closed while sending timeout abort");
+                }
+                let timeout_ms = config.backend_timeout.as_millis() as u64;
+                tracing::warn!(uid, timeout_ms, "backend inactivity timeout");
+                finish(
+                    &engine,
+                    &tx,
+                    uid,
+                    LifecycleState::Failed,
+                    RequestEvent::Failed(RequestError::BackendTimeout { timeout_ms }),
+                );
+                return;
+            }
             event = stream.recv() => {
                 match event {
                     Some(UidEvent::Token(reply)) => {
+                        sleep.as_mut().reset(Instant::now() + config.backend_timeout);
                         if !reported_decoding {
                             engine.registry.report(uid, LifecycleState::Decoding);
                             reported_decoding = true;

@@ -12,6 +12,31 @@ use common::Observed;
 use common::http_client::{self, OpenStream};
 use common::test_server::{TestConfig, TestServer};
 
+/// Polls `server.mock.observed()` every 5ms until it contains
+/// `Abort { uid }`. The registry reaching a terminal state (or the HTTP
+/// response ending) only means the abort was enqueued onto the writer's
+/// channel, not that the mock-scheduler subprocess has received and
+/// recorded it in its observe file across the real ipc boundary yet, so
+/// callers poll for this instead of asserting immediately. Panics after
+/// 2s.
+async fn wait_for_abort(server: &TestServer, uid: i64) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let observed = server.mock.observed();
+        if observed
+            .iter()
+            .any(|o| matches!(o, Observed::Abort { uid: u } if *u == uid))
+        {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for Abort {{ uid: {uid} }}; last observed: {observed:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn overlong_prompt_gets_immediate_400_and_boundary_is_accepted() {
     let server = TestServer::start(&["--max-seq-len", "16"], TestConfig::default()).await;
@@ -99,17 +124,14 @@ async fn backend_timeout_fails_streaming_request_without_done() {
         String::from_utf8_lossy(&resp.body)
     );
 
-    let observed = server.mock.observed();
     assert!(
-        observed
+        server
+            .mock
+            .observed()
             .iter()
             .any(|o| matches!(o, Observed::Submit { uid: 0, .. }))
     );
-    assert!(
-        observed
-            .iter()
-            .any(|o| matches!(o, Observed::Abort { uid: 0 }))
-    );
+    wait_for_abort(&server, 0).await;
 
     let snap = server.snapshot_when_idle(Duration::from_secs(2)).await;
     assert_eq!(snap.failed, 1);
@@ -151,23 +173,7 @@ async fn backend_stall_mid_stream_times_out() {
     assert_eq!(snap.failed, 1);
 
     server.mock.signal("-CONT");
-
-    let deadline = Instant::now() + Duration::from_secs(2);
-    loop {
-        if server
-            .mock
-            .observed()
-            .iter()
-            .any(|o| matches!(o, Observed::Abort { uid: 0 }))
-        {
-            break;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "timed out waiting for abort after resume"
-        );
-        tokio::time::sleep(Duration::from_millis(5)).await;
-    }
+    wait_for_abort(&server, 0).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
