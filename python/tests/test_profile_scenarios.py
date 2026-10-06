@@ -22,6 +22,7 @@ import time
 import types
 from pathlib import Path
 
+import psutil
 import pytest
 
 from rsglang.profiling import procs, scenarios
@@ -49,6 +50,25 @@ def _launch_stand_in(tmp_path: Path, *, extra_env: dict | None = None):
     handle = procs.launch_server(argv, env=env, log_path=tmp_path / "server.log")
     procs.wait_ready(handle, port=port, timeout_s=30)
     return handle, f"http://127.0.0.1:{port}"
+
+
+def _pid_alive(pid: int) -> bool:
+    if not psutil.pid_exists(pid):
+        return False
+    try:
+        return psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
+def _wait_until_dead(pids, timeout_s: float = 15.0) -> set:
+    remaining = set(pids)
+    deadline = time.monotonic() + timeout_s
+    while remaining and time.monotonic() < deadline:
+        remaining = {pid for pid in remaining if _pid_alive(pid)}
+        if remaining:
+            time.sleep(0.5)
+    return remaining
 
 
 # --- Task 1: scenario 1 (128 aiohttp agents, deterministic cancellations) ------
