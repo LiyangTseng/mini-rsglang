@@ -1,12 +1,19 @@
 ---
-gsd_state_version: '1.0'
+gsd_state_version: "1.0"
+current_phase: 2
+current_phase_name: Python Frontend Baseline Profile
 status: planning
+stopped_at: Phase 01 complete, ready to plan Phase 2
+last_updated: "2026-10-05T08:04:47.083Z"
+last_activity: 2026-10-05
+last_activity_desc: Phase 01 complete, transitioned to Phase 2
+state_head: 0eedbe3b6b0da5402c4082bfb8f58ada18056eb7
 progress:
   total_phases: 7
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 13
+  completed_plans: 13
+  percent: 14
 ---
 
 # Project State
@@ -16,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-02)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 1: Vendored Base & Wire Codec
+**Current focus:** Phase 01 — Vendored Base & Wire Codec
 
 ## Current Position
 
-Phase: 1 of 7 (Vendored Base & Wire Codec)
-Plan: 0 of TBD in current phase
+Phase: 2 — Python Frontend Baseline Profile
+Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-02 — Roadmap created (7 phases, 28/28 v1 requirements mapped)
+Last activity: 2026-10-05 — Phase 01 complete, transitioned to Phase 2
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 14%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
+- Total plans completed: 13
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -38,13 +45,25 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 13 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P02 | 6 min | 2 tasks | 9 files |
+| Phase 01 P01 | 14 min | 3 tasks | 128 files |
+| Phase 01 P03 | 5 min | 2 tasks | 8 files |
+| Phase 01 P04 | 5 min | 2 tasks | 41 files |
+| Phase 01 P05 | 44 min | 3 tasks | 7 files |
+| Phase 01 P06 | 8 min | 2 tasks | 6 files |
+| Phase 01 P07 | 20 min | 2 tasks | 4 files |
+| Phase 01 P08 | 25 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -58,6 +77,23 @@ Recent decisions affecting current work:
 - [Roadmap]: There is one minimal Rust mock scheduler only: no Python mock, no Python contract oracle, no Mac A/B rehearsal phase.
 - [Roadmap]: Phase 2 (BENCH-01 profiling) runs on the GPU machine in parallel with Mac work. It informs benchmark design but does not gate the project.
 - [Roadmap]: Phase 4 (tokenizer parity) does not depend on the transport and can run alongside Phase 3.
+- [Phase 01]: rsg-server toolchain stays on Rust 1.99.0: zmq-sys bundled libzmq builds on it (A2 confirmed)
+- [Phase 01]: rsg-server exit-code contract: 0 signal, 1 startup failure, 2 bad handshake, 3 stdin EOF
+- [Phase 01]: Mac dev env is a project-local uv-managed .venv synced from the sha256-hashed requirements-mac.txt; never install into system/user Python
+- [Phase 01]: Human package gate approved torch 2.9.1, numpy 2.5.3, msgpack 1.2.3, pyzmq 27.2.0, transformers 4.57.3, pytest 9.1.1, setuptools/wheel, their transitive deps, and crate thiserror 2.0.21
+- [Phase 01]: Launcher SIGINT/SIGTERM stop handlers are installed before any child spawns, so a stop during the readiness wait tears down the whole process group
+- [Phase 01]: Scheduler process: a KeyboardInterrupt after the ready point ends quietly; before it, an error envelope with the traceback goes to the launcher
+- [Phase 01]: Python mode (--frontend python) execs python -m minisgl; the launcher never imports minisgl or parses upstream args in python mode
+- [Phase 01]: rsg-wire uses rmp-serde to_vec_named with derived internally tagged serde types; all 34 golden fixtures pass byte-for-byte, so no rmpv fallback is needed
+- [Phase 01]: gen_wire_fixtures.py pins minisgl to vendor/mini-sglang/python (exit 2 otherwise); --check diffs fixture bytes and manifest keys except the generator versions block
+- [Phase 01]: D-12 failure tests assert non-zero exit (1, or -9 after SIGKILL escalation); both satisfy the contract
+- [Phase 01]: Launcher supervise loop reads scheduler error envelopes after ready so crashes print the traceback
+- [Phase 01]: Scheduler wrapper runs a getppid watchdog (os._exit(1)) so kill -9 of the launcher leaves no scheduler
+- [Phase 01]: GPU check script restores SIGINT before exec: non-interactive shells start background jobs with SIGINT ignored
+- [Phase 01]: check_upstream.py verifies the fetched upstream commit root tree against KNOWN_TREES before use (T-01-17); exit 2 on mismatch
+- [Phase 01]: check_upstream.py adds UPSTREAM_SHA_INVALID, OFFLINE_UNSUPPORTED and TREE_HASH_MISMATCH categories; a parse error or invalid SHA stops the check before any fetch
+- [Phase 01]: test_wire_decode.py skips without DUMP_DIR inside the full suite; check_wire_decode.sh sets RSGLANG_REQUIRE_DUMP=1 so the gate cannot pass by skipping
+- [Phase 01]: scripts/check_all.sh [--offline] is the Phase 1 Mac gate: cargo tests, pytest, fixture freshness, WIRE-02 decode, check_upstream.py
 
 ### Pending Todos
 
@@ -70,6 +106,12 @@ None yet.
 - [Phase 5]: It is not yet known how quickly hyper/axum detects a client disconnect while a request is queued.
 - [Phase 6]: The upstream abort-during-prefill double free comes from code reading only. If it reproduces, the abort-timing setting (LIFE-05) must apply equally to the baseline.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261004-vqo | Fix CR-01: SIGKILL the process group on an unanticipated rust-mode launcher error | 2026-10-05 | a7ea175 | [261004-vqo-fix-cr-01-critical-finding-2026-10-05-in](./quick/261004-vqo-fix-cr-01-critical-finding-2026-10-05-in/) |
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
@@ -80,6 +122,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-02
-Stopped at: Roadmap and state initialized; awaiting roadmap approval
+Last session: 2026-10-04T06:20:45.560Z
+Stopped at: Phase 01 complete, ready to plan Phase 2
 Resume file: None

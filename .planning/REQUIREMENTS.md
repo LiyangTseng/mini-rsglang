@@ -7,14 +7,14 @@
 
 ### Base
 
-- [ ] **BASE-01**: mini-sglang @ `9a91cfa` is vendored into the repo with its MIT LICENSE and copyright notice; `UPSTREAM.md` records the source commit and every modified file
-- [ ] **BASE-02**: One launch command starts the shared backend with either `--frontend python` (frozen original) or `--frontend rust`
-- [ ] **BASE-03**: The backend reports a readiness handshake to the frontend (max_seq_len, eos_token_id, page_size, max_running_req); both frontends use the same backend code
+- [x] **BASE-01**: mini-sglang @ `9a91cfa` is vendored into the repo with its MIT LICENSE and copyright notice; `UPSTREAM.md` records the source commit and every modified file
+- [x] **BASE-02**: One launch command starts the shared backend with either `--frontend python` (frozen original) or `--frontend rust`
+- [x] **BASE-03**: The backend reports a readiness handshake to the frontend (max_seq_len, eos_token_id, page_size, max_running_req); both frontends use the same backend code
 
 ### Wire Protocol
 
-- [ ] **WIRE-01**: The Rust msgpack codec produces bytes identical to upstream's encoder for all 7 message types, verified by golden fixtures exported from Python
-- [ ] **WIRE-02**: Every message Rust sends decodes through the real Python decoder (`cls(**kwargs)`) without error
+- [x] **WIRE-01**: The Rust msgpack codec produces bytes identical to upstream's encoder for all 7 message types, verified by golden fixtures exported from Python
+- [x] **WIRE-02**: Every message Rust sends decodes through the real Python decoder (`cls(**kwargs)`) without error
 - [ ] **WIRE-03**: Rust exchanges messages with the scheduler over ZMQ `ipc://` through a single ordered writer, so an abort can never overtake its own submit
 
 ### Tokenizer
@@ -91,11 +91,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BASE-01 | Phase 1 | Pending |
-| BASE-02 | Phase 1 | Pending |
-| BASE-03 | Phase 1 | Pending |
-| WIRE-01 | Phase 1 | Pending |
-| WIRE-02 | Phase 1 | Pending |
+| BASE-01 | Phase 1 | Complete |
+| BASE-02 | Phase 1 | Complete |
+| BASE-03 | Phase 1 | Complete |
+| WIRE-01 | Phase 1 | Complete |
+| WIRE-02 | Phase 1 | Complete |
 | BENCH-01 | Phase 2 | Pending |
 | WIRE-03 | Phase 3 | Pending |
 | MOCK-01 | Phase 3 | Pending |
