@@ -22,8 +22,20 @@
 //! 6 blocker) — it is not a claim that the real scheduler behaves exactly
 //! this way, only a controllable fixture for Phase 5/6 cancellation tests.
 //!
-//! `drop-overlong` and the upstream overlong rule, and reply batching via
-//! `--batch-size`, are documented where they are implemented (Task 2).
+//! `drop-overlong` and the upstream overlong rule (scheduler.py:177-188):
+//! on every `UserMsg`, if the uid's behavior is `drop-overlong`, or if
+//! `input_len >= max_seq_len`, the request is silently dropped (recorded in
+//! the observe file as `submit`, never answered, logged as `warn` with
+//! `uid`, `input_len`, `max_seq_len`). Otherwise `max_tokens` is clamped to
+//! `max_seq_len - input_len` if it would exceed that.
+//!
+//! Reply batching (io.py:124-130, D-09): `--batch-size N` (default 1, must
+//! be >= 1) accumulates up to N pending replies before flushing one frame —
+//! a bare `DetokenizeMsg` when exactly one is pending, otherwise a
+//! `BatchTokenizerMsg` in emission order. A partial batch also flushes
+//! `BATCH_FLUSH_MS` after its oldest pending reply was added. `ExitMsg`
+//! flushes any pending replies before shutdown. With the default of 1,
+//! every reply flushes immediately (unchanged from Plan 03-01).
 //!
 //! All of this mock's delays and misbehaviors are fixed synthetic values for
 //! test control, never performance evidence: performance claims are measured
@@ -80,6 +92,9 @@ const SHUTDOWN_LINGER_MS: i32 = 1000;
 /// How many more echo tokens a `late-abort-token` uid emits after its abort
 /// arrives, all with `finished=false` (D-09, MOCK-01).
 const LATE_TOKENS_AFTER_ABORT: u32 = 3;
+/// How long a partial batch of pending replies waits for more replies
+/// before flushing anyway, measured from its oldest pending reply (D-09).
+const BATCH_FLUSH_MS: u64 = 10;
 
 /// A backend misbehavior selectable per uid via `--misbehave-uids`/`--behavior`.
 /// Clap's `ValueEnum` derive renders these in kebab-case by default
@@ -207,7 +222,7 @@ struct Cli {
     #[arg(long, default_value_t = 0)]
     decode_delay_ms: u64,
     /// Reported in the handshake; also drives the upstream overlong
-    /// drop/clamp rule (Task 2).
+    /// drop/clamp rule (scheduler.py:177-188).
     #[arg(long, default_value_t = 4096)]
     max_seq_len: u64,
     /// Every processed backend message, one line per message, in processing
@@ -223,6 +238,10 @@ struct Cli {
     /// repeatable and paired by position (D-09).
     #[arg(long = "behavior", action = clap::ArgAction::Append, value_enum)]
     behavior: Vec<Behavior>,
+    /// Replies are accumulated up to this many before being flushed as one
+    /// frame (D-09). Must be >= 1.
+    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u64).range(1..))]
+    batch_size: u64,
 }
 
 /// Exits 2 (via clap's own error path) if `--misbehave-uids`/`--behavior`
@@ -281,6 +300,72 @@ struct Running {
     due: Instant,
     /// Normal, or draining late tokens after a `late-abort-token` abort.
     state: RunningState,
+}
+
+/// Pending replies waiting to be flushed as one frame, in emission order
+/// (D-09, io.py:124-130).
+#[derive(Default)]
+struct PendingReplies {
+    entries: Vec<(i64, i64, bool)>,
+    /// When the oldest currently-pending entry was added.
+    oldest_added_at: Option<Instant>,
+}
+
+impl PendingReplies {
+    fn push(&mut self, now: Instant, uid: i64, next_token: i64, finished: bool) {
+        if self.entries.is_empty() {
+            self.oldest_added_at = Some(now);
+        }
+        self.entries.push((uid, next_token, finished));
+    }
+
+    /// The deadline at which a non-empty pending buffer must flush, even if
+    /// still partial.
+    fn flush_deadline(&self) -> Option<Instant> {
+        self.oldest_added_at
+            .map(|t| t + Duration::from_millis(BATCH_FLUSH_MS))
+    }
+}
+
+/// Sends every pending reply as exactly one frame — a bare `DetokenizeMsg`
+/// when one is pending, otherwise a `BatchTokenizerMsg` in emission order
+/// (io.py:124-130) — and clears the buffer. A no-op when nothing is pending.
+fn flush_pending(pending: &mut PendingReplies, transport: &ZmqSchedulerTransport) -> Result<(), i32> {
+    if pending.entries.is_empty() {
+        return Ok(());
+    }
+    let to_msg = |&(uid, next_token, finished): &(i64, i64, bool)| TokenizerMsg::DetokenizeMsg {
+        uid,
+        next_token,
+        finished,
+    };
+    let msg = if pending.entries.len() == 1 {
+        to_msg(&pending.entries[0])
+    } else {
+        TokenizerMsg::BatchTokenizerMsg {
+            data: pending.entries.iter().map(to_msg).collect(),
+        }
+    };
+    let bytes = rsg_wire::encode_tokenizer(&msg).map_err(|e| {
+        tracing::error!("encode pending replies: {e}");
+        EXIT_STARTUP
+    })?;
+    transport.send_detok(&bytes).map_err(|e| {
+        tracing::error!("send pending replies: {e:#}");
+        EXIT_STARTUP
+    })?;
+    pending.entries.clear();
+    pending.oldest_added_at = None;
+    Ok(())
+}
+
+/// Fixed per-run timing/limits, bundled so `process_msg` stays under
+/// clippy's argument-count limit.
+#[derive(Clone, Copy)]
+struct EngineConfig {
+    prefill_delay: Duration,
+    decode_delay: Duration,
+    max_seq_len: u64,
 }
 
 /// What the stdin reader thread reports.
@@ -359,6 +444,7 @@ async fn main() {
     let prefill_delay = Duration::from_millis(cli.prefill_delay_ms);
     let decode_delay = Duration::from_millis(cli.decode_delay_ms);
     let behavior_table = BehaviorTable::new(cli.misbehave_uids.clone(), cli.behavior.clone());
+    let batch_size = cli.batch_size;
 
     // Everything that touches the scheduler-side sockets — opening them,
     // the engine's own recv/send loop — runs on this one dedicated thread
@@ -411,6 +497,8 @@ async fn main() {
                 transport,
                 prefill_delay,
                 decode_delay,
+                max_seq_len,
+                batch_size,
                 &behavior_table,
                 observe,
             );
@@ -474,13 +562,21 @@ fn run_engine(
     transport: ZmqSchedulerTransport,
     prefill_delay: Duration,
     decode_delay: Duration,
+    max_seq_len: u64,
+    batch_size: u64,
     behavior_table: &BehaviorTable,
     mut observe: Option<BufWriter<File>>,
 ) -> i32 {
     let mut running: BTreeMap<i64, Running> = BTreeMap::new();
+    let mut pending = PendingReplies::default();
+    let config = EngineConfig {
+        prefill_delay,
+        decode_delay,
+        max_seq_len,
+    };
 
     loop {
-        let timeout_ms = next_wait_ms(&running);
+        let timeout_ms = next_wait_ms(&running, pending.flush_deadline());
         let first = match transport.recv_backend(timeout_ms) {
             Ok(frame) => frame,
             Err(e) => {
@@ -516,14 +612,17 @@ fn run_engine(
                 match process_msg(
                     msg,
                     now,
-                    prefill_delay,
-                    decode_delay,
+                    &config,
                     behavior_table,
                     &mut running,
                     &mut observe,
                 ) {
                     Ok(ProcessOutcome::Continue) => {}
                     Ok(ProcessOutcome::Exit(EXIT_OK)) => {
+                        if let Err(code) = flush_pending(&mut pending, &transport) {
+                            let _ = observe.as_mut().map(BufWriter::flush);
+                            return code;
+                        }
                         let _ = observe.as_mut().map(BufWriter::flush);
                         if let Err(e) = transport.shutdown(SHUTDOWN_LINGER_MS) {
                             tracing::error!("shutdown scheduler transport: {e:#}");
@@ -542,23 +641,42 @@ fn run_engine(
             }
         }
 
-        if let Err(code) = emit_due_tokens(&transport, now, decode_delay, &mut running) {
+        if let Err(code) =
+            emit_due_tokens(&transport, now, decode_delay, batch_size, &mut pending, &mut running)
+        {
+            let _ = observe.as_mut().map(BufWriter::flush);
+            return code;
+        }
+
+        // Flush a partial batch once its oldest pending reply has waited
+        // `BATCH_FLUSH_MS`, using this step's own clock (D-09).
+        if let Some(deadline) = pending.flush_deadline()
+            && deadline <= now
+            && let Err(code) = flush_pending(&mut pending, &transport)
+        {
             let _ = observe.as_mut().map(BufWriter::flush);
             return code;
         }
     }
 }
 
-/// Ms until the earliest due request (0 if already overdue), or
-/// `IDLE_POLL_MS` when nothing is running.
-fn next_wait_ms(running: &BTreeMap<i64, Running>) -> i64 {
-    match running.values().map(|r| r.due).min() {
-        Some(due) => {
+/// Ms until the earliest due request or pending-batch flush deadline (0 if
+/// already overdue), or `IDLE_POLL_MS` when neither applies.
+fn next_wait_ms(running: &BTreeMap<i64, Running>, pending_deadline: Option<Instant>) -> i64 {
+    let due_deadline = running.values().map(|r| r.due).min();
+    let deadline = match (due_deadline, pending_deadline) {
+        (Some(a), Some(b)) => Some(a.min(b)),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    };
+    match deadline {
+        Some(d) => {
             let now = Instant::now();
-            if due <= now {
+            if d <= now {
                 0
             } else {
-                i64::try_from((due - now).as_millis()).unwrap_or(i64::MAX)
+                i64::try_from((d - now).as_millis()).unwrap_or(i64::MAX)
             }
         }
         None => IDLE_POLL_MS,
@@ -575,8 +693,7 @@ fn next_wait_ms(running: &BTreeMap<i64, Running>) -> i64 {
 fn process_msg(
     msg: BackendMsg,
     now: Instant,
-    prefill_delay: Duration,
-    decode_delay: Duration,
+    config: &EngineConfig,
     behavior_table: &BehaviorTable,
     running: &mut BTreeMap<i64, Running>,
     observe: &mut Option<BufWriter<File>>,
@@ -584,15 +701,7 @@ fn process_msg(
     match msg {
         BackendMsg::BatchBackendMsg { data } => {
             for item in data {
-                match process_msg(
-                    item,
-                    now,
-                    prefill_delay,
-                    decode_delay,
-                    behavior_table,
-                    running,
-                    observe,
-                )? {
+                match process_msg(item, now, config, behavior_table, running, observe)? {
                     ProcessOutcome::Continue => {}
                     exit @ ProcessOutcome::Exit(_) => return Ok(exit),
                 }
@@ -613,16 +722,39 @@ fn process_msg(
                 EXIT_BAD_FRAME
             })?;
             let input_len = prompt_ids.len();
+
+            // Upstream overlong rule (scheduler.py:177-188): a flagged uid
+            // is dropped unconditionally; any uid whose prompt already
+            // fills (or exceeds) max_seq_len is dropped too. The request is
+            // still recorded as submitted and never inserted into `running`.
+            let dropped_overlong = behavior_table.behavior_of(uid) == Some(Behavior::DropOverlong)
+                || input_len as u64 >= config.max_seq_len;
+            if dropped_overlong {
+                tracing::warn!(
+                    uid,
+                    input_len,
+                    max_seq_len = config.max_seq_len,
+                    "dropped overlong prompt"
+                );
+                record_observe(observe, &format!("submit {uid} {input_len}"))?;
+                return Ok(ProcessOutcome::Continue);
+            }
+
             if running.contains_key(&uid) {
                 tracing::warn!(uid, "UserMsg for already-running uid; replacing");
             }
+            // Clamp max_tokens to what's left of max_seq_len after the
+            // prompt (scheduler.py:184-188); input_len < max_seq_len is
+            // guaranteed by the drop check above, so this is never <= 0.
+            let max_output_len = config.max_seq_len - input_len as u64;
+            let total = (sampling_params.max_tokens.max(1) as u64).min(max_output_len) as i64;
             running.insert(
                 uid,
                 Running {
                     prompt_ids,
-                    total: sampling_params.max_tokens.max(1),
+                    total,
                     emitted: 0,
-                    due: now + prefill_delay,
+                    due: now + config.prefill_delay,
                     state: RunningState::Normal,
                 },
             );
@@ -635,7 +767,7 @@ fn process_msg(
                     r.state = RunningState::Draining {
                         remaining: LATE_TOKENS_AFTER_ABORT,
                     };
-                    r.due = now + decode_delay;
+                    r.due = now + config.decode_delay;
                     tracing::info!(
                         uid,
                         late_tokens = LATE_TOKENS_AFTER_ABORT,
@@ -651,14 +783,19 @@ fn process_msg(
     }
 }
 
-/// Emits exactly one token for every request whose due time is <= `now`, in
-/// ascending uid order, using the echo rule: token k (0-based) is
-/// `prompt_ids[k % len]`, or 0 for an empty prompt. `Err(code)` means a
-/// send/encode failed and the engine should exit with `code`.
+/// Queues exactly one token for every request whose due time is <= `now`,
+/// in ascending uid order, using the echo rule: token k (0-based) is
+/// `prompt_ids[k % len]`, or 0 for an empty prompt. Reaching `batch_size`
+/// pending replies flushes immediately (D-09, io.py:124-130); the
+/// end-of-step timer flush is the caller's responsibility. `Err(code)`
+/// means a flush's encode/send failed and the engine should exit with
+/// `code`.
 fn emit_due_tokens(
     transport: &ZmqSchedulerTransport,
     now: Instant,
     decode_delay: Duration,
+    batch_size: u64,
+    pending: &mut PendingReplies,
     running: &mut BTreeMap<i64, Running>,
 ) -> Result<(), i32> {
     let due_uids: Vec<i64> = running
@@ -693,21 +830,9 @@ fn emit_due_tokens(
             }
         };
 
-        let msg = TokenizerMsg::DetokenizeMsg {
-            uid,
-            next_token,
-            finished,
-        };
-        let bytes = match rsg_wire::encode_tokenizer(&msg) {
-            Ok(b) => b,
-            Err(e) => {
-                tracing::error!(uid, "encode DetokenizeMsg: {e}");
-                return Err(EXIT_STARTUP);
-            }
-        };
-        if let Err(e) = transport.send_detok(&bytes) {
-            tracing::error!(uid, "send DetokenizeMsg: {e:#}");
-            return Err(EXIT_STARTUP);
+        pending.push(now, uid, next_token, finished);
+        if pending.entries.len() as u64 >= batch_size {
+            flush_pending(pending, transport)?;
         }
 
         if remove_after {
