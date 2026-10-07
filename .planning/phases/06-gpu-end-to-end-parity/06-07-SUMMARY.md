@@ -203,6 +203,53 @@ None - no external service configuration required.
 *Phase: 06-gpu-end-to-end-parity*
 *Completed: 2026-10-07*
 
+## CORRECTION (2026-10-07, after this plan closed)
+
+This summary's Criterion 2 finding — "**fails** the zero-tolerance gate" for
+Qwen/Qwen3-0.6B at 127/128, with a matching 127/128 for Llama — is
+**superseded**. It was not silently rewritten; this note documents what
+changed and why, pointing at the commits that did it.
+
+**What was wrong:** the 127/128 result for both models (same prompt,
+`edge-08`) was never a real frontend parity bug, and was not GPU backend
+nondeterminism either (that theory was plan 06-08's own Task 0 conclusion,
+also since corrected — see `06-08-PLAN.md`'s Task 0 correction note and
+`06-08-SUMMARY.md`). The actual cause was a bug in this plan's own
+measurement harness: `python/rsglang/parity/sweep.py`'s
+`join_sequential`/`join_concurrent` counted a post-finish straggler `detok`
+record — emitted by the scheduler's pipelined execution after it had
+already sent `finished: true` for a uid — as an extra output token on the
+Python side only. The real HTTP response text both frontends sent for
+`edge-08` was already byte-identical the whole time; only the harness's
+unbounded token count disagreed.
+
+**The fix:** `_bounded_detoks()`, added in commit `ae8feec`, truncates each
+uid's detok records at the first `finished: true` record, with two
+regression tests in `python/tests/test_parity_check.py`. A full GPU re-run
+with this fix in place (on top of plan 06-08's `--abort-timing deferred`
+default change, commit `de520b9`) produced the final
+`docs/benchmarks/parity-report.json` committed in `06-08-SUMMARY.md`:
+**128/128 for both models, zero divergence anywhere.** `docs/benchmarks/parity-report.md`
+has been fully regenerated against that final JSON (including a corrected,
+dated "PAR-01 off-by-one investigation" section explaining this in full) and
+no longer reports a FAIL.
+
+**What stays true from this plan's own work:** the real GPU run described
+above (Task 1's human GPU run, Task 2's narrative write-up and tie-test) was
+genuinely executed and is the basis the correction builds on — the 06-08
+scope expansion and its eventual fix operated on this plan's real artifacts,
+not a replay. The `key-decisions` entry above about reporting the FAIL
+honestly rather than softening it was the right call *at the time*, given
+the information available; it simply turned out the apparent FAIL had a
+harness-side explanation once investigated further.
+
+**Outstanding items, updated:** the "Next Phase Readiness" section below
+flagged the Task 2 `<human-check>` reply as the one remaining acceptance
+item. That human-check was specific to the version of the report that has
+since been replaced; the corrected, final report (128/128, no FAIL) carries
+its own fresh human-check approval as part of closing out plan 06-08. Nothing
+is outstanding from this plan any longer.
+
 ## Self-Check: PASSED
 
 - `docs/benchmarks/parity-report.md` found on disk; contains the exact lines `## Divergence bisection (D-05)`, `## Criterion 3: Concurrent-load match rate (PAR-02, informational)` and `## Reproduce`.
