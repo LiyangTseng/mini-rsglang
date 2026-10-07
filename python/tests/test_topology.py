@@ -54,13 +54,16 @@ def test_suffix_survives_per_rank_replace():
 
 
 def test_rust_cli_args_exact():
-    assert sockets.rust_cli_args(_server_args()) == [
+    server_args = _server_args()
+    assert sockets.rust_cli_args(server_args) == [
         "--backend-addr", "ipc:///tmp/minisgl_0.rsg=test",
         "--backend-role", "connect",
         "--detok-addr", "ipc:///tmp/minisgl_1.rsg=test",
         "--detok-role", "bind",
         "--model", "Qwen/Qwen3-0.6B",
         "--run-id", ".rsg=test",
+        "--host", server_args.server_host,
+        "--port", str(server_args.server_port),
     ]
 
 
