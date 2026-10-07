@@ -61,7 +61,9 @@ pub enum TokenizerError {
     Json(#[from] serde_json::Error),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("model {slug:?} has no chat_template (neither tokenizer_config.json nor chat_template.json provided one)")]
+    #[error(
+        "model {slug:?} has no chat_template (neither tokenizer_config.json nor chat_template.json provided one)"
+    )]
     MissingChatTemplate { slug: &'static str },
     #[error("gated access unavailable for model {slug:?}: {detail}")]
     GatedAccessUnavailable { slug: &'static str, detail: String },
@@ -77,13 +79,16 @@ mod tests {
     fn qwen3_model_spec_is_well_formed() {
         assert_eq!(QWEN3_0_6B.slug, "qwen3-0.6b");
         assert_eq!(QWEN3_0_6B.repo_id, "Qwen/Qwen3-0.6B");
-        assert!(!QWEN3_0_6B.gated);
+        const { assert!(!QWEN3_0_6B.gated) };
     }
 
     #[test]
     fn llama_model_spec_is_well_formed() {
         assert_eq!(LLAMA_3_2_1B_INSTRUCT.slug, "llama-3.2-1b-instruct");
-        assert_eq!(LLAMA_3_2_1B_INSTRUCT.repo_id, "meta-llama/Llama-3.2-1B-Instruct");
-        assert!(LLAMA_3_2_1B_INSTRUCT.gated);
+        assert_eq!(
+            LLAMA_3_2_1B_INSTRUCT.repo_id,
+            "meta-llama/Llama-3.2-1B-Instruct"
+        );
+        const { assert!(LLAMA_3_2_1B_INSTRUCT.gated) };
     }
 }

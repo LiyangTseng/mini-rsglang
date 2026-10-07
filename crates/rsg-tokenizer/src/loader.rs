@@ -53,10 +53,10 @@ fn has_gated_credentials() -> bool {
     if std::env::var("HF_TOKEN").is_ok_and(|v| !v.is_empty()) {
         return true;
     }
-    if let Ok(path) = std::env::var("HF_TOKEN_PATH") {
-        if std::fs::read_to_string(path).is_ok_and(|s| !s.trim().is_empty()) {
-            return true;
-        }
+    if let Ok(path) = std::env::var("HF_TOKEN_PATH")
+        && std::fs::read_to_string(path).is_ok_and(|s| !s.trim().is_empty())
+    {
+        return true;
     }
     std::fs::read_to_string(hf_hub::hf_home().join("token")).is_ok_and(|s| !s.trim().is_empty())
 }
@@ -66,7 +66,10 @@ fn has_gated_credentials() -> bool {
 /// denies the operation (`403`, `Forbidden` — the shape a gated repo returns to an authenticated
 /// user who hasn't accepted the license).
 fn is_auth_error(err: &hf_hub::HFError) -> bool {
-    matches!(err, hf_hub::HFError::AuthRequired { .. } | hf_hub::HFError::Forbidden { .. })
+    matches!(
+        err,
+        hf_hub::HFError::AuthRequired { .. } | hf_hub::HFError::Forbidden { .. }
+    )
 }
 
 /// Converts an auth-shaped `hf_hub::HFError` on a *gated* model into
@@ -96,7 +99,9 @@ fn build_client(spec: ModelSpec) -> Result<hf_hub::HFClientSync, TokenizerError>
         .timeout(GATED_FETCH_TIMEOUT)
         .build()
         .map_err(hf_hub::HFError::from)?;
-    Ok(hf_hub::HFClientBuilder::new().client(http_client).build_sync()?)
+    Ok(hf_hub::HFClientBuilder::new()
+        .client(http_client)
+        .build_sync()?)
 }
 
 /// Fetches and loads every asset for `spec` via hf-hub's blocking API.
@@ -130,13 +135,13 @@ pub fn load_model_assets(spec: ModelSpec) -> Result<ModelAssets, TokenizerError>
     let client = build_client(spec)?;
     let repo = client.model(owner, name);
 
-    let tokenizer_json_path = gated_or(
-        spec,
-        repo.download_file().filename("tokenizer.json").send(),
-    )?;
+    let tokenizer_json_path =
+        gated_or(spec, repo.download_file().filename("tokenizer.json").send())?;
     let tokenizer_config_path = gated_or(
         spec,
-        repo.download_file().filename("tokenizer_config.json").send(),
+        repo.download_file()
+            .filename("tokenizer_config.json")
+            .send(),
     )?;
 
     let tokenizer_config: Value =
@@ -203,7 +208,12 @@ mod tests {
     impl EnvGuard {
         fn new() -> Self {
             let hf_home = tempfile::tempdir().expect("tempdir for HF_HOME");
-            let keys = ["HF_TOKEN", "HF_TOKEN_PATH", "HF_HOME", "HF_HUB_DISABLE_IMPLICIT_TOKEN"];
+            let keys = [
+                "HF_TOKEN",
+                "HF_TOKEN_PATH",
+                "HF_HOME",
+                "HF_HUB_DISABLE_IMPLICIT_TOKEN",
+            ];
             let saved = keys.iter().map(|k| (*k, std::env::var(*k).ok())).collect();
             for k in keys {
                 unsafe { std::env::remove_var(k) };

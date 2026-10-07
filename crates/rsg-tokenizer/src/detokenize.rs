@@ -136,10 +136,7 @@ impl Detokenizer {
         let exclude_from_decoded_ids = finished && next_token == self.eos_token_id;
 
         let (read_ids, surr_ids) = {
-            let status = self
-                .decode_map
-                .entry(uid)
-                .or_insert_with(DecodeStatus::default);
+            let status = self.decode_map.entry(uid).or_default();
             if !exclude_from_decoded_ids {
                 status.decoded_ids.push(next_token);
             }

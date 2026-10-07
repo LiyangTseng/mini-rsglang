@@ -235,7 +235,11 @@ mod tests {
         .expect("strftime_now (real clock) must not error");
         // Sanity: a real year string is 4 ASCII digits, never the frozen fixture string, and
         // never empty.
-        assert_eq!(rendered.len(), 4, "expected a 4-digit year, got {rendered:?}");
+        assert_eq!(
+            rendered.len(),
+            4,
+            "expected a 4-digit year, got {rendered:?}"
+        );
         assert!(
             rendered.chars().all(|c| c.is_ascii_digit()),
             "expected a 4-digit year, got {rendered:?}"
