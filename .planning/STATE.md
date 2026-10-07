@@ -20,17 +20,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-06)
+See: .planning/PROJECT.md (updated 2026-10-07)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 05 — Request Lifecycle & HTTP API
+**Current focus:** Phase 6 — GPU End-to-End Parity
 
 ## Current Position
 
 Phase: 6 — GPU End-to-End Parity
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-06 — Phase 05 complete, transitioned to Phase 6
+Last activity: 2026-10-07 — Phase 05 complete, transitioned to Phase 6
 
 Progress: [███████░░░] 71%
 
@@ -175,9 +175,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: Phase 1 needs GPU machine access, because launcher criterion 2 runs the real backend. `zmq` vs `zeromq` interop with pyzmq and the bind/connect topology are not yet decided. It is also unverified whether `minisgl.message` imports on macOS for golden-fixture export.
-- [Phase 5]: It is not yet known how quickly hyper/axum detects a client disconnect while a request is queued.
 - [Phase 6]: The upstream abort-during-prefill double free comes from code reading only. If it reproduces, the abort-timing setting (LIFE-05) must apply equally to the baseline.
+- [Phase 4, pre-existing tech debt]: `cargo test -p rsg-tokenizer`'s `loader::tests::gated_access_unavailable_*` tests race under default parallel test threads (global env-var mutation between concurrently-run tests in that crate); deterministic on this machine. `scripts/check_all.sh --offline` does not pin `--test-threads=1` internally, so it can fail on this specific crate even when nothing in the phase under test is actually broken — confirm with `cargo test -p rsg-tokenizer --lib -- --test-threads=1` before trusting a `check_all.sh` red on this crate. Logged to `.planning/phases/04-tokenizer-detokenizer-parity/deferred-items.md`; not yet fixed.
+- [Phase 5, code review WR-01, open]: `drive_request`'s `IncrementalDecoder` construction (full tokenizer vocab/merge clone) runs synchronously on the async driver task with no `.await` — can starve other concurrent requests' token streams under load. Worth a look before Phase 7's benchmark numbers are trusted at high concurrency; see `05-REVIEW.md`/`05-REVIEW-DISPOSITION.md`.
 
 ### Quick Tasks Completed
 
