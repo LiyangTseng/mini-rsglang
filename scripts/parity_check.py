@@ -100,7 +100,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--requests 128 --abort-fraction 0.3 --seed 0 --model {model}",
         metavar="TEMPLATE",
         help="Phase 6's external-target stress driver invocation (rsglang.parity.stress_client); "
-        "required non-empty when --parts includes stress",
+        "required non-empty when --parts includes stress (default: %(default)s)",
     )
     run.add_argument("--abort-timings", default="immediate,deferred", metavar="LIST")
     run.add_argument("--stress-timeout", type=float, default=900.0, metavar="SECONDS")
