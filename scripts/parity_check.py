@@ -23,12 +23,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
-from rsglang.parity import compare, corpus, sidecar, sweep  # noqa: E402
+from rsglang.parity import compare, corpus, sidecar, sweep, tap  # noqa: E402
 from rsglang.profiling import procs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-_SUPPORTED_PARTS = ("sequential", "concurrent")
+_SUPPORTED_PARTS = ("sequential", "concurrent", "endpoints")
+
+_DEFAULT_PYTHON_SERVER_CMD = "{python} -m rsglang.launch --frontend python --model {model} --port {port}"
+_DEFAULT_RUST_SERVER_CMD = "{python} -m rsglang.launch --frontend rust --model {model} --port {port}"
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -47,9 +50,9 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--corpus", default=corpus.CANONICAL_CORPUS, metavar="PATH")
     run.add_argument(
         "--parts",
-        default="sequential",
+        default="endpoints,sequential,concurrent",
         metavar="LIST",
-        help="Comma list of sequential, concurrent (default: %(default)s)",
+        help="Comma list of sequential, concurrent, endpoints (default: %(default)s)",
     )
     run.add_argument("--port", type=int, default=1919, metavar="PORT")
     run.add_argument("--timeout", type=float, default=900.0, metavar="SECONDS")
@@ -76,6 +79,25 @@ def _build_parser() -> argparse.ArgumentParser:
     validate = sub.add_parser("validate", help="Validate a parity-report.json sidecar")
     validate.add_argument("file", metavar="FILE", type=Path)
     validate.add_argument("--require-gpu", action="store_true")
+
+    discover = sub.add_parser(
+        "discover",
+        help="Check every endpoint for one frontend against a fresh session, with the backend tap active",
+    )
+    discover.add_argument("--frontend", required=True, choices=("python", "rust"))
+    discover.add_argument("--model", default="Qwen/Qwen3-0.6B", metavar="MODEL")
+    discover.add_argument("--port", type=int, default=1919, metavar="PORT")
+    discover.add_argument("--timeout", type=float, default=900.0, metavar="SECONDS")
+    discover.add_argument("--server-cmd", default=None, metavar="TEMPLATE")
+    discover.add_argument("--work-dir", default=None, metavar="DIR")
+    discover.add_argument("--out", default=None, metavar="PATH")
+    discover.add_argument("--skip-tap-check", action="store_true")
+
+    verdict = sub.add_parser(
+        "verdict", help="Print a PASS/FAIL verdict for one ROADMAP criterion from a sidecar"
+    )
+    verdict.add_argument("file", metavar="FILE", type=Path)
+    verdict.add_argument("--criterion", type=int, required=True, metavar="N")
 
     return parser
 
@@ -225,12 +247,60 @@ def cmd_run(ns: argparse.Namespace) -> int:
 
     sequential_out: dict = {}
     concurrent_out: "dict | None" = None
+    endpoints_out: "dict | None" = None
     any_failure = False
     warnings: "list[str]" = []
     gate_sides: "dict[str, dict] | None" = None
     effective_concurrency: "int | None" = None
 
     try:
+        if "endpoints" in parts:
+            python_argv = procs.server_argv(
+                ns.python_server_cmd, python=sys.executable, model=gate_model, port=ns.port
+            )
+            rust_argv = procs.server_argv(
+                ns.rust_server_cmd, python=sys.executable, model=gate_model, port=ns.port
+            )
+
+            python_entries: "list[dict]" = []
+            rust_entries: "list[dict]" = []
+
+            _require_port_free(ns.port)
+            try:
+                python_ep_session = sweep.run_session(
+                    "endpoints-python",
+                    argv=python_argv,
+                    port=ns.port,
+                    timeout_s=ns.timeout,
+                    work_dir=work_dir,
+                    workload=lambda url: sweep.endpoint_smoke(url, "python", gate_model),
+                )
+                python_entries = python_ep_session.value
+            except (procs.ServerExited, TimeoutError) as exc:
+                print(f"endpoints python: {exc}", file=sys.stderr)
+                any_failure = True
+
+            _require_port_free(ns.port)
+            try:
+                rust_ep_session = sweep.run_session(
+                    "endpoints-rust",
+                    argv=rust_argv,
+                    port=ns.port,
+                    timeout_s=ns.timeout,
+                    work_dir=work_dir,
+                    workload=lambda url: sweep.endpoint_smoke(url, "rust", gate_model),
+                )
+                rust_entries = rust_ep_session.value
+            except (procs.ServerExited, TimeoutError) as exc:
+                print(f"endpoints rust: {exc}", file=sys.stderr)
+                any_failure = True
+
+            endpoints_out = {"python": python_entries, "rust": rust_entries}
+            p_ok = sum(1 for e in python_entries if e.get("ok"))
+            r_ok = sum(1 for e in rust_entries if e.get("ok"))
+            print(f"endpoints python: {p_ok}/{len(python_entries)} ok")
+            print(f"endpoints rust: {r_ok}/{len(rust_entries)} ok")
+
         for model in models:
             slug = _slug(model)
             python_argv = procs.server_argv(
@@ -352,7 +422,7 @@ def cmd_run(ns: argparse.Namespace) -> int:
             corpus_n=len(items),
             concurrency=effective_concurrency,
         ),
-        "endpoints": None,
+        "endpoints": endpoints_out,
         "sequential": sequential_out,
         "concurrent": concurrent_out,
         "abort_stress": None,
@@ -385,12 +455,138 @@ def cmd_validate(ns: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_discover(ns: argparse.Namespace) -> int:
+    if not sweep.port_free(ns.port):
+        print(f"port {ns.port} in use", file=sys.stderr)
+        return 2
+
+    work_dir = Path(ns.work_dir) if ns.work_dir else Path(tempfile.mkdtemp(prefix="parity_check."))
+    work_dir.mkdir(parents=True, exist_ok=True)
+    out_path = Path(ns.out) if ns.out else (work_dir / f"discover-{ns.frontend}.json")
+
+    default_cmd = _DEFAULT_RUST_SERVER_CMD if ns.frontend == "rust" else _DEFAULT_PYTHON_SERVER_CMD
+    server_cmd = ns.server_cmd or default_cmd
+    argv = procs.server_argv(server_cmd, python=sys.executable, model=ns.model, port=ns.port)
+
+    try:
+        session_result = sweep.run_session(
+            f"discover-{ns.frontend}",
+            argv=argv,
+            port=ns.port,
+            timeout_s=ns.timeout,
+            work_dir=work_dir,
+            workload=lambda url: sweep.endpoint_smoke(url, ns.frontend, ns.model),
+        )
+    except (procs.ServerExited, TimeoutError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    endpoints = session_result.value
+
+    if ns.skip_tap_check:
+        tap_info = {"checked": False, "patched": False, "user_records": False, "detok_finished": False}
+        tap_ok = True
+    else:
+        records = session_result.tap.records
+        patched = any(r["kind"] == tap.KIND_PATCHED for r in records)
+        user_records = any(r["kind"] == tap.KIND_USER for r in records)
+        detok_finished = any(r["kind"] == tap.KIND_DETOK and r.get("finished") for r in records)
+        tap_info = {
+            "checked": True,
+            "patched": patched,
+            "user_records": user_records,
+            "detok_finished": detok_finished,
+        }
+        tap_ok = patched and user_records and detok_finished
+
+    doc = {
+        "schema_version": sidecar.SCHEMA_VERSION,
+        "generated_by": sidecar.GENERATED_BY,
+        "meta": sidecar.build_meta(
+            mode="discover",
+            models=[ns.model],
+            gate_model=ns.model,
+            corpus_path="",
+            corpus_sha256="",
+            corpus_n=0,
+            concurrency=None,
+        ),
+        "frontend": ns.frontend,
+        "endpoints": endpoints,
+        "tap": tap_info,
+    }
+
+    try:
+        sidecar.write_discover(doc, out_path)
+    except sidecar.SidecarError as exc:
+        for err in exc.errors:
+            print(f"sidecar validation: {err}", file=sys.stderr)
+        return 1
+
+    ok_count = sum(1 for e in endpoints if e.get("ok"))
+    print(f"endpoints {ns.frontend}: {ok_count}/{len(endpoints)} ok")
+    print(f"wrote {out_path}")
+
+    if ok_count == len(endpoints) and tap_ok:
+        return 0
+    return 1
+
+
+def _verdict_criterion_1(doc: dict) -> int:
+    endpoints = doc.get("endpoints")
+    if not isinstance(endpoints, dict):
+        print("criterion 1: FAIL no endpoints recorded", file=sys.stderr)
+        return 1
+
+    rust_entries = endpoints.get("rust") or []
+    python_entries = endpoints.get("python") or []
+    rust_by_name = {e.get("name"): e for e in rust_entries if isinstance(e, dict)}
+    failing = [
+        name
+        for name in sweep.RUST_ENDPOINTS
+        if not (name in rust_by_name and rust_by_name[name].get("ok") is True)
+    ]
+    rust_ok_count = sum(1 for e in rust_entries if isinstance(e, dict) and e.get("ok") is True)
+    python_ok_count = sum(1 for e in python_entries if isinstance(e, dict) and e.get("ok") is True)
+    k = len(sweep.RUST_ENDPOINTS)
+
+    if not failing:
+        print(f"criterion 1: PASS rust {rust_ok_count}/{k} endpoints ok (python {python_ok_count}/5)")
+        return 0
+    print(f"criterion 1: FAIL {', '.join(failing)}")
+    return 1
+
+
+def cmd_verdict(ns: argparse.Namespace) -> int:
+    try:
+        doc = json.loads(Path(ns.file).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"verdict: could not read {ns.file}: {exc}", file=sys.stderr)
+        return 2
+
+    errors = sidecar.validate_sidecar(doc, require_gpu=False)
+    if errors:
+        for err in errors:
+            print(f"sidecar validation: {err}", file=sys.stderr)
+        return 2
+
+    if ns.criterion == 1:
+        return _verdict_criterion_1(doc)
+
+    print(f"verdict: unknown criterion {ns.criterion}", file=sys.stderr)
+    return 2
+
+
 def main(argv: "list[str] | None" = None) -> int:
     ns = _build_parser().parse_args(argv)
     if ns.command == "run":
         return cmd_run(ns)
     if ns.command == "validate":
         return cmd_validate(ns)
+    if ns.command == "discover":
+        return cmd_discover(ns)
+    if ns.command == "verdict":
+        return cmd_verdict(ns)
     return 2
 
 

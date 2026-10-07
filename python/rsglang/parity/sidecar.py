@@ -24,6 +24,7 @@ from typing import Any, Iterable, Mapping
 from .. import handshake
 from ..profiling.sidecar import _git_commit, _git_dirty, _gpu_name
 from . import compare
+from . import sweep
 
 SCHEMA_VERSION = 1
 GENERATED_BY = "scripts/parity_check.py"
@@ -64,6 +65,9 @@ _RECORD_KEYS = (
 )
 
 _BLOCK_STATUSES = ("ok", "unavailable", "failed")
+
+_DISCOVER_TOP_KEYS = ("schema_version", "generated_by", "meta", "frontend", "endpoints", "tap")
+_DISCOVER_TAP_KEYS = ("checked", "patched", "user_records", "detok_finished")
 
 _CONCURRENT_RECORD_EXTRA_KEYS = ("python_vs_sequential", "rust_vs_sequential")
 _CONCURRENT_SUMMARY_EXTRA_KEYS = (
@@ -247,6 +251,90 @@ def _validate_block(block: Any, path: str, errors: "list[str]") -> None:
                 )
 
 
+def _validate_endpoint_entry(entry: Any, path: str, errors: "list[str]", expected_names: set) -> None:
+    if not isinstance(entry, dict):
+        errors.append(f"{path}: must be an object")
+        return
+    name = entry.get("name")
+    if name not in expected_names:
+        errors.append(f"{path}.name: {name!r} not in {sorted(expected_names)}")
+    if not isinstance(entry.get("ok"), bool):
+        errors.append(f"{path}.ok: must be a bool")
+
+
+def _validate_endpoints_block(block: Any, path: str, errors: "list[str]") -> None:
+    if not isinstance(block, dict):
+        errors.append(f"{path}: must be an object")
+        return
+    for frontend_name, expected in (("python", sweep.PYTHON_ENDPOINTS), ("rust", sweep.RUST_ENDPOINTS)):
+        entries = block.get(frontend_name)
+        if not isinstance(entries, list):
+            errors.append(f"{path}.{frontend_name}: must be a list")
+            continue
+        for i, entry in enumerate(entries):
+            _validate_endpoint_entry(entry, f"{path}.{frontend_name}[{i}]", errors, set(expected))
+
+
+def validate_discover(doc: Any) -> "list[str]":
+    """Validates a `discover` subcommand document: {schema_version,
+    generated_by, meta (mode "discover"), frontend, endpoints, tap}."""
+    errors: "list[str]" = []
+    if not isinstance(doc, dict):
+        return ["doc: top level must be an object"]
+
+    for key in _DISCOVER_TOP_KEYS:
+        if key not in doc:
+            errors.append(f"missing top-level key {key!r}")
+
+    if "schema_version" in doc and doc["schema_version"] != SCHEMA_VERSION:
+        errors.append(f"schema_version must be {SCHEMA_VERSION}, got {doc['schema_version']!r}")
+
+    meta = doc.get("meta")
+    if isinstance(meta, dict):
+        if meta.get("mode") != "discover":
+            errors.append("meta.mode: must be 'discover'")
+    elif meta is not None:
+        errors.append("meta: must be an object")
+
+    frontend = doc.get("frontend")
+    if frontend not in ("python", "rust"):
+        errors.append(f"frontend: must be 'python' or 'rust', got {frontend!r}")
+
+    endpoints = doc.get("endpoints")
+    expected_names = set(sweep.RUST_ENDPOINTS if frontend == "rust" else sweep.PYTHON_ENDPOINTS)
+    if not isinstance(endpoints, list):
+        errors.append("endpoints: must be a list")
+    else:
+        for i, entry in enumerate(endpoints):
+            _validate_endpoint_entry(entry, f"endpoints[{i}]", errors, expected_names)
+
+    tap_block = doc.get("tap")
+    if isinstance(tap_block, dict):
+        for key in _DISCOVER_TAP_KEYS:
+            if key not in tap_block:
+                errors.append(f"tap.{key}: missing")
+            elif not isinstance(tap_block[key], bool):
+                errors.append(f"tap.{key}: must be a bool")
+    elif tap_block is not None:
+        errors.append("tap: must be an object")
+
+    _find_nan_inf(doc, "$", errors)
+    return errors
+
+
+def write_discover(doc: Mapping[str, Any], path: Path) -> None:
+    errors = validate_discover(doc)
+    if errors:
+        raise SidecarError(errors)
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.parent / f".{path.name}.tmp-{os.getpid()}"
+    text = json.dumps(doc, indent=2, allow_nan=False) + "\n"
+    tmp_path.write_text(text, encoding="utf-8")
+    os.replace(tmp_path, path)
+
+
 def validate_sidecar(doc: Any, *, require_gpu: bool = False) -> "list[str]":
     errors: "list[str]" = []
     if not isinstance(doc, dict):
@@ -258,6 +346,10 @@ def validate_sidecar(doc: Any, *, require_gpu: bool = False) -> "list[str]":
 
     if "schema_version" in doc and doc["schema_version"] != SCHEMA_VERSION:
         errors.append(f"schema_version must be {SCHEMA_VERSION}, got {doc['schema_version']!r}")
+
+    endpoints = doc.get("endpoints")
+    if endpoints is not None:
+        _validate_endpoints_block(endpoints, "endpoints", errors)
 
     sequential = doc.get("sequential")
     if sequential is not None:

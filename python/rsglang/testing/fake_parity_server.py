@@ -130,6 +130,7 @@ def _make_handler(
     diverge_when: "str | None",
     diverge_output_at: "int | None",
     diverge_under_load: "int | None" = None,
+    flavor: str = "python",
 ):
     class Handler(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -145,27 +146,59 @@ def _make_handler(
             self.end_headers()
             self.wfile.write(body)
 
+        def _send_text(self, status: int, body: bytes, content_type: str) -> None:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _send_404(self) -> None:
+            self.send_response(404)
+            self.end_headers()
+
         def do_GET(self):  # noqa: N802 - BaseHTTPRequestHandler naming
             if self.path == "/v1/models":
                 self._send_json(
                     200, {"object": "list", "data": [{"id": model_id, "object": "model"}]}
                 )
                 return
-            self.send_response(404)
-            self.end_headers()
-
-        def do_POST(self):  # noqa: N802
-            if self.path != "/v1/chat/completions":
-                self.send_response(404)
-                self.end_headers()
+            if self.path == "/v1":
+                self._send_json(200, {"status": "ok"})
                 return
+            if flavor == "rust" and self.path in ("/health", "/health/ready"):
+                self._send_json(200, {"status": "ok"})
+                return
+            if flavor == "rust" and self.path == "/metrics":
+                body = b"# TYPE rsg_requests_total counter\nrsg_requests_total 0\n"
+                self._send_text(200, body, "text/plain; version=0.0.4")
+                return
+            self._send_404()
+
+        def _read_json_body(self) -> dict:
             length = int(self.headers.get("Content-Length", 0) or 0)
             raw = self.rfile.read(length) if length else b""
             try:
-                payload = json.loads(raw) if raw else {}
+                return json.loads(raw) if raw else {}
             except json.JSONDecodeError:
-                payload = {}
+                return {}
 
+        def _compute_output(self, rendered: str, max_tokens: int, in_flight_before: int):
+            input_ids, output_ids, text = _deterministic_output(
+                rendered,
+                max_tokens,
+                diverge_when=diverge_when,
+                diverge_output_at=diverge_output_at,
+            )
+            if diverge_under_load is not None and in_flight_before >= diverge_under_load:
+                output_ids = list(output_ids)
+                output_ids[0] += 1
+                text = "".join(chr(0x61 + (i % 26)) for i in output_ids)
+            return input_ids, output_ids, text
+
+        def _handle_chat(self) -> None:
+            payload = self._read_json_body()
+            stream = bool(payload.get("stream", False))
             max_tokens = int(payload.get("max_tokens") or 1)
             sampling = {
                 "temperature": float(payload.get("temperature", 0.0)),
@@ -174,51 +207,114 @@ def _make_handler(
                 "ignore_eos": bool(payload.get("ignore_eos", False)),
                 "max_tokens": max_tokens,
             }
-
             rendered = _render_prompt(payload)
 
             in_flight_before = _enter_in_flight()
             try:
-                input_ids, output_ids, text = _deterministic_output(
-                    rendered,
-                    max_tokens,
-                    diverge_when=diverge_when,
-                    diverge_output_at=diverge_output_at,
-                )
-                if diverge_under_load is not None and in_flight_before >= diverge_under_load:
-                    output_ids = list(output_ids)
-                    output_ids[0] += 1
-                    text = "".join(chr(0x61 + (i % 26)) for i in output_ids)
+                input_ids, output_ids, text = self._compute_output(rendered, max_tokens, in_flight_before)
 
                 uid = _next_uid()
                 _tap_writer.write(tap.KIND_USER, uid=uid, input_ids=input_ids, sampling=sampling)
 
                 delay = _token_delay_s()
+                if stream:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.end_headers()
+                    first = True
+                    for k, token in enumerate(output_ids):
+                        if delay:
+                            time.sleep(delay)
+                        finished = k == len(output_ids) - 1
+                        _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
+                        delta = {}
+                        if first:
+                            delta["role"] = "assistant"
+                            first = False
+                        delta["content"] = chr(0x61 + (token % 26))
+                        chunk = {
+                            "id": f"chatcmpl-{uid}",
+                            "object": "chat.completion.chunk",
+                            "choices": [{"index": 0, "delta": delta, "finish_reason": None}],
+                        }
+                        self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
+                    end_chunk = {
+                        "id": f"chatcmpl-{uid}",
+                        "object": "chat.completion.chunk",
+                        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                    }
+                    self.wfile.write(f"data: {json.dumps(end_chunk)}\n\n".encode())
+                    self.wfile.write(b"data: [DONE]\n\n")
+                    self.close_connection = True
+                else:
+                    for k, token in enumerate(output_ids):
+                        if delay:
+                            time.sleep(delay)
+                        finished = k == len(output_ids) - 1
+                        _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
+                    self._send_json(
+                        200,
+                        {
+                            "id": f"chatcmpl-{uid}",
+                            "object": "chat.completion",
+                            "created": int(time.time()),
+                            "model": model_id,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {"role": "assistant", "content": text},
+                                    "finish_reason": "stop",
+                                }
+                            ],
+                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                        },
+                    )
+            finally:
+                _exit_in_flight()
+
+        def _handle_generate(self) -> None:
+            payload = self._read_json_body()
+            max_tokens = int(payload.get("max_tokens") or 1)
+            sampling = {
+                "temperature": 0.0,
+                "top_k": -1,
+                "top_p": 1.0,
+                "ignore_eos": bool(payload.get("ignore_eos", False)),
+                "max_tokens": max_tokens,
+            }
+            rendered = _render_prompt(payload)
+
+            in_flight_before = _enter_in_flight()
+            try:
+                input_ids, output_ids, _text = self._compute_output(rendered, max_tokens, in_flight_before)
+
+                uid = _next_uid()
+                _tap_writer.write(tap.KIND_USER, uid=uid, input_ids=input_ids, sampling=sampling)
+
+                delay = _token_delay_s()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.end_headers()
                 for k, token in enumerate(output_ids):
                     if delay:
                         time.sleep(delay)
                     finished = k == len(output_ids) - 1
                     _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
-
-                self._send_json(
-                    200,
-                    {
-                        "id": f"chatcmpl-{uid}",
-                        "object": "chat.completion",
-                        "created": int(time.time()),
-                        "model": model_id,
-                        "choices": [
-                            {
-                                "index": 0,
-                                "message": {"role": "assistant", "content": text},
-                                "finish_reason": "stop",
-                            }
-                        ],
-                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                    },
-                )
+                    incremental = chr(0x61 + (token % 26))
+                    self.wfile.write(f"data: {incremental}\n".encode())
+                self.wfile.write(b"data: [DONE]\n")
+                self.close_connection = True
             finally:
                 _exit_in_flight()
+
+        def do_POST(self):  # noqa: N802
+            if self.path == "/v1/chat/completions":
+                self._handle_chat()
+                return
+            if self.path == "/generate":
+                self._handle_generate()
+                return
+            self._send_404()
 
     return Handler
 
@@ -244,6 +340,7 @@ def _build_server_parser() -> argparse.ArgumentParser:
     parser.add_argument("--diverge-when", default=None)
     parser.add_argument("--diverge-output-at", type=int, default=None)
     parser.add_argument("--diverge-under-load", type=int, default=None)
+    parser.add_argument("--flavor", choices=("python", "rust"), default="python")
     return parser
 
 
@@ -260,7 +357,9 @@ def _cmd_server(argv: Sequence[str]) -> int:
         ],
     )
 
-    handler_cls = _make_handler(ns.model, ns.diverge_when, ns.diverge_output_at, ns.diverge_under_load)
+    handler_cls = _make_handler(
+        ns.model, ns.diverge_when, ns.diverge_output_at, ns.diverge_under_load, ns.flavor
+    )
     httpd = _Server(("127.0.0.1", ns.port), handler_cls)
     try:
         httpd.serve_forever()

@@ -376,3 +376,157 @@ def test_concurrency_bounds(tmp_path):
     doc = json.loads(out_path.read_text())
     assert doc["concurrent"]["fake/model"]["concurrency"] == 8
     assert any("clamped" in w for w in doc["warnings"])
+
+
+@pytest.mark.slow
+def test_discover_rust_endpoints(tmp_path):
+    port = _free_port()
+    out_path = tmp_path / "discover.json"
+    work_dir = tmp_path / "w"
+    server_cmd = (
+        "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model} "
+        "--flavor rust"
+    )
+
+    result = _run_parity_check(
+        [
+            "discover",
+            "--frontend", "rust",
+            "--model", "fake/model",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_discover(doc) == []
+    assert len(doc["endpoints"]) == 8
+    assert all(e["ok"] for e in doc["endpoints"])
+    assert doc["tap"]["patched"] is True
+
+
+@pytest.mark.slow
+def test_discover_python_endpoints(tmp_path):
+    port = _free_port()
+    out_path = tmp_path / "discover.json"
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "discover",
+            "--frontend", "python",
+            "--model", "fake/model",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_discover(doc) == []
+    assert len(doc["endpoints"]) == 5
+
+
+@pytest.mark.slow
+def test_discover_missing_endpoint_fails(tmp_path):
+    port = _free_port()
+    out_path = tmp_path / "discover.json"
+    work_dir = tmp_path / "w"
+    # Python-flavor fake server, but we ask discover to check Rust's endpoints.
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "discover",
+            "--frontend", "rust",
+            "--model", "fake/model",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 1
+
+    doc = json.loads(out_path.read_text())
+    by_name = {e["name"]: e for e in doc["endpoints"]}
+    assert by_name["GET /health"]["ok"] is False
+
+
+@pytest.mark.slow
+def test_run_endpoints_part_and_verdict_c1(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+    server_cmd = (
+        "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model} "
+        "--flavor rust"
+    )
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "endpoints",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert len(doc["endpoints"]["python"]) == 5
+    assert len(doc["endpoints"]["rust"]) == 8
+
+    verdict_result = _run_parity_check(["verdict", str(out_path), "--criterion", "1"])
+    assert verdict_result.returncode == 0, f"stdout={verdict_result.stdout!r}"
+    assert "criterion 1: PASS" in verdict_result.stdout
+
+    bad_doc = json.loads(json.dumps(doc))
+    for entry in bad_doc["endpoints"]["rust"]:
+        if entry["name"] == "GET /health":
+            entry["ok"] = False
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text(json.dumps(bad_doc), encoding="utf-8")
+
+    bad_verdict_result = _run_parity_check(["verdict", str(bad_path), "--criterion", "1"])
+    assert bad_verdict_result.returncode == 1
+    assert "criterion 1: FAIL" in bad_verdict_result.stdout
+
+
+def test_port_in_use_exits_2(tmp_path):
+    port = _free_port()
+    out_path = tmp_path / "discover.json"
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
+        blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        blocker.bind(("127.0.0.1", port))
+        blocker.listen(1)
+
+        result = _run_parity_check(
+            [
+                "discover",
+                "--frontend", "python",
+                "--model", "fake/model",
+                "--port", str(port),
+                "--out", str(out_path),
+                "--work-dir", str(work_dir),
+                "--server-cmd", server_cmd,
+            ]
+        )
+        assert result.returncode == 2
+        assert "in use" in result.stderr
