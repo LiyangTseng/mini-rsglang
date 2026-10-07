@@ -24,6 +24,7 @@ from typing import Any, Iterable, Mapping
 from .. import handshake
 from ..profiling.sidecar import _git_commit, _git_dirty, _gpu_name
 from . import compare
+from . import corpus
 from . import sweep
 
 SCHEMA_VERSION = 1
@@ -107,6 +108,7 @@ def build_meta(
         "git_commit": _git_commit(repo_root),
         "git_dirty": _git_dirty(repo_root),
         "upstream_sha": upstream_sha,
+        "gpu": _gpu_name(),
         "models": list(models),
         "gate_model": gate_model,
         "corpus": {"path": corpus_path, "sha256": corpus_sha256, "n": corpus_n},
@@ -377,6 +379,53 @@ def validate_sidecar(doc: Any, *, require_gpu: bool = False) -> "list[str]":
             errors.append(
                 "meta: require_gpu needs platform starting with 'linux' and a non-empty gpu name"
             )
+
+        mode_value = meta.get("mode") if isinstance(meta, dict) else None
+        if mode_value != "run":
+            errors.append(f"meta.mode: require_gpu needs 'run', got {mode_value!r}")
+
+        corpus_meta = meta.get("corpus") if isinstance(meta, dict) else None
+        if isinstance(corpus_meta, dict):
+            if corpus_meta.get("path") != corpus.CANONICAL_CORPUS:
+                errors.append(
+                    f"meta.corpus.path: require_gpu needs {corpus.CANONICAL_CORPUS!r}, "
+                    f"got {corpus_meta.get('path')!r}"
+                )
+            try:
+                canonical_sha = corpus.corpus_sha256(handshake.repo_root() / corpus.CANONICAL_CORPUS)
+            except OSError:
+                canonical_sha = None
+            if canonical_sha is None or corpus_meta.get("sha256") != canonical_sha:
+                errors.append("meta.corpus.sha256: require_gpu needs the canonical corpus's sha256")
+            n_value = corpus_meta.get("n")
+            if not (isinstance(n_value, int) and not isinstance(n_value, bool) and n_value >= 100):
+                errors.append(f"meta.corpus.n: require_gpu needs an int >= 100, got {n_value!r}")
+        else:
+            errors.append("meta.corpus: require_gpu needs a corpus object")
+
+        if not (
+            isinstance(endpoints, dict)
+            and isinstance(endpoints.get("python"), list)
+            and isinstance(endpoints.get("rust"), list)
+        ):
+            errors.append("endpoints: require_gpu needs both python and rust endpoint lists present")
+
+        models_value = meta.get("models") if isinstance(meta, dict) else None
+        gate_model = meta.get("gate_model") if isinstance(meta, dict) else None
+        if isinstance(models_value, list):
+            if not isinstance(sequential, dict):
+                errors.append("sequential: require_gpu needs a block for every meta.models entry")
+            else:
+                for model in models_value:
+                    if model not in sequential:
+                        errors.append(
+                            f"sequential[{model!r}]: require_gpu needs a block for every meta.models entry"
+                        )
+        if gate_model is not None:
+            if not isinstance(concurrent, dict) or gate_model not in concurrent:
+                errors.append(
+                    f"concurrent[{gate_model!r}]: require_gpu needs a block for meta.gate_model"
+                )
 
     _find_nan_inf(doc, "$", errors)
     return errors

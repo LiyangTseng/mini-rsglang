@@ -530,3 +530,218 @@ def test_port_in_use_exits_2(tmp_path):
         )
         assert result.returncode == 2
         assert "in use" in result.stderr
+
+
+@pytest.mark.slow
+def test_report_model_unavailable(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+    server_cmd = (
+        "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model} "
+        "--gated-models fake/gated"
+    )
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model,fake/gated",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    gated_block = doc["sequential"]["fake/gated"]
+    assert gated_block["status"] == "unavailable"
+    assert "gated" in gated_block["reason"].lower()
+    gate_block = doc["sequential"]["fake/model"]
+    assert gate_block["status"] == "ok"
+    assert gate_block["summary"]["matched"] == gate_block["summary"]["n"]
+
+    verdict_result = _run_parity_check(["verdict", str(out_path), "--criterion", "2"])
+    assert verdict_result.returncode == 1
+    assert "unavailable" in verdict_result.stdout
+
+
+def test_canonical_out_refused_off_gpu(tmp_path):
+    canonical_out = REPO_ROOT / "docs" / "benchmarks" / "parity-report.json"
+    assert not canonical_out.exists(), "pre-existing canonical parity report would invalidate this test"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--out", "docs/benchmarks/parity-report.json",
+            "--parts", "sequential",
+        ],
+        timeout=30,
+    )
+    assert result.returncode == 2
+    assert "refusing to write" in result.stderr
+    assert not canonical_out.exists()
+
+
+@pytest.mark.slow
+def test_validate_require_gpu_rejects_mac_doc(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    plain_result = _run_parity_check(["validate", str(out_path)])
+    assert plain_result.returncode == 0
+
+    gpu_result = _run_parity_check(["validate", str(out_path), "--require-gpu"])
+    assert gpu_result.returncode == 1
+    assert "platform" in gpu_result.stderr
+
+
+def _synthetic_prompt_record(prompt_id: str, match: bool = True) -> dict:
+    return {
+        "prompt_id": prompt_id,
+        "category": "x",
+        "kind": "raw",
+        "python": {
+            "status": "ok", "error": None, "uid": 0, "input_ids": [1],
+            "sampling": {}, "output_ids": [1], "finished": True, "text": "a",
+        },
+        "rust": {
+            "status": "ok", "error": None, "uid": 0, "input_ids": [1],
+            "sampling": {}, "output_ids": [1] if match else [2],
+            "finished": True, "text": "a" if match else "b",
+        },
+        "ids_match": match,
+        "text_match": match,
+        "match": match,
+        "divergence": None if match else {
+            "layer": "backend", "first_index": 0, "python_window": [1],
+            "rust_window": [2], "text_offset": None, "note": None,
+        },
+    }
+
+
+def _synthetic_doc(n: int, *, matched: "int | None" = None) -> dict:
+    matched = n if matched is None else matched
+    seq_prompts = [_synthetic_prompt_record(f"p{i}", match=(i < matched)) for i in range(n)]
+    conc_prompts = []
+    for i, r in enumerate(seq_prompts):
+        cr = json.loads(json.dumps(r))
+        cr["python_vs_sequential"] = True
+        cr["rust_vs_sequential"] = True
+        conc_prompts.append(cr)
+
+    return {
+        "schema_version": sidecar.SCHEMA_VERSION,
+        "generated_by": sidecar.GENERATED_BY,
+        "meta": {
+            "models": ["fake/gate"],
+            "gate_model": "fake/gate",
+            "concurrency": 8,
+            "corpus": {"path": "x", "sha256": "x", "n": n},
+        },
+        "endpoints": None,
+        "sequential": {
+            "fake/gate": {
+                "status": "ok",
+                "reason": None,
+                "summary": {
+                    "n": n,
+                    "matched": matched,
+                    "ids_matched": matched,
+                    "text_matched": matched,
+                    "by_layer": {layer: 0 for layer in LAYERS},
+                    "by_category": {},
+                },
+                "prompts": seq_prompts,
+            }
+        },
+        "concurrent": {
+            "fake/gate": {
+                "status": "ok",
+                "reason": None,
+                "concurrency": 8,
+                "summary": {
+                    "n": n,
+                    "matched": sum(1 for r in conc_prompts if r["match"]),
+                    "ids_matched": sum(1 for r in conc_prompts if r["ids_match"]),
+                    "text_matched": sum(1 for r in conc_prompts if r["text_match"]),
+                    "by_layer": {layer: 0 for layer in LAYERS},
+                    "by_category": {},
+                    "python_vs_sequential_matched": n,
+                    "rust_vs_sequential_matched": n,
+                    "unmatched_tap": 0,
+                },
+                "prompts": conc_prompts,
+            }
+        },
+        "abort_stress": None,
+        "warnings": [],
+    }
+
+
+def test_verdict_c2_c3_synthetic(tmp_path):
+    doc = _synthetic_doc(100)
+    path = tmp_path / "doc.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+
+    r2 = _run_parity_check(["verdict", str(path), "--criterion", "2"])
+    assert r2.returncode == 0, f"stdout={r2.stdout!r} stderr={r2.stderr!r}"
+    assert "criterion 2: PASS" in r2.stdout
+
+    r3 = _run_parity_check(["verdict", str(path), "--criterion", "3"])
+    assert r3.returncode == 0, f"stdout={r3.stdout!r} stderr={r3.stderr!r}"
+    assert "criterion 3: PASS" in r3.stdout
+
+    # One prompt's match flipped false, matched 99 -> criterion 2 FAILs.
+    bad_doc = _synthetic_doc(100, matched=99)
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text(json.dumps(bad_doc), encoding="utf-8")
+    r2_bad = _run_parity_check(["verdict", str(bad_path), "--criterion", "2"])
+    assert r2_bad.returncode == 1
+    assert "criterion 2: FAIL" in r2_bad.stdout
+
+    # 99 prompts total -> criterion 2 FAILs mentioning the n>=100 requirement.
+    small_doc = _synthetic_doc(99)
+    small_path = tmp_path / "small.json"
+    small_path.write_text(json.dumps(small_doc), encoding="utf-8")
+    r2_small = _run_parity_check(["verdict", str(small_path), "--criterion", "2"])
+    assert r2_small.returncode == 1
+    assert "100" in r2_small.stdout
+
+    # A report model with status "failed" -> criterion 2 FAILs.
+    failed_doc = _synthetic_doc(100)
+    failed_doc["meta"]["models"] = ["fake/gate", "fake/other"]
+    failed_doc["sequential"]["fake/other"] = {
+        "status": "failed", "reason": "boom", "summary": None, "prompts": [],
+    }
+    failed_path = tmp_path / "failed.json"
+    failed_path.write_text(json.dumps(failed_doc), encoding="utf-8")
+    r2_failed = _run_parity_check(["verdict", str(failed_path), "--criterion", "2"])
+    assert r2_failed.returncode == 1
+    assert "criterion 2: FAIL" in r2_failed.stdout

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -104,6 +105,27 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _slug(model: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in model).strip("-").lower()
+
+
+_GATED_RE = re.compile(
+    r"gated repo|access to model|401 client error|cannot access gated|restricted",
+    re.IGNORECASE,
+)
+
+
+def _classify_session_failure(exc: Exception) -> "tuple[str, str]":
+    """Returns (status, reason) for a session that raised ServerExited or
+    TimeoutError before becoming ready. ServerExited's message embeds the
+    last 40 log lines (procs.wait_ready); a line matching the gated-repo
+    regex means the checkpoint is simply unavailable, not broken."""
+    if isinstance(exc, TimeoutError):
+        return "failed", str(exc)
+    text = str(exc)
+    for line in text.splitlines():
+        if _GATED_RE.search(line):
+            return "unavailable", line.strip()
+    lines = [line for line in text.splitlines() if line.strip()]
+    return "failed", (lines[-1] if lines else text)
 
 
 class _PortInUse(Exception):
@@ -242,6 +264,17 @@ def cmd_run(ns: argparse.Namespace) -> int:
             print(f"corpus: {err}", file=sys.stderr)
         return 2
 
+    out_path = Path(ns.out)
+    canonical_path = (REPO_ROOT / sidecar.CANONICAL_OUT).resolve()
+    if out_path.resolve() == canonical_path:
+        gpu_name = sidecar._gpu_name()
+        if not (sys.platform.startswith("linux") and gpu_name):
+            print(
+                f"refusing to write {sidecar.CANONICAL_OUT} from a non-GPU run; pass --out <path>",
+                file=sys.stderr,
+            )
+            return 2
+
     work_dir = Path(ns.work_dir) if ns.work_dir else Path(tempfile.mkdtemp(prefix="parity_check."))
     work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -330,14 +363,20 @@ def cmd_run(ns: argparse.Namespace) -> int:
                     workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
                 )
             except (procs.ServerExited, TimeoutError) as exc:
-                print(f"{model}: {exc}", file=sys.stderr)
+                status, reason = _classify_session_failure(exc)
+                print(f"{model}: {reason}", file=sys.stderr)
                 sequential_out[model] = {
-                    "status": "failed",
-                    "reason": str(exc),
+                    "status": status,
+                    "reason": reason,
                     "summary": None,
                     "prompts": [],
                 }
-                any_failure = True
+                if status == "unavailable":
+                    warnings.append(f"{model} unavailable: {reason}")
+                    if model == gate_model:
+                        any_failure = True
+                else:
+                    any_failure = True
                 continue
 
             python_side = sweep.join_sequential(items, python_session.value, python_session.tap)
@@ -356,7 +395,7 @@ def cmd_run(ns: argparse.Namespace) -> int:
 
             matched, n = summary["matched"], summary["n"]
             print(f"sequential {model}: {matched}/{n} identical")
-            if matched < n:
+            if model == gate_model and matched < n:
                 any_failure = True
             if model == gate_model:
                 gate_sides = {"python": python_side, "rust": rust_side}
@@ -429,7 +468,6 @@ def cmd_run(ns: argparse.Namespace) -> int:
         "warnings": warnings,
     }
 
-    out_path = Path(ns.out)
     try:
         sidecar.write_sidecar(doc, out_path)
     except sidecar.SidecarError as exc:
@@ -557,6 +595,88 @@ def _verdict_criterion_1(doc: dict) -> int:
     return 1
 
 
+def _verdict_criterion_2(doc: dict) -> int:
+    meta = doc.get("meta") or {}
+    models = meta.get("models") or []
+    gate_model = meta.get("gate_model")
+    sequential = doc.get("sequential") or {}
+
+    gate_block = sequential.get(gate_model)
+    gate_summary = gate_block.get("summary") if isinstance(gate_block, dict) else None
+    gate_ok = (
+        isinstance(gate_block, dict)
+        and gate_block.get("status") == "ok"
+        and isinstance(gate_summary, dict)
+        and gate_summary.get("n", 0) >= 100
+        and gate_summary.get("matched") == gate_summary.get("n")
+    )
+
+    lines: "list[str]" = []
+    ok = gate_ok
+    if gate_ok:
+        lines.append(f"{gate_model} {gate_summary['matched']}/{gate_summary['n']} identical (hard gate)")
+    elif isinstance(gate_block, dict) and gate_block.get("status") == "ok" and isinstance(gate_summary, dict):
+        lines.append(
+            f"{gate_model} {gate_summary.get('matched')}/{gate_summary.get('n')} identical, "
+            "needs n>=100 and matched==n (hard gate)"
+        )
+    else:
+        status = gate_block.get("status") if isinstance(gate_block, dict) else "missing"
+        reason = gate_block.get("reason") if isinstance(gate_block, dict) else "no sequential block for gate model"
+        lines.append(f"{gate_model} {status}: {reason} (hard gate)")
+
+    for model in models:
+        if model == gate_model:
+            continue
+        block = sequential.get(model)
+        if isinstance(block, dict) and block.get("status") == "ok":
+            s = block.get("summary") or {}
+            lines.append(f"{model} {s.get('matched')}/{s.get('n')} identical (reported, not gated)")
+        else:
+            ok = False
+            status = block.get("status") if isinstance(block, dict) else "missing"
+            reason = block.get("reason") if isinstance(block, dict) else "no sequential block"
+            lines.append(f"{model} {status}: {reason} (reported, not gated)")
+
+    verdict_word = "PASS" if ok else "FAIL"
+    print(f"criterion 2: {verdict_word} " + "; ".join(lines))
+    return 0 if ok else 1
+
+
+def _verdict_criterion_3(doc: dict) -> int:
+    meta = doc.get("meta") or {}
+    gate_model = meta.get("gate_model")
+    concurrency_meta = meta.get("concurrency")
+    concurrent = doc.get("concurrent") or {}
+    block = concurrent.get(gate_model)
+    summary = block.get("summary") if isinstance(block, dict) else None
+
+    ok = (
+        isinstance(block, dict)
+        and block.get("status") == "ok"
+        and block.get("concurrency") == concurrency_meta
+        and isinstance(summary, dict)
+        and summary.get("n", 0) >= 100
+    )
+
+    if ok:
+        c = block["concurrency"]
+        print(
+            f"criterion 3: PASS {gate_model} @{c}: {summary['matched']}/{summary['n']} "
+            f"Rust-vs-Python identical, python vs sequential "
+            f"{summary.get('python_vs_sequential_matched')}/{summary['n']}, rust vs sequential "
+            f"{summary.get('rust_vs_sequential_matched')}/{summary['n']} (informational)"
+        )
+        return 0
+
+    status = block.get("status") if isinstance(block, dict) else "missing"
+    reason = (
+        block.get("reason") if isinstance(block, dict) else "no concurrent block for meta.gate_model"
+    )
+    print(f"criterion 3: FAIL {gate_model} {status}: {reason}")
+    return 1
+
+
 def cmd_verdict(ns: argparse.Namespace) -> int:
     try:
         doc = json.loads(Path(ns.file).read_text(encoding="utf-8"))
@@ -572,6 +692,10 @@ def cmd_verdict(ns: argparse.Namespace) -> int:
 
     if ns.criterion == 1:
         return _verdict_criterion_1(doc)
+    if ns.criterion == 2:
+        return _verdict_criterion_2(doc)
+    if ns.criterion == 3:
+        return _verdict_criterion_3(doc)
 
     print(f"verdict: unknown criterion {ns.criterion}", file=sys.stderr)
     return 2

@@ -341,11 +341,18 @@ def _build_server_parser() -> argparse.ArgumentParser:
     parser.add_argument("--diverge-output-at", type=int, default=None)
     parser.add_argument("--diverge-under-load", type=int, default=None)
     parser.add_argument("--flavor", choices=("python", "rust"), default="python")
+    parser.add_argument("--gated", action="store_true")
+    parser.add_argument("--gated-models", default=None, metavar="LIST")
     return parser
 
 
 def _cmd_server(argv: Sequence[str]) -> int:
     ns = _build_server_parser().parse_args(argv)
+
+    gated_models = {m.strip() for m in (ns.gated_models or "").split(",") if m.strip()}
+    if ns.gated or ns.model in gated_models:
+        print(f"Cannot access gated repo for url https://huggingface.co/{ns.model}", file=sys.stderr)
+        return 1
 
     _tap_writer.write(
         tap.KIND_PATCHED,
