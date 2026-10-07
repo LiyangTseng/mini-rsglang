@@ -17,6 +17,7 @@ import socket
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -743,3 +744,64 @@ def test_run_probe_block_skips_when_scheduler_already_dead(tmp_path):
     assert block["status"] == "skipped"
     assert f"pid={dead_pid}" in block["reason"]
     assert "died" in block["reason"]
+
+
+@pytest.mark.slow
+def test_probe_closes_without_hanging_when_peer_disappears_mid_probe(tmp_path):
+    """Regression test for a second real-GPU hang: ZmqPushQueue.stop() (vendored,
+    frozen) calls socket.close() then context.term() with no LINGER override.
+    Default LINGER is -1 (wait forever) -- if the PULL peer disappears while a
+    sent message is still unflushed (the scheduler process dying mid-probe,
+    which is exactly what this probe exists to study), close()/term() block
+    forever with nothing left to ever drain the backlog. probe.py must set
+    LINGER=0 so stop() always returns promptly regardless of peer state.
+
+    Reproduces the race directly: closes the PULL peer from a background
+    thread partway through the probe's send sequence, then asserts the whole
+    probe call (which blocked ~900s+ in production before this fix) returns
+    well under a bounded test timeout.
+    """
+    import threading
+
+    import zmq
+
+    from rsglang.parity import probe
+
+    sock_path = Path(f"/tmp/rsglang-probe-hang-test-{os.getpid()}.sock")
+    sock_path.unlink(missing_ok=True)
+    addr = f"ipc://{sock_path}"
+    context = zmq.Context()
+    sock = context.socket(zmq.PULL)
+    sock.bind(addr)
+
+    def _kill_peer_mid_probe() -> None:
+        # Let the probe's initial 0.2s connect-settle sleep and first send pass,
+        # then disappear -- mirrors the scheduler dying mid-probe in production.
+        time.sleep(0.3)
+        sock.close()
+        context.term()
+        sock_path.unlink(missing_ok=True)
+
+    killer = threading.Thread(target=_kill_peer_mid_probe, daemon=True)
+    killer.start()
+
+    result: "dict[str, object]" = {}
+
+    def _run() -> None:
+        try:
+            result["trials"] = probe.run_window_probe(
+                addr, delays_ms=[0, 5, 10], repeats=3, prompt_ids=[1, 2, 3], gap_s=0.1
+            )
+        except Exception as exc:  # BackendUnreachable or any zmq error is fine here
+            result["error"] = exc
+
+    runner = threading.Thread(target=_run, daemon=True)
+    runner.start()
+    runner.join(timeout=15.0)
+    killer.join(timeout=5.0)
+
+    assert not runner.is_alive(), (
+        "run_window_probe did not return within 15s after its PULL peer disappeared -- "
+        "LINGER is not bounded (regression of the real-GPU hang in queue.stop())"
+    )
+    assert "trials" in result or "error" in result

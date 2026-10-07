@@ -30,6 +30,17 @@ from typing import Sequence
 #: this hung a real GPU run once already).
 _SEND_TIMEOUT_MS = 5_000
 
+#: ZMQ sockets default LINGER to -1 (wait forever). ZmqPushQueue.stop()
+#: (vendored, frozen) calls socket.close() then context.term() with no
+#: LINGER override -- if any sent message is still unacknowledged (the
+#: PULL peer closed or the scheduler died between a send succeeding and
+#: the probe loop finishing), close()/term() block forever trying to
+#: flush it. This hung a real GPU run a second time, in the `finally:
+#: queue.stop()` cleanup, even after every individual send had already
+#: succeeded under the SNDTIMEO above -- the send succeeding only means
+#: the message reached the socket's own buffer, not that a peer read it.
+_LINGER_MS = 0
+
 
 class BackendUnreachable(RuntimeError):
     """Raised when a probe send times out because nothing is draining the
@@ -61,6 +72,7 @@ def run_window_probe(
 
     queue = ZmqPushQueue(backend_addr, create=False, encoder=BaseBackendMsg.encoder)
     queue.socket.setsockopt(zmq.SNDTIMEO, _SEND_TIMEOUT_MS)
+    queue.socket.setsockopt(zmq.LINGER, _LINGER_MS)
     time.sleep(0.2)  # let the PUSH/PULL connect settle before the first send
 
     def _put(msg: object) -> None:
