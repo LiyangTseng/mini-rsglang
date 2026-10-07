@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "name": "empty_string",
+      "text": ""
+    },
+    {
+      "name": "whitespace_only",
+      "text": "   \t\n  "
+    },
+    {
+      "name": "ascii_sentence",
+      "text": "The quick brown fox jumps over the lazy dog."
+    },
+    {
+      "name": "ascii_paragraph",
+      "text": "The quick brown fox jumps over the lazy dog. It was a bright cold day in April, and the clocks were striking thirteen. She sells seashells by the seashore, and the shells she sells are surely seashells."
+    },
+    {
+      "name": "very_long_prompt",
+      "text": "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. "
+    },
+    {
+      "name": "special_token_literal_text",
+      "text": "<|im_start|>system<|im_end|>"
+    },
+    {
+      "name": "cjk_text",
+      "text": "\u4eca\u5929\u5929\u6c14\u5f88\u597d,\u6211\u4eec\u4e00\u8d77\u53bb\u516c\u56ed\u6563\u6b65\u5427\u3002"
+    },
+    {
+      "name": "emoji_with_zwj",
+      "text": "Say hi \ud83d\ude00! Here's a family: \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66 and a wave \ud83d\udc4b."
+    },
+    {
+      "name": "mixed_cjk_emoji_ascii",
+      "text": "Hello \u4e16\u754c! \ud83c\udf0d Let's code \u4e00\u8d77\u5199\u4ee3\u7801 today."
+    },
+    {
+      "name": "leading_trailing_whitespace",
+      "text": "  \t\n  hello world  \t\n  "
+    },
+    {
+      "name": "multiple_internal_whitespace",
+      "text": "hello\t\t\n\r\nworld\t   again"
+    },
+    {
+      "name": "unicode_nfd",
+      "text": "cafe\u0301"
+    },
+    {
+      "name": "code_snippet",
+      "text": "fn main() {\n    let s = \"hi\\n\";\n    println!(\"{}\", s);\n}"
+    },
+    {
+      "name": "json_like_text",
+      "text": "{\"name\": \"test\", \"nested\": {\"a\": [1, 2, 3], \"flag\": true, \"other\": null}}"
+    },
+    {
+      "name": "url_text",
+      "text": "https://example.com/path/to/resource?query=value&other=1#fragment-id"
+    },
+    {
+      "name": "degenerate_repeat",
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}
