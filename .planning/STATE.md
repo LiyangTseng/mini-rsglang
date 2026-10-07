@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: GPU End-to-End Parity
-status: executing
-stopped_at: Completed 06-07-PLAN.md Task 2 (06-07-SUMMARY.md written); Task 2's human-check reply still outstanding
-last_updated: "2026-10-07T20:17:38.274Z"
+status: verifying
+stopped_at: "Completed 06-08-PLAN.md (Phase 6 finalized: D-09 branch C, PAR-01 harness-bug correction, final 128/128 parity report); Task 3's human-check reply still outstanding"
+last_updated: "2026-10-07T23:47:55.137Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 06 execution started; Phase 05 merged in from origin/main
-state_head: 81fd33aa88c8c0b67275479bb52d32f8f9132baa
+state_head: 25b084ebd712768faa8b796f4091e1e5e3342253
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 51
-  completed_plans: 50
+  completed_plans: 51
   percent: 71
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 
 Phase: 06 (GPU End-to-End Parity) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-07 — Phase 05 merged in from origin/main; Phase 06 execution continuing
 
 Progress: [███████░░░] 71%
@@ -97,6 +97,7 @@ Progress: [███████░░░] 71%
 | Phase 06 P06 | 75 min | 1 tasks | 3 files |
 | Phase 06 P06 | 90min | 1 tasks | 10 files |
 | Phase 06 P07 | ~50 min | 1 tasks | 3 files |
+| Phase 06 P08 | ~2h55m | 4 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -191,6 +192,8 @@ Recent decisions affecting current work:
 - [Phase 06]: Investigated both edge-08 one-token-short mismatches with a deterministic Mac-side reproduction (`crates/rsg-server/tests/backend_finish_boundary.rs`) before accepting the FAIL at face value; found the Rust frontend's engine/dispatch pair has no independent stopping logic of any kind and never second-guesses the backend's own `finished` flag — this finding stands unchanged by the correction below. The *explanation* for the mismatch (GPU backend run-to-run nondeterminism, recorded in the original 06-08-PLAN.md Task 0 and parity-report.md) was wrong; see the next entry.
 - [Phase 06]: The true cause of the apparent 127/128 PAR-01 mismatch (both models, prompt edge-08) was a bug in the parity test harness itself, not GPU nondeterminism and not a frontend defect: `python/rsglang/parity/sweep.py`'s `join_sequential`/`join_concurrent` counted a post-finish straggler `detok` record (emitted by the scheduler's pipelined execution after it already sent `finished=true`, raced against session teardown) as an extra output token on the Python side only — even though the real HTTP response text both frontends sent was already byte-identical. Fixed by `_bounded_detoks()` (commit `ae8feec`), which truncates a uid's detok records at the first `finished=true` record, with two regression tests in `python/tests/test_parity_check.py`. A full GPU re-run with the fix in place (on top of the D-09 branch-C `deferred` default below) shows **128/128 for both models, zero divergence anywhere** — PAR-01's hard gate genuinely passes; no `## PAR-01 disposition (D-05)` was needed since the gate did not fail. See `docs/benchmarks/parity-report.md`'s corrected "PAR-01 off-by-one investigation" section for the full account.
 - [Phase 06]: abort-timing default for Phase 7 = deferred (D-09 branch C; reproduced=yes, conclusive=yes, immediate=crash, deferred=none, probe double frees=0; evidence docs/benchmarks/parity-report.md)
+- [Phase 06]: D-09 branch C chosen: --abort-timing default changed to deferred (project-wide); the vendored scheduler stays pristine. See STATE.md Decisions and docs/benchmarks/parity-report.md's Abort-timing decision (D-09) section.
+- [Phase 06]: The apparent Criterion 2 (PAR-01) FAIL reported by 06-07 was a parity test harness bug (sweep.py double-counted a post-finish straggler detok record), not GPU nondeterminism and not a frontend defect; fixed in commit ae8feec. Final GPU re-run: 128/128 for both models, zero divergence. PAR-01/PAR-02 genuinely pass; no disposition was needed.
 
 ### Pending Todos
 
@@ -219,6 +222,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T20:17:38.210Z
-Stopped at: Completed 06-07-PLAN.md Task 2 (06-07-SUMMARY.md written); Task 2's human-check reply still outstanding
+Last session: 2026-10-07T23:47:55.056Z
+Stopped at: Completed 06-08-PLAN.md (Phase 6 finalized: D-09 branch C, PAR-01 harness-bug correction, final 128/128 parity report); Task 3's human-check reply still outstanding
 Resume file: None
