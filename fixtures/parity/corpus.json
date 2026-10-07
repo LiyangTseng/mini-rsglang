@@ -1,0 +1,2354 @@
+{
+  "schema_version": 1,
+  "description": "PAR-01/PAR-02 curated parity corpus (D-01), shared by Qwen/Qwen3-0.6B and meta-llama/Llama-3.2-1B-Instruct (D-03); 128 items = the D-10 concurrency level",
+  "items": [
+    {
+      "id": "short-01",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello, how are you?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_chat.py#single_turn_no_system"
+    },
+    {
+      "id": "short-02",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant."
+        },
+        {
+          "role": "user",
+          "content": "What is 2+2?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_chat.py#system_plus_single_turn"
+    },
+    {
+      "id": "short-03",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the capital of Japan?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-04",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Name the largest ocean on Earth."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-05",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Convert 10 kilometers to miles."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-06",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "List three primary colors."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-07",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What year did World War II end?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-08",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Define the word 'ubiquitous' in one sentence."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-09",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the boiling point of water in Celsius?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-10",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Name a prime number greater than 50."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-11",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What does HTTP stand for?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-12",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Give a synonym for 'happy'."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-13",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the chemical symbol for gold?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-14",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "How many continents are there on Earth?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-15",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the square root of 144?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-16",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Name the author of 'Pride and Prejudice'."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-17",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the speed of light in a vacuum, roughly?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-18",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Translate 'good morning' into French."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-19",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What gas do plants absorb during photosynthesis?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-20",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Name the smallest prime number."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-21",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the currency used in Japan?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-22",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "How many sides does a hexagon have?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-23",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is the freezing point of water in Fahrenheit?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "short-24",
+      "category": "short",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Name one programming language used for web development."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-01",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of the history of computing. Mechanical calculators predated electronic computers by centuries. (point 1) Charles Babbage designed the Analytical Engine but never completed it. (point 2) Ada Lovelace wrote what is often considered the first computer program. (point 3) Vacuum tubes powered the first generation of electronic computers. (point 4) Transistors replaced vacuum tubes and shrank computers dramatically. (point 5) Integrated circuits packed many transistors onto a single chip. (point 6) Microprocessors brought computing power to a single piece of silicon. (point 7) Personal computers moved computing from labs into homes and offices. (point 8) The internet connected computers worldwide into a single network. (point 9) Smartphones put a powerful computer into nearly everyone's pocket. (point 10) Cloud computing moved workloads off individual machines entirely. (point 11) Machine learning models now run on specialized accelerator hardware. (point 12) Mechanical calculators predated electronic computers by centuries. (point 13) Charles Babbage designed the Analytical Engine but never completed it. (point 14) Ada Lovelace wrote what is often considered the first computer program. (point 15) Vacuum tubes powered the first generation of electronic computers. (point 16) Transistors replaced vacuum tubes and shrank computers dramatically. (point 17) Integrated circuits packed many transistors onto a single chip. (point 18) Microprocessors brought computing power to a single piece of silicon. (point 19) Personal computers moved computing from labs into homes and offices. (point 20) The internet connected computers worldwide into a single network. (point 21) Smartphones put a powerful computer into nearly everyone's pocket. (point 22) Cloud computing moved workloads off individual machines entirely. (point 23) Machine learning models now run on specialized accelerator hardware. (point 24) Mechanical calculators predated electronic computers by centuries. (point 25) Charles Babbage designed the Analytical Engine but never completed it. (point 26) Ada Lovelace wrote what is often considered the first computer program. (point 27) Vacuum tubes powered the first generation of electronic computers. (point 28) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-02",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of the water cycle. The sun heats water in oceans, lakes, and rivers, causing evaporation. (point 1) Water vapor rises into the atmosphere and cools as it ascends. (point 2) Cooled vapor condenses around particles to form clouds. (point 3) Clouds grow until droplets are heavy enough to fall as precipitation. (point 4) Rain and snow return water to the surface of the earth. (point 5) Some precipitation soaks into the ground and becomes groundwater. (point 6) Groundwater slowly flows underground until it reaches a river or sea. (point 7) Surface runoff carries water across land back into larger bodies. (point 8) Plants absorb groundwater through roots and release vapor via leaves. (point 9) This release of vapor from plants is called transpiration. (point 10) Ice caps and glaciers store water as solid ice for long periods. (point 11) Eventually that stored ice melts and rejoins the cycle as liquid water. (point 12) The sun heats water in oceans, lakes, and rivers, causing evaporation. (point 13) Water vapor rises into the atmosphere and cools as it ascends. (point 14) Cooled vapor condenses around particles to form clouds. (point 15) Clouds grow until droplets are heavy enough to fall as precipitation. (point 16) Rain and snow return water to the surface of the earth. (point 17) Some precipitation soaks into the ground and becomes groundwater. (point 18) Groundwater slowly flows underground until it reaches a river or sea. (point 19) Surface runoff carries water across land back into larger bodies. (point 20) Plants absorb groundwater through roots and release vapor via leaves. (point 21) This release of vapor from plants is called transpiration. (point 22) Ice caps and glaciers store water as solid ice for long periods. (point 23) Eventually that stored ice melts and rejoins the cycle as liquid water. (point 24) The sun heats water in oceans, lakes, and rivers, causing evaporation. (point 25) Water vapor rises into the atmosphere and cools as it ascends. (point 26) Cooled vapor condenses around particles to form clouds. (point 27) Clouds grow until droplets are heavy enough to fall as precipitation. (point 28) Rain and snow return water to the surface of the earth. (point 29) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-03",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of careers in software engineering. Software engineers design, build, and maintain computer programs. (point 1) Backend engineers focus on servers, databases, and business logic. (point 2) Frontend engineers build the interfaces that users interact with. (point 3) Systems engineers work close to the operating system and hardware. (point 4) Site reliability engineers keep production services running smoothly. (point 5) Security engineers look for weaknesses before attackers find them. (point 6) Data engineers build pipelines that move and transform information. (point 7) Machine learning engineers deploy trained models into real products. (point 8) Engineering managers coordinate teams and plan project roadmaps. (point 9) Technical writers translate complex systems into clear documentation. (point 10) Quality engineers design tests that catch regressions before release. (point 11) Many engineers move between these roles over the course of a career. (point 12) Software engineers design, build, and maintain computer programs. (point 13) Backend engineers focus on servers, databases, and business logic. (point 14) Frontend engineers build the interfaces that users interact with. (point 15) Systems engineers work close to the operating system and hardware. (point 16) Site reliability engineers keep production services running smoothly. (point 17) Security engineers look for weaknesses before attackers find them. (point 18) Data engineers build pipelines that move and transform information. (point 19) Machine learning engineers deploy trained models into real products. (point 20) Engineering managers coordinate teams and plan project roadmaps. (point 21) Technical writers translate complex systems into clear documentation. (point 22) Quality engineers design tests that catch regressions before release. (point 23) Many engineers move between these roles over the course of a career. (point 24) Software engineers design, build, and maintain computer programs. (point 25) Backend engineers focus on servers, databases, and business logic. (point 26) Frontend engineers build the interfaces that users interact with. (point 27) Systems engineers work close to the operating system and hardware. (point 28) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-04",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of basics of music theory. A scale is an ordered set of notes spanning an octave. (point 1) The major scale follows a fixed pattern of whole and half steps. (point 2) A chord is formed by playing three or more notes together. (point 3) Triads are the simplest chords, built from a root, third, and fifth. (point 4) A key signature tells a performer which notes are sharp or flat. (point 5) Rhythm describes how notes are organized in time. (point 6) A time signature indicates how many beats fall in each measure. (point 7) Harmony is the combination of simultaneous musical notes. (point 8) Melody is a sequence of notes perceived as a single musical line. (point 9) Dynamics describe how loud or soft a passage should be played. (point 10) Tempo indicates how fast or slow a piece of music should move. (point 11) Composers combine all of these elements to create a finished piece. (point 12) A scale is an ordered set of notes spanning an octave. (point 13) The major scale follows a fixed pattern of whole and half steps. (point 14) A chord is formed by playing three or more notes together. (point 15) Triads are the simplest chords, built from a root, third, and fifth. (point 16) A key signature tells a performer which notes are sharp or flat. (point 17) Rhythm describes how notes are organized in time. (point 18) A time signature indicates how many beats fall in each measure. (point 19) Harmony is the combination of simultaneous musical notes. (point 20) Melody is a sequence of notes perceived as a single musical line. (point 21) Dynamics describe how loud or soft a passage should be played. (point 22) Tempo indicates how fast or slow a piece of music should move. (point 23) Composers combine all of these elements to create a finished piece. (point 24) A scale is an ordered set of notes spanning an octave. (point 25) The major scale follows a fixed pattern of whole and half steps. (point 26) A chord is formed by playing three or more notes together. (point 27) Triads are the simplest chords, built from a root, third, and fifth. (point 28) A key signature tells a performer which notes are sharp or flat. (point 29) Rhythm describes how notes are organized in time. (point 30) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-05",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of an overview of photosynthesis. Photosynthesis converts light energy into chemical energy in plants. (point 1) Chlorophyll inside chloroplasts absorbs light, mostly red and blue. (point 2) Water molecules are split apart during the light-dependent reactions. (point 3) Splitting water releases oxygen as a byproduct into the atmosphere. (point 4) Light reactions produce energy carriers used later in the process. (point 5) The Calvin cycle uses that energy to fix carbon dioxide into sugar. (point 6) Stomata are small pores that let carbon dioxide into the leaf. (point 7) The same pores also allow water vapor to escape through transpiration. (point 8) Glucose produced by photosynthesis fuels the plant's growth. (point 9) Excess sugar can be stored as starch for later use. (point 10) Photosynthesis is the foundation of nearly every food chain on Earth. (point 11) Without it, most life as we know it could not be sustained. (point 12) Photosynthesis converts light energy into chemical energy in plants. (point 13) Chlorophyll inside chloroplasts absorbs light, mostly red and blue. (point 14) Water molecules are split apart during the light-dependent reactions. (point 15) Splitting water releases oxygen as a byproduct into the atmosphere. (point 16) Light reactions produce energy carriers used later in the process. (point 17) The Calvin cycle uses that energy to fix carbon dioxide into sugar. (point 18) Stomata are small pores that let carbon dioxide into the leaf. (point 19) The same pores also allow water vapor to escape through transpiration. (point 20) Glucose produced by photosynthesis fuels the plant's growth. (point 21) Excess sugar can be stored as starch for later use. (point 22) Photosynthesis is the foundation of nearly every food chain on Earth. (point 23) Without it, most life as we know it could not be sustained. (point 24) Photosynthesis converts light energy into chemical energy in plants. (point 25) Chlorophyll inside chloroplasts absorbs light, mostly red and blue. (point 26) Water molecules are split apart during the light-dependent reactions. (point 27) Splitting water releases oxygen as a byproduct into the atmosphere. (point 28) Light reactions produce energy carriers used later in the process. (point 29) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-06",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of the history of the printing press. Movable type printing was independently developed in East Asia first. (point 1) Johannes Gutenberg built a printing press using metal movable type. (point 2) His press combined oil-based ink, a screw mechanism, and metal type. (point 3) The Gutenberg Bible was among the first major books printed this way. (point 4) Printed books became far cheaper to produce than hand-copied ones. (point 5) Literacy rates rose as books became more affordable and available. (point 6) The press helped spread scientific and religious ideas quickly. (point 7) Standardized spelling became more common once texts were printed. (point 8) Newspapers eventually grew out of the same printing technology. (point 9) Steam-powered presses later increased printing speed enormously. (point 10) Offset printing became the dominant technique in the 20th century. (point 11) Digital publishing has since changed how most text reaches readers. (point 12) Movable type printing was independently developed in East Asia first. (point 13) Johannes Gutenberg built a printing press using metal movable type. (point 14) His press combined oil-based ink, a screw mechanism, and metal type. (point 15) The Gutenberg Bible was among the first major books printed this way. (point 16) Printed books became far cheaper to produce than hand-copied ones. (point 17) Literacy rates rose as books became more affordable and available. (point 18) The press helped spread scientific and religious ideas quickly. (point 19) Standardized spelling became more common once texts were printed. (point 20) Newspapers eventually grew out of the same printing technology. (point 21) Steam-powered presses later increased printing speed enormously. (point 22) Offset printing became the dominant technique in the 20th century. (point 23) Digital publishing has since changed how most text reaches readers. (point 24) Movable type printing was independently developed in East Asia first. (point 25) Johannes Gutenberg built a printing press using metal movable type. (point 26) His press combined oil-based ink, a screw mechanism, and metal type. (point 27) The Gutenberg Bible was among the first major books printed this way. (point 28) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-07",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of how compilers work. A compiler translates source code written by a programmer into machine code. (point 1) Lexical analysis breaks source text into a stream of tokens. (point 2) Parsing arranges those tokens into a tree that reflects the grammar. (point 3) Semantic analysis checks that the parsed program actually makes sense. (point 4) Type checking is one common part of semantic analysis. (point 5) An intermediate representation lets the compiler reason about the program. (point 6) Optimization passes rewrite that representation to run faster. (point 7) Register allocation decides which values live in fast hardware registers. (point 8) Code generation produces the final machine instructions. (point 9) Linking combines compiled pieces into a single runnable program. (point 10) Just-in-time compilers perform some of these steps while a program runs. (point 11) Interpreters skip ahead-of-time compilation and execute source directly. (point 12) A compiler translates source code written by a programmer into machine code. (point 13) Lexical analysis breaks source text into a stream of tokens. (point 14) Parsing arranges those tokens into a tree that reflects the grammar. (point 15) Semantic analysis checks that the parsed program actually makes sense. (point 16) Type checking is one common part of semantic analysis. (point 17) An intermediate representation lets the compiler reason about the program. (point 18) Optimization passes rewrite that representation to run faster. (point 19) Register allocation decides which values live in fast hardware registers. (point 20) Code generation produces the final machine instructions. (point 21) Linking combines compiled pieces into a single runnable program. (point 22) Just-in-time compilers perform some of these steps while a program runs. (point 23) Interpreters skip ahead-of-time compilation and execute source directly. (point 24) A compiler translates source code written by a programmer into machine code. (point 25) Lexical analysis breaks source text into a stream of tokens. (point 26) Parsing arranges those tokens into a tree that reflects the grammar. (point 27) Semantic analysis checks that the parsed program actually makes sense. (point 28) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-08",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of basics of network protocols. A network protocol is an agreed set of rules for exchanging data. (point 1) The Internet Protocol addresses and routes packets between machines. (point 2) TCP adds reliability on top of IP by retransmitting lost packets. (point 3) UDP skips that reliability to minimize latency for some workloads. (point 4) DNS translates human-readable names into numeric IP addresses. (point 5) HTTP is the application protocol underlying most web traffic. (point 6) TLS encrypts a connection so eavesdroppers cannot read the contents. (point 7) A handshake establishes shared parameters before data flows. (point 8) Routers forward packets toward their destination hop by hop. (point 9) Firewalls inspect traffic and decide whether to allow it through. (point 10) Load balancers spread incoming requests across many servers. (point 11) Together these layers let two distant machines talk reliably. (point 12) A network protocol is an agreed set of rules for exchanging data. (point 13) The Internet Protocol addresses and routes packets between machines. (point 14) TCP adds reliability on top of IP by retransmitting lost packets. (point 15) UDP skips that reliability to minimize latency for some workloads. (point 16) DNS translates human-readable names into numeric IP addresses. (point 17) HTTP is the application protocol underlying most web traffic. (point 18) TLS encrypts a connection so eavesdroppers cannot read the contents. (point 19) A handshake establishes shared parameters before data flows. (point 20) Routers forward packets toward their destination hop by hop. (point 21) Firewalls inspect traffic and decide whether to allow it through. (point 22) Load balancers spread incoming requests across many servers. (point 23) Together these layers let two distant machines talk reliably. (point 24) A network protocol is an agreed set of rules for exchanging data. (point 25) The Internet Protocol addresses and routes packets between machines. (point 26) TCP adds reliability on top of IP by retransmitting lost packets. (point 27) UDP skips that reliability to minimize latency for some workloads. (point 28) DNS translates human-readable names into numeric IP addresses. (point 29) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-09",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of an overview of plate tectonics. The Earth's crust is broken into large pieces called tectonic plates. (point 1) These plates float on a slowly flowing layer of the mantle below. (point 2) Plates can move apart, collide, or slide past one another. (point 3) Divergent boundaries form where plates move apart from each other. (point 4) New crust forms at divergent boundaries as magma rises upward. (point 5) Convergent boundaries form where plates push together. (point 6) One plate often sinks beneath another at a convergent boundary. (point 7) This sinking process is called subduction. (point 8) Transform boundaries occur where plates slide past each other. (point 9) Earthquakes are common along all three types of plate boundary. (point 10) Volcanoes often form near subduction zones and divergent boundaries. (point 11) Mountain ranges can rise where continental plates collide. (point 12) The Earth's crust is broken into large pieces called tectonic plates. (point 13) These plates float on a slowly flowing layer of the mantle below. (point 14) Plates can move apart, collide, or slide past one another. (point 15) Divergent boundaries form where plates move apart from each other. (point 16) New crust forms at divergent boundaries as magma rises upward. (point 17) Convergent boundaries form where plates push together. (point 18) One plate often sinks beneath another at a convergent boundary. (point 19) This sinking process is called subduction. (point 20) Transform boundaries occur where plates slide past each other. (point 21) Earthquakes are common along all three types of plate boundary. (point 22) Volcanoes often form near subduction zones and divergent boundaries. (point 23) Mountain ranges can rise where continental plates collide. (point 24) The Earth's crust is broken into large pieces called tectonic plates. (point 25) These plates float on a slowly flowing layer of the mantle below. (point 26) Plates can move apart, collide, or slide past one another. (point 27) Divergent boundaries form where plates move apart from each other. (point 28) New crust forms at divergent boundaries as magma rises upward. (point 29) Convergent boundaries form where plates push together. (point 30) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-10",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of the history of mathematics. Ancient civilizations developed counting systems to track goods. (point 1) The Babylonians used a base-60 numbering system still seen in time. (point 2) Ancient Egyptian mathematics supported surveying and construction. (point 3) Greek mathematicians emphasized formal proof over pure calculation. (point 4) Euclid organized geometry into a system of axioms and theorems. (point 5) Indian mathematicians developed the concept of zero as a number. (point 6) Algebra as a named discipline emerged in the medieval Islamic world. (point 7) The decimal positional system spread westward over many centuries. (point 8) Calculus emerged in the 17th century to describe continuous change. (point 9) Set theory later gave mathematics a common foundational language. (point 10) Computers eventually automated calculations once done entirely by hand. (point 11) Modern mathematics now spans dozens of specialized subfields. (point 12) Ancient civilizations developed counting systems to track goods. (point 13) The Babylonians used a base-60 numbering system still seen in time. (point 14) Ancient Egyptian mathematics supported surveying and construction. (point 15) Greek mathematicians emphasized formal proof over pure calculation. (point 16) Euclid organized geometry into a system of axioms and theorems. (point 17) Indian mathematicians developed the concept of zero as a number. (point 18) Algebra as a named discipline emerged in the medieval Islamic world. (point 19) The decimal positional system spread westward over many centuries. (point 20) Calculus emerged in the 17th century to describe continuous change. (point 21) Set theory later gave mathematics a common foundational language. (point 22) Computers eventually automated calculations once done entirely by hand. (point 23) Modern mathematics now spans dozens of specialized subfields. (point 24) Ancient civilizations developed counting systems to track goods. (point 25) The Babylonians used a base-60 numbering system still seen in time. (point 26) Ancient Egyptian mathematics supported surveying and construction. (point 27) Greek mathematicians emphasized formal proof over pure calculation. (point 28) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-11",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of an introduction to machine learning. Machine learning builds systems that improve from data instead of rules. (point 1) Supervised learning trains a model on labeled input-output pairs. (point 2) Unsupervised learning looks for structure in unlabeled data. (point 3) Reinforcement learning trains an agent through trial and reward. (point 4) A loss function measures how wrong a model's predictions are. (point 5) Gradient descent nudges model parameters to reduce that loss. (point 6) Overfitting happens when a model memorizes training data too closely. (point 7) Regularization techniques discourage a model from overfitting. (point 8) A validation set helps estimate how a model performs on new data. (point 9) Neural networks stack simple computations into flexible models. (point 10) Large language models are trained on enormous amounts of text. (point 11) Careful evaluation is essential before deploying any trained model. (point 12) Machine learning builds systems that improve from data instead of rules. (point 13) Supervised learning trains a model on labeled input-output pairs. (point 14) Unsupervised learning looks for structure in unlabeled data. (point 15) Reinforcement learning trains an agent through trial and reward. (point 16) A loss function measures how wrong a model's predictions are. (point 17) Gradient descent nudges model parameters to reduce that loss. (point 18) Overfitting happens when a model memorizes training data too closely. (point 19) Regularization techniques discourage a model from overfitting. (point 20) A validation set helps estimate how a model performs on new data. (point 21) Neural networks stack simple computations into flexible models. (point 22) Large language models are trained on enormous amounts of text. (point 23) Careful evaluation is essential before deploying any trained model. (point 24) Machine learning builds systems that improve from data instead of rules. (point 25) Supervised learning trains a model on labeled input-output pairs. (point 26) Unsupervised learning looks for structure in unlabeled data. (point 27) Reinforcement learning trains an agent through trial and reward. (point 28) A loss function measures how wrong a model's predictions are. (point 29) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "long-12",
+      "category": "long",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "An overview of an overview of distributed systems. A distributed system is a collection of machines that act as one. (point 1) Network delays and partial failures are a normal part of life here. (point 2) The CAP theorem describes a tradeoff between consistency and availability. (point 3) Consensus protocols let machines agree on a single value despite failures. (point 4) Replication copies data across machines to survive individual failures. (point 5) Sharding splits data across machines to spread load evenly. (point 6) Leader election picks one machine to coordinate a group temporarily. (point 7) Idempotent operations can be safely retried after a timeout. (point 8) Clock skew between machines complicates reasoning about ordering. (point 9) Logical clocks give a consistent notion of ordering without real time. (point 10) Observability tools help operators understand a system under load. (point 11) Good distributed systems degrade gracefully instead of failing all at once. (point 12) A distributed system is a collection of machines that act as one. (point 13) Network delays and partial failures are a normal part of life here. (point 14) The CAP theorem describes a tradeoff between consistency and availability. (point 15) Consensus protocols let machines agree on a single value despite failures. (point 16) Replication copies data across machines to survive individual failures. (point 17) Sharding splits data across machines to spread load evenly. (point 18) Leader election picks one machine to coordinate a group temporarily. (point 19) Idempotent operations can be safely retried after a timeout. (point 20) Clock skew between machines complicates reasoning about ordering. (point 21) Logical clocks give a consistent notion of ordering without real time. (point 22) Observability tools help operators understand a system under load. (point 23) Good distributed systems degrade gracefully instead of failing all at once. (point 24) A distributed system is a collection of machines that act as one. (point 25) Network delays and partial failures are a normal part of life here. (point 26) The CAP theorem describes a tradeoff between consistency and availability. (point 27) "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-01",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant."
+        },
+        {
+          "role": "user",
+          "content": "Hi"
+        },
+        {
+          "role": "assistant",
+          "content": "Hello! How can I help you today?"
+        },
+        {
+          "role": "user",
+          "content": "Tell me a joke."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_chat.py#multi_turn"
+    },
+    {
+      "id": "multi_turn-02",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant."
+        },
+        {
+          "role": "user",
+          "content": "User turn 1: what about topic 1?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 1 about topic 1."
+        },
+        {
+          "role": "user",
+          "content": "User turn 2: what about topic 2?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 2 about topic 2."
+        },
+        {
+          "role": "user",
+          "content": "User turn 3: what about topic 3?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 3 about topic 3."
+        },
+        {
+          "role": "user",
+          "content": "User turn 4: what about topic 4?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 4 about topic 4."
+        },
+        {
+          "role": "user",
+          "content": "User turn 5: what about topic 5?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_chat.py#long_multi_turn"
+    },
+    {
+      "id": "multi_turn-03",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing planning a trip to Kyoto."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with planning a trip to Kyoto. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about planning a trip to Kyoto."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for planning a trip to Kyoto?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about planning a trip to Kyoto."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for planning a trip to Kyoto?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-04",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing debugging a null pointer exception."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with debugging a null pointer exception. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about debugging a null pointer exception."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for debugging a null pointer exception?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about debugging a null pointer exception."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for debugging a null pointer exception?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about debugging a null pointer exception."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for debugging a null pointer exception?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-05",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing choosing a recipe for dinner."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with choosing a recipe for dinner. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about choosing a recipe for dinner."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for choosing a recipe for dinner?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about choosing a recipe for dinner."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for choosing a recipe for dinner?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about choosing a recipe for dinner."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for choosing a recipe for dinner?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 4 to consider about choosing a recipe for dinner."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 5 for choosing a recipe for dinner?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-06",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing picking a gift for a coworker."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with picking a gift for a coworker. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about picking a gift for a coworker."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for picking a gift for a coworker?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about picking a gift for a coworker."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for picking a gift for a coworker?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-07",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing learning to play the guitar."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with learning to play the guitar. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about learning to play the guitar."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for learning to play the guitar?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about learning to play the guitar."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for learning to play the guitar?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about learning to play the guitar."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for learning to play the guitar?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-08",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing setting up a home network."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with setting up a home network. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about setting up a home network."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for setting up a home network?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about setting up a home network."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for setting up a home network?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about setting up a home network."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for setting up a home network?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 4 to consider about setting up a home network."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 5 for setting up a home network?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-09",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing writing a cover letter."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with writing a cover letter. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about writing a cover letter."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for writing a cover letter?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about writing a cover letter."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for writing a cover letter?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-10",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing training for a 10k run."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with training for a 10k run. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about training for a 10k run."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for training for a 10k run?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about training for a 10k run."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for training for a 10k run?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about training for a 10k run."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for training for a 10k run?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-11",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing organizing a bookshelf."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with organizing a bookshelf. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about organizing a bookshelf."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for organizing a bookshelf?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about organizing a bookshelf."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for organizing a bookshelf?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about organizing a bookshelf."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for organizing a bookshelf?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 4 to consider about organizing a bookshelf."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 5 for organizing a bookshelf?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-12",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing deciding on a weekend hike."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with deciding on a weekend hike. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about deciding on a weekend hike."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for deciding on a weekend hike?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about deciding on a weekend hike."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for deciding on a weekend hike?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-13",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing troubleshooting a slow laptop."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with troubleshooting a slow laptop. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about troubleshooting a slow laptop."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for troubleshooting a slow laptop?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about troubleshooting a slow laptop."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for troubleshooting a slow laptop?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about troubleshooting a slow laptop."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for troubleshooting a slow laptop?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-14",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing preparing for a job interview."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with preparing for a job interview. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about preparing for a job interview."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for preparing for a job interview?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about preparing for a job interview."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for preparing for a job interview?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about preparing for a job interview."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for preparing for a job interview?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 4 to consider about preparing for a job interview."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 5 for preparing for a job interview?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-15",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing comparing two laptops before buying one."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with comparing two laptops before buying one. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about comparing two laptops before buying one."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for comparing two laptops before buying one?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about comparing two laptops before buying one."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for comparing two laptops before buying one?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-16",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing planning a small birthday party."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with planning a small birthday party. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about planning a small birthday party."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for planning a small birthday party?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about planning a small birthday party."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for planning a small birthday party?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about planning a small birthday party."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for planning a small birthday party?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-17",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing learning basic conversational Spanish."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with learning basic conversational Spanish. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about learning basic conversational Spanish."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for learning basic conversational Spanish?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about learning basic conversational Spanish."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for learning basic conversational Spanish?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about learning basic conversational Spanish."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for learning basic conversational Spanish?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 4 to consider about learning basic conversational Spanish."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 5 for learning basic conversational Spanish?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-18",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing setting up a vegetable garden."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with setting up a vegetable garden. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about setting up a vegetable garden."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for setting up a vegetable garden?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about setting up a vegetable garden."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for setting up a vegetable garden?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-19",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing choosing a topic for a book club."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with choosing a topic for a book club. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about choosing a topic for a book club."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for choosing a topic for a book club?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about choosing a topic for a book club."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for choosing a topic for a book club?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about choosing a topic for a book club."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for choosing a topic for a book club?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-20",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing reviewing a pull request."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with reviewing a pull request. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about reviewing a pull request."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for reviewing a pull request?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about reviewing a pull request."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for reviewing a pull request?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about reviewing a pull request."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for reviewing a pull request?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 4 to consider about reviewing a pull request."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 5 for reviewing a pull request?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-21",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing designing a simple database schema."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with designing a simple database schema. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about designing a simple database schema."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for designing a simple database schema?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about designing a simple database schema."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for designing a simple database schema?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-22",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing picking a podcast to start listening to."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with picking a podcast to start listening to. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about picking a podcast to start listening to."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for picking a podcast to start listening to?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about picking a podcast to start listening to."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for picking a podcast to start listening to?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about picking a podcast to start listening to."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for picking a podcast to start listening to?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-23",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing scheduling a dentist appointment."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with scheduling a dentist appointment. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about scheduling a dentist appointment."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for scheduling a dentist appointment?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about scheduling a dentist appointment."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for scheduling a dentist appointment?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 3 to consider about scheduling a dentist appointment."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 4 for scheduling a dentist appointment?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 4 to consider about scheduling a dentist appointment."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 5 for scheduling a dentist appointment?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "multi_turn-24",
+      "category": "multi_turn",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant discussing deciding which museum to visit."
+        },
+        {
+          "role": "user",
+          "content": "I'd like some help with deciding which museum to visit. Where should I start?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 1 to consider about deciding which museum to visit."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 2 for deciding which museum to visit?"
+        },
+        {
+          "role": "assistant",
+          "content": "Here's step 2 to consider about deciding which museum to visit."
+        },
+        {
+          "role": "user",
+          "content": "Okay, what about step 3 for deciding which museum to visit?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-01",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What does this function return?\n\n```python\ndef add(a, b):\n    return a + b\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-02",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "Why does this raise a KeyError?\n\n```python\nd = {'a': 1}\nprint(d['b'])\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-03",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "Can you simplify this loop?\n\n```python\nresult = []\nfor i in range(10):\n\tif i % 2 == 0:\n\t\tresult.append(i)\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-04",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What's wrong with this class definition?\n\n```python\nclass Point:\n    def __init__(self, x, y):\n        self.x = x\n        self.y = y\n\n    def dist(self):\n        return (self.x**2 + self.y**2) ** 0.5\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-05",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "How would you add type hints here?\n\n```python\ndef greet(name):\n    return f\"Hello, {name}!\"\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-06",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What does this list comprehension produce?\n\n```python\nsquares = [x * x for x in range(5) if x % 2 == 0]\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-07",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "Is this recursive function correct?\n\n```python\ndef fib(n):\n    if n <= 1:\n        return n\n    return fib(n - 1) + fib(n - 2)\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-08",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What does this function signature mean?\n\n```rust\nfn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-09",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "Why won't this borrow-check?\n\n```rust\nfn main() {\n    let mut v = vec![1, 2, 3];\n    let first = &v[0];\n    v.push(4);\n    println!(\"{}\", first);\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-10",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What traits would I need to implement here?\n\n```rust\nstruct Point {\n\tx: f64,\n\ty: f64,\n}\n\nimpl Point {\n\tfn dist(&self) -> f64 {\n\t\t(self.x * self.x + self.y * self.y).sqrt()\n\t}\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-11",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What does this match expression do?\n\n```rust\nfn describe(n: i32) -> &'static str {\n    match n {\n        0 => \"zero\",\n        n if n > 0 => \"positive\",\n        _ => \"negative\",\n    }\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-12",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "How would you make this generic over any numeric type?\n\n```rust\nfn max_of(a: i32, b: i32) -> i32 {\n    if a > b { a } else { b }\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-13",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What does this Option chain do?\n\n```rust\nfn first_char(s: &str) -> Option<char> {\n    s.chars().next()\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-14",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "Why does this iterator chain fail to compile?\n\n```rust\nfn main() {\n\tlet v = vec![1, 2, 3];\n\tlet doubled: Vec<i32> = v.iter().map(|x| x * 2);\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-15",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What does this arrow function return?\n\n```javascript\nconst add = (a, b) => a + b;\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-16",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "Why is this async function not awaiting properly?\n\n```javascript\nasync function getData() {\n    const res = fetch('/api/data');\n    return res.json();\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-17",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What does this destructuring assignment do?\n\n```javascript\nconst { name, age } = { name: 'Ada', age: 30 };\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-18",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "Can you explain this closure?\n\n```javascript\nfunction counter() {\n\tlet count = 0;\n\treturn function () {\n\t\tcount += 1;\n\t\treturn count;\n\t};\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-19",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "What does this Promise chain resolve to?\n\n```javascript\nPromise.resolve(1)\n  .then((x) => x + 1)\n  .then((x) => x * 2);\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "code-20",
+      "category": "code",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful coding assistant."
+        },
+        {
+          "role": "user",
+          "content": "Why does this for loop log the wrong values?\n\n```javascript\nfor (var i = 0; i < 3; i++) {\n    setTimeout(() => console.log(i), 0);\n}\n```"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-01",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "今天天气很好,我们一起去公园散步吧。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#cjk_text"
+    },
+    {
+      "id": "cjk-02",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello 世界! 🌍 Let's code 一起写代码 today."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#mixed_cjk_emoji_ascii"
+    },
+    {
+      "id": "cjk-03",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "これは日本語のテストです。合計は123です。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-04",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "안녕하세요, 오늘 날씨가 정말 좋네요."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-05",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "我有3个苹果和5个橘子,一共8个水果。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-06",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "東京タワーの高さは333メートルです。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-07",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "서울에서 부산까지 기차로 약 3시간 걸립니다。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-08",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "请帮我把这段话翻译成英文,谢谢!"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-09",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "日本語と中国語と韓国語を比べてみましょう。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-10",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "오늘은 2026년 10월 6일입니다."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-11",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "这个项目的截止日期是下周五。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-12",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "彼は毎朝6時に起きて散歩をします。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-13",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "이 문장에는 한글과 숫자 42가 섞여 있습니다."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-14",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "北京、上海和广州是中国的三个大城市。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-15",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "この文章には日本語とEnglishが混ざっています。"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "cjk-16",
+      "category": "cjk",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "회의는 오후 3시에 시작할 예정입니다."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-01",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Say hi 😀! Here's a family: 👨‍👩‍👧‍👦 and a wave 👋."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#emoji_with_zwj"
+    },
+    {
+      "id": "emoji-02",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "I'm so happy today 😀😁😂!"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-03",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Let's plan a trip ✈️ to Japan 🇯🇵 next spring."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-04",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Can you wave hello 👋🏻 for me?"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-05",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Thumbs up 👍🏽 on the new design!"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-06",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Couple celebrating: 👩‍❤️‍👨 at the party."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-07",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Pack your bags 🧳 for the flag parade 🇺🇸🇬🇧🇯🇵."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-08",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Family hike today: 👨‍👩‍👧 up the mountain ⛰️."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-09",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Great job 👏🏾 on finishing the marathon 🏃‍♀️!"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-10",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Weather forecast: sunny ☀️ then rainy 🌧️ by evening."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-11",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Rocket launch 🚀 scheduled for tomorrow 🌟."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "emoji-12",
+      "category": "emoji",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Two flags side by side: 🇫🇷 and 🇩🇪."
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "raw-01",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "The quick brown fox jumps over the lazy dog.",
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#ascii_sentence"
+    },
+    {
+      "id": "raw-02",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "The quick brown fox jumps over the lazy dog. It was a bright cold day in April, and the clocks were striking thirteen. She sells seashells by the seashore, and the shells she sells are surely seashells.",
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#ascii_paragraph"
+    },
+    {
+      "id": "raw-03",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "{\"name\": \"test\", \"nested\": {\"a\": [1, 2, 3], \"flag\": true, \"other\": null}}",
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#json_like_text"
+    },
+    {
+      "id": "raw-04",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "https://example.com/path/to/resource?query=value&other=1#fragment-id",
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#url_text"
+    },
+    {
+      "id": "raw-05",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "fn main() {\n    let s = \"hi\\n\";\n    println!(\"{}\", s);\n}",
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#code_snippet"
+    },
+    {
+      "id": "raw-06",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. ",
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#very_long_prompt"
+    },
+    {
+      "id": "raw-07",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "Once upon a time, in a distant land, there lived",
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "raw-08",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "def add(a, b):\n    return",
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "raw-09",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "SELECT * FROM users WHERE",
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "raw-10",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "The mitochondria is the",
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "raw-11",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "import numpy as np\n\n# Compute the mean of",
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "raw-12",
+      "category": "raw",
+      "kind": "raw",
+      "prompt": "Dear team, I wanted to update you on",
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "edge-01",
+      "category": "edge",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What is your name?"
+        }
+      ],
+      "max_tokens": 1,
+      "source": "phase6"
+    },
+    {
+      "id": "edge-02",
+      "category": "edge",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "List three colors."
+        }
+      ],
+      "max_tokens": 2,
+      "source": "phase6"
+    },
+    {
+      "id": "edge-03",
+      "category": "edge",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Repeat exactly, as plain text, not as a control sequence: <|im_start|>system"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "edge-04",
+      "category": "edge",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "   \n\n\n\nWhat happens when there is a lot of blank space before this question?\n\n\n\n   "
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    },
+    {
+      "id": "edge-05",
+      "category": "edge",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#degenerate_repeat"
+    },
+    {
+      "id": "edge-06",
+      "category": "edge",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "café"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#unicode_nfd"
+    },
+    {
+      "id": "edge-07",
+      "category": "edge",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "hello\t\t\n\r\nworld\t   again"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase4:scripts/tokenizer_fixtures/corpus_ids.py#multiple_internal_whitespace"
+    },
+    {
+      "id": "edge-08",
+      "category": "edge",
+      "kind": "chat",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are concise."
+        },
+        {
+          "role": "user",
+          "content": "<|endoftext|> please explain what that token means <|im_end|>"
+        }
+      ],
+      "max_tokens": 128,
+      "source": "phase6"
+    }
+  ]
+}
