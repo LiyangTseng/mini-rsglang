@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 06
-current_phase_name: gpu-end-to-end-parity
+current_phase_name: GPU End-to-End Parity
 status: executing
-stopped_at: Phase 04 complete, ready to plan Phase 5
-last_updated: "2026-10-07T02:51:07.267Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-10-07T03:25:03.119Z"
 last_activity: 2026-10-06
-last_activity_desc: Phase 03 and Phase 04 complete, transitioned to Phase 5
-state_head: c224a60635606c3630c907dcab39560823fdfd60
+last_activity_desc: Phase 06 execution started
+state_head: b3740571a840f4fd5fecc42943dbd624aba7dbc8
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 42
-  completed_plans: 34
+  completed_plans: 35
   percent: 57
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 5 — Request Lifecycle & HTTP API
+**Current focus:** Phase 06 — GPU End-to-End Parity
 
 ## Current Position
 
-Phase: 06 (gpu-end-to-end-parity) — READY TO EXECUTE
-Plan: Not started
+Phase: 06 (GPU End-to-End Parity) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-10-06 — Phase 03 and Phase 04 complete, transitioned to Phase 5
+Last activity: 2026-10-06 — Phase 06 execution started
 
 Progress: [██████░░░░] 57%
 
@@ -79,6 +79,7 @@ Progress: [██████░░░░] 57%
 | Phase 04 P04 | 20min | 2 tasks | 7 files |
 | Phase 04 P05 | 30min | 2 tasks | 5 files |
 | Phase 04 P06 | 25min | 2 tasks | 6 files |
+| Phase 06 P01 | 55min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,7 @@ Recent decisions affecting current work:
 - [Phase 04]: GatedAccessError is raised only when a gated model's load failure cause-chain contains huggingface_hub's GatedRepoError/RepositoryNotFoundError, confirmed against real hf-hub/transformers source, not a bare except Exception
 - [Phase 04]: Real Llama BOS count is 2 (not D-10's assumed 1), confirmed empirically against the canonical gated tokenizer -- the Rust test asserts 2, documenting the discrepancy rather than normalizing it
 - [Phase 04]: cargo test -p rsg-tokenizer requires --test-threads=1 to be deterministic (pre-existing env-var/cache-lock races, unrelated to TOK-04); logged to deferred-items.md, not fixed in this plan's scope
+- [Phase 06]: Phase 06: one tap (generated sitecustomize shim outside vendor/) and aiohttp instead of RESEARCH's two taps / openai SDK; tdd-red-evidence skipped for pytest (Node-TAP-format-only tool, workflow.tdd_mode disabled), RED verified manually
 
 ### Pending Todos
 
@@ -159,6 +161,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T01:12:12.826Z
-Stopped at: Phase 04 complete, ready to plan Phase 5
+Last session: 2026-10-07T03:25:03.061Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
