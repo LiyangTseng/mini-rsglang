@@ -754,3 +754,78 @@ def test_verdict_c2_c3_synthetic(tmp_path):
     r2_failed = _run_parity_check(["verdict", str(failed_path), "--criterion", "2"])
     assert r2_failed.returncode == 1
     assert "criterion 2: FAIL" in r2_failed.stdout
+
+
+# --- Regression: scheduler straggler detok after finished=True (Phase 6 06-08 scope) ---
+
+
+def test_bounded_detoks_discards_straggler_after_finished():
+    """The scheduler's pipelined/overlapped execution can emit a straggler
+    detok record for a uid *after* it already sent finished=True -- a real
+    GPU run hit this for the very last request in a sequential session
+    (raced against that session's own teardown SIGINT). That straggler never
+    reaches any real HTTP client, since the frontend already closed the
+    response out on the first finished=True. _bounded_detoks must discard
+    it, matching what a real client actually received."""
+    from rsglang.parity.sweep import _bounded_detoks
+
+    recs = [
+        {"uid": 127, "seq": 1, "next_token": 10, "finished": False},
+        {"uid": 127, "seq": 2, "next_token": 20, "finished": False},
+        {"uid": 127, "seq": 3, "next_token": 30, "finished": True},
+        {"uid": 127, "seq": 4, "next_token": 99999, "finished": True},  # straggler
+    ]
+    bounded = _bounded_detoks(recs)
+    assert [r["next_token"] for r in bounded] == [10, 20, 30]
+
+    # No finished=True at all: nothing to bound, every record is kept.
+    no_finish = [
+        {"uid": 5, "seq": 1, "next_token": 1, "finished": False},
+        {"uid": 5, "seq": 2, "next_token": 2, "finished": False},
+    ]
+    assert _bounded_detoks(no_finish) == no_finish
+
+    # finished=True on the very first record: bounded to just that one.
+    immediate = [
+        {"uid": 9, "seq": 1, "next_token": 1, "finished": True},
+        {"uid": 9, "seq": 2, "next_token": 2, "finished": False},
+    ]
+    assert len(_bounded_detoks(immediate)) == 1
+
+
+def test_join_sequential_discards_straggler_detok_for_par01(tmp_path):
+    """End-to-end regression: join_sequential's output_ids must not be
+    inflated by a straggler detok record past finished=True. Reproduces the
+    exact shape found on real GPU hardware (Phase 6 06-08): Python's session
+    tap recorded one extra finished=True detok record after the first one
+    for the corpus's last uid; Rust's session tap did not. Before the fix,
+    this made ids_match False (127 vs 128) even though the real HTTP
+    response text -- which is unaffected by this bug, since it comes from
+    the actual response, not the tap -- was already byte-identical."""
+    from rsglang.parity.sweep import HttpResult, join_sequential
+    from rsglang.parity.tap import KIND_DETOK, KIND_USER, TapRecords
+
+    class _Item:
+        def __init__(self, item_id):
+            self.id = item_id
+
+    items = [_Item("edge-08")]
+    user_record = {
+        "kind": KIND_USER,
+        "pid": 111,
+        "seq": 1,
+        "uid": 127,
+        "input_ids": [1, 2, 3],
+        "sampling": {"max_tokens": 128},
+    }
+    detok_records = [
+        {"kind": KIND_DETOK, "pid": 111, "seq": 2, "uid": 127, "next_token": 387, "finished": True},
+        # Straggler: a second finished=True for the same uid, never sent to any real client.
+        {"kind": KIND_DETOK, "pid": 111, "seq": 3, "uid": 127, "next_token": 11285, "finished": True},
+    ]
+    tap_records = TapRecords(records=[user_record] + detok_records)
+    http_results = [HttpResult(prompt_id="edge-08", status=200, error=None, text="some reply")]
+
+    result = join_sequential(items, http_results, tap_records)
+    assert result["edge-08"]["output_ids"] == [387]
+    assert result["edge-08"]["status"] == "ok"

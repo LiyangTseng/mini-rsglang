@@ -115,6 +115,28 @@ def run_session(
     )
 
 
+def _bounded_detoks(recs: "list[dict]") -> "list[dict]":
+    """Truncate a uid's seq-sorted detok records at the first finished=True
+    record (inclusive). The scheduler's pipelined/overlapped execution can
+    emit a straggler detok record for a uid *after* it already sent
+    finished=True -- most often for the very last request in a session,
+    raced against that session's own teardown SIGINT. That straggler is
+    backend-internal: the frontend already closed the HTTP response out on
+    the first finished=True, so no real client ever receives it. Bounding
+    here matches what every real consumer (both frontends' own response-
+    finalization logic) actually does -- output_ids must reflect what a
+    client received, not every tap event the backend happened to still emit
+    for this uid. Found via byte-identical real-HTTP-text parity on a GPU
+    run that nonetheless reported an ids-level PAR-01 mismatch (Phase 6
+    06-08 scope expansion): the straggler inflated output_ids/ids_match
+    while the actual response text already matched.
+    """
+    for idx, rec in enumerate(recs):
+        if rec.get("finished"):
+            return recs[: idx + 1]
+    return recs
+
+
 def _build_payload(model: str, item: Any) -> "dict[str, Any]":
     payload: "dict[str, Any]" = {
         "model": model,
@@ -211,8 +233,9 @@ def join_sequential(
     detok_by_uid: "dict[int, list[dict]]" = {}
     for r in detok_records:
         detok_by_uid.setdefault(r["uid"], []).append(r)
-    for recs in detok_by_uid.values():
-        recs.sort(key=lambda r: r["seq"])
+    for uid in detok_by_uid:
+        detok_by_uid[uid].sort(key=lambda r: r["seq"])
+        detok_by_uid[uid] = _bounded_detoks(detok_by_uid[uid])
 
     http_by_id = {r.prompt_id: r for r in http_results}
 
@@ -317,8 +340,9 @@ def join_by_input_ids(
     detok_by_uid: "dict[int, list[dict]]" = {}
     for r in detok_records:
         detok_by_uid.setdefault(r["uid"], []).append(r)
-    for recs in detok_by_uid.values():
-        recs.sort(key=lambda r: r["seq"])
+    for uid in detok_by_uid:
+        detok_by_uid[uid].sort(key=lambda r: r["seq"])
+        detok_by_uid[uid] = _bounded_detoks(detok_by_uid[uid])
 
     http_by_id = {r.prompt_id: r for r in http_results}
 
