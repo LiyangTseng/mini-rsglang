@@ -256,7 +256,7 @@ Plans:
   4. Every comparison comes from alternating A/B runs and reports the Python frontend at both its default and its best `--num-tokenizer` setting. Results carry confidence intervals and a run manifest that is enough to reproduce the run.
   5. Every scenario report shows frontend memory usage and Python GC pause counts next to TTFT, P99 and RPS, so P99 spikes can be compared against GC pauses.
 
-**Plans:** 9/10 plans executed (07-10 partially executed: Tasks 1-2 done, Task 3 blocked on Phase 5 landing in this checkout — resolved by this reconciliation; resume at Task 3)
+**Plans:** 10/10 plans executed (07-10 partially executed: Tasks 1-2 done, Task 3 blocked on Phase 5 landing in this checkout — resolved by this reconciliation; resume at Task 3)
 
 Plans:
 
@@ -284,7 +284,7 @@ Plans:
 - [x] 07-09-PLAN.md — `rsg-bench throughput` (BENCH-06) + `rsg-bench report` → docs/benchmarks/frontend-benchmarks.{json,md}. CIs, deltas, regression call-out (D-11), GC/memory tables, provenance banner (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 07-10-PLAN.md — `rsg-mock-stack` Mac launcher, GPU wrapper `scripts/gpu_phase7_bench.sh` (end-of-phase GPU human check), D-03 Mac dev pass against rsg-server + mock-scheduler, phase gate (wave 8) — Tasks 1-2 complete (see 07-10-SUMMARY.md); Task 3 resuming now that Phase 5's HTTP API is present in this checkout
+- [x] 07-10-PLAN.md — `rsg-mock-stack` Mac launcher, GPU wrapper `scripts/gpu_phase7_bench.sh` (end-of-phase GPU human check), D-03 Mac dev pass against rsg-server + mock-scheduler, phase gate (wave 8) — Tasks 1-2 complete (see 07-10-SUMMARY.md); Task 3 resuming now that Phase 5's HTTP API is present in this checkout
 
 ## Progress
 

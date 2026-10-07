@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 07
-current_phase_name: Frontend Benchmarks
 status: executing
-stopped_at: Reconciled this worktree onto origin/main (which had meanwhile finished both Phase 5 and Phase 6 while this phase-7 session was running); resuming 07-10 at Task 3, now unblocked
-last_updated: "2026-10-07T07:30:00.000Z"
+stopped_at: "Completed 07-10-PLAN.md (Task 3: D-03 Mac dev pass + phase gate) on a worktree reconciled onto origin/main (Phase 6 landed meanwhile). All 10 plans executed; phase awaiting the GPU-box human-check (scripts/gpu_phase7_bench.sh) before formal completion."
+last_updated: "2026-10-07T19:59:47.232Z"
 last_activity: 2026-10-07
-last_activity_desc: Reconciled worktree history onto origin/main (Phase 6 landed); resuming 07-10 Task 3
-state_head: d69ef77
+last_activity_desc: Phase 07 plans all executed (10/10); awaiting GPU-box human verification
+state_head: b907397
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 61
-  completed_plans: 60
+  completed_plans: 61
   percent: 86
+current_phase_name: Frontend Benchmarks
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 
 ## Current Position
 
-Phase: 07 (Frontend Benchmarks) — EXECUTING
+Phase: 07 — PLANS COMPLETE, AWAITING GPU VERIFICATION
 Plan: 10 of 10
-Status: Resuming at Task 3 (D-03 Mac dev pass + phase gate) — this worktree was reconciled onto `origin/main`, which had meanwhile finished Phase 5 (Request Lifecycle & HTTP API) AND Phase 6 (GPU End-to-End Parity, now complete and human-check approved: PAR-01/PAR-02 128/128, zero divergence) while this phase-7 session was in progress, so Task 3's precondition is now met. Tasks 1-2 (rsg-mock-stack, gpu_phase7_bench.sh) were already complete and are carried forward by this reconciliation.
-Last activity: 2026-10-07 — Reconciled worktree history onto origin/main (Phase 6 landed); resuming 07-10 Task 3
+Status: Task 3 (D-03 Mac dev pass + phase gate) complete. All 10 plans executed, phase verification passed 7/7 automated must-haves. One item remains: the GPU-box headline Python-vs-Rust comparison (`scripts/gpu_phase7_bench.sh`), the phase's own declared `<human-check>` — out of scope for a Mac session, requires the real backend (Phase 6, now also complete and human-check approved: PAR-01/PAR-02 128/128, zero divergence after the parity-harness bugfix).
+Last activity: 2026-10-07 — Phase 07 plans all executed (10/10); awaiting GPU-box human verification
 
 Progress: [████████▌░] 86%
 
@@ -108,6 +108,7 @@ Progress: [████████▌░] 86%
 | Phase 07 P07 | 40min | 3 tasks | 13 files |
 | Phase 07 P08 | 90min | 3 tasks | 12 files |
 | Phase 07 P09 | 55min | 2 tasks | 9 files |
+| Phase 07 P10 | 75min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -227,7 +228,10 @@ Recent decisions affecting current work:
 - [Phase 07]: [Phase 07, 07-10]: rsg-mock-stack's two children inherit its own process group (no process_group override), so the harness's own killpg teardown already covers them (T-07-24)
 - [Phase 07]: [Phase 07, 07-10]: gpu_phase7_bench.sh's sweep-num-tokenizer step relies on clap's own --backend-kind=Real default rather than passing it explicitly, so the sweep manifest is still backend_kind real without violating the dry-run behavior contract (which forbids --backend-kind on the sweep line)
 - [Phase 07, reconciliation]: This worktree's own phases 1-5 lineage never finished (the phase-7 session started before that work landed on main). Reconciled by branching fresh from `origin/main` (ground truth for phases 1-5, squash-merged via PRs #3/#4/#5/#7/#8) and carrying forward only phase 7's new files (entire `crates/rsg-bench`, `.planning/phases/07-frontend-benchmarks/`, `python/rsglang/bench/`, three new test files, `scripts/gpu_phase7_bench.sh`) plus a hand-reapplied patch for 07-02's changes to `python/rsglang/profiling/hook.py` (confirmed byte-identical base, applied clean). Workspace `Cargo.toml` gained `hdrhistogram`/`nix`/`sysinfo`; `reqwest` and `tokio` were left at origin/main's settings since `rsg-tokenizer` depends on reqwest's default TLS features and rsg-bench's own crate-level feature additions already layer cleanly on top.
-- [Phase 07, reconciliation]: A second rebase was needed shortly after the first: Phase 6 (GPU End-to-End Parity) landed on `origin/main` (PR #9) while this phase-7 session was still running. Rebased `phase7-on-main` onto the new `origin/main` tip; only `.planning/ROADMAP.md`/`STATE.md`/`state.json` conflicted (both phases advanced the same tracking docs independently from the same Phase-5 base) — resolved by combining both phases' content rather than picking a side.
+- [Phase 07]: [Phase 07, 07-10 Task 3]: Re-verified the HTTP-API precondition independently before resuming (grep for /v1/chat/completions, cargo build + --help, /metrics route check) rather than trusting the orchestrator's framing
+- [Phase 07]: [Phase 07, 07-10 Task 3]: rsg-mock-stack's --rsg-server-arg values starting with a hyphen must use the = form (--rsg-server-arg=--port={port}), not two argv tokens -- clap derive rejects the latter for a repeatable --long option
+- [Phase 07]: [Phase 07, 07-10 Task 3]: Fixed rsg-tokenizer's EnvGuard parallel-test race with a file-local static Mutex<()> held for each guard's lifetime, rather than forcing --test-threads=1 on check_all.sh's shared cargo test --workspace step
+- [Phase 07, reconciliation]: A second rebase was needed shortly after the first: Phase 6 (GPU End-to-End Parity) landed on `origin/main` (PR #9) while this phase-7 session was still running. Rebased `phase7-on-main` onto the new `origin/main` tip; only `.planning/ROADMAP.md`/`STATE.md`/`state.json`/`REQUIREMENTS.md` conflicted (both phases advanced the same tracking docs independently from the same Phase-5 base) — resolved by combining both phases' content rather than picking a side.
 
 ### Pending Todos
 
@@ -237,7 +241,7 @@ None yet.
 
 - [Phase 6]: The abort-during-prefill double free was reproduced empirically as a scheduler process crash (watcher verdict `unhealthy`: 1 zombie sample, 1 GPU-unlisted sample out of 9) under `--abort-timing immediate`, with `failure_mode: none` under `deferred`; zero double-free/collision evidence in either run or the 72-trial window probe (1 `prefill_window` hit, at `delay_ms=1`). D-09 branch C: the project-wide default is changed to `deferred` (`crates/rsg-server/src/main.rs`); the vendored scheduler stays pristine. See `docs/benchmarks/parity-report.md`'s "Abort-timing decision (D-09)" section and `UPSTREAM.md`'s "Known upstream issues" entry.
 - [Phase 6]: the frozen Python frontend has no abort-timing switch (it aborts only after a chunk plus 0.1 s); Phase 7 must state how the A/B comparison stays fair under the chosen `deferred` default.
-- [Phase 4, pre-existing tech debt]: `cargo test -p rsg-tokenizer`'s `loader::tests::gated_access_unavailable_*` tests race under default parallel test threads (global env-var mutation between concurrently-run tests in that crate); deterministic on this machine. `scripts/check_all.sh --offline` does not pin `--test-threads=1` internally, so it can fail on this specific crate even when nothing in the phase under test is actually broken — confirm with `cargo test -p rsg-tokenizer --lib -- --test-threads=1` before trusting a `check_all.sh` red on this crate. Logged to `.planning/phases/04-tokenizer-detokenizer-parity/deferred-items.md`; not yet fixed.
+- [Phase 4, pre-existing tech debt]: `cargo test -p rsg-tokenizer`'s `loader::tests::gated_access_unavailable_*` tests race under default parallel test threads (global env-var mutation between concurrently-run tests in that crate); deterministic on this machine. `scripts/check_all.sh --offline` does not pin `--test-threads=1` internally, so it can fail on this specific crate even when nothing in the phase under test is actually broken — confirm with `cargo test -p rsg-tokenizer --lib -- --test-threads=1` before trusting a `check_all.sh` red on this crate. Logged to `.planning/phases/04-tokenizer-detokenizer-parity/deferred-items.md`; not yet fixed. Now fixed for the cargo test --workspace path specifically by a file-local Mutex in rsg-tokenizer (see 07-10 Task 3 decision above).
 - [Phase 5, code review WR-01, open]: `drive_request`'s `IncrementalDecoder` construction (full tokenizer vocab/merge clone) runs synchronously on the async driver task with no `.await` — can starve other concurrent requests' token streams under load. Worth a look before Phase 7's benchmark numbers are trusted at high concurrency; see `05-REVIEW.md`/`05-REVIEW-DISPOSITION.md`.
 
 ### Quick Tasks Completed
@@ -256,6 +260,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T07:30:00.000Z
-Stopped at: Reconciled worktree onto origin/main (Phase 6 now also landed); resuming 07-10 at Task 3
-Resume file: .planning/phases/07-frontend-benchmarks/07-10-PLAN.md
+Last session: 2026-10-07T19:59:41.601Z
+Stopped at: Completed 07-10-PLAN.md (Task 3: D-03 Mac dev pass + phase gate) on a worktree rebased onto origin/main (Phase 6 now also landed). All 10 plans executed; awaiting the GPU-box human-check before the phase formally closes.
+Resume file: None

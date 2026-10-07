@@ -40,9 +40,9 @@
     }
   ],
   "next": {
-    "command": "/gsd-execute-phase 7",
-    "label": "Resume phase 7 at plan 07-10, Task 3",
-    "reason": "Worktree reconciled onto origin/main (Phase 6 now also landed); 07-10's precondition is now met"
+    "command": "/gsd-verify-work 7",
+    "label": "Resume human verification for phase 7",
+    "reason": "All 10 plans executed; awaiting the GPU-box benchmark run (the phase's own declared human-check)"
   },
-  "updated_at": "2026-10-07T07:30:00.000Z"
+  "updated_at": "2026-10-07T19:59:47.281Z"
 }
