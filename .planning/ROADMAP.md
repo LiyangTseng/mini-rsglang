@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Vendored Base & Wire Codec** - Pinned mini-sglang, one launcher for both frontends with a readiness handshake, and a byte-exact Rust msgpack codec (completed 2026-10-05)
 - [x] **Phase 2: Python Frontend Baseline Profile** - Measure the Python frontend's host overhead on the GPU machine (parallel track, does not gate) (completed 2026-10-05)
 - [x] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development (completed 2026-10-06)
-- [ ] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model
+- [x] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model (completed 2026-10-06)
 - [ ] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend
 - [ ] **Phase 6: GPU End-to-End Parity** - Rust and Python frontends produce identical output on the real backend
 - [ ] **Phase 7: Frontend Benchmarks** - Reproducible Python-vs-Rust comparison across the three scenarios, plus a throughput regression check
@@ -151,7 +151,25 @@ Plans:
   3. Given the same token streams, the Rust incremental detokenizer and the Python frontend produce identical streamed text. This includes CJK and emoji split across tokens, with no UTF-8 breakage and no panics.
   4. Criteria 1-3 also pass for one Llama-3.x model, including its BOS and space-cleanup cases.
 
-**Plans**: TBD
+**Plans:** 6/6 plans complete
+
+Plans:
+
+**Wave 1**
+- [x] 04-01-PLAN.md — Tracer: Qwen3-0.6B token-id parity end to end (crate scaffold, hf-hub loader, fixture generator, Mac gate wiring) (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 04-02-PLAN.md — Qwen3-0.6B chat-template rendering parity (TOK-02) (wave 2)
+- [x] 04-03-PLAN.md — Qwen3-0.6B incremental detokenizer parity (TOK-03) (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 04-04-PLAN.md — Llama-3.2-1B-Instruct foundation: chrono package-legitimacy checkpoint, gated-access detection, clock-freeze mechanism (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 04-05-PLAN.md — Llama-3.2-1B-Instruct golden fixtures across all three corpora, D-04 clean-skip wiring (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 04-06-PLAN.md — Llama-3.2-1B-Instruct BOS/clean_up_tokenization parity, full test parametrization (TOK-04 complete) (wave 5)
 
 ### Phase 5: Request Lifecycle & HTTP API
 
@@ -230,7 +248,7 @@ Plans:
 | 1. Vendored Base & Wire Codec | 13/13 | Complete    | 2026-10-05 |
 | 2. Python Frontend Baseline Profile | 9/9 | Complete    | 2026-10-05 |
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
-| 4. Tokenizer & Detokenizer Parity | 0/TBD | Not started | - |
+| 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
 | 5. Request Lifecycle & HTTP API | 7/9 | In Progress|  |
 | 6. GPU End-to-End Parity | 0/TBD | Not started | - |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |

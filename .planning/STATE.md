@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Request Lifecycle & HTTP API
 status: executing
-stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-10-06T23:37:01.282Z"
-last_activity: 2026-10-06
-last_activity_desc: Phase 05 execution started
+stopped_at: Completed 05-07-PLAN.md; merged Phase 04 from origin/main, resuming Wave 4
+last_updated: "2026-10-07T02:00:00.000Z"
+last_activity: 2026-10-07
+last_activity_desc: Phase 04 merged in complete from origin/main; Phase 05 execution resuming at Wave 4 (7/9 plans done)
 state_head: 99703b9614373ab01cb2de65c643bd373ccae712
 progress:
   total_phases: 7
-  completed_phases: 3
-  total_plans: 37
-  completed_plans: 35
-  percent: 43
+  completed_phases: 4
+  total_plans: 43
+  completed_plans: 41
+  percent: 57
 ---
 
 # Project State
@@ -30,14 +30,14 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
 Plan: 8 of 9
 Status: Ready to execute
-Last activity: 2026-10-06 — Phase 05 execution started
+Last activity: 2026-10-07 — Phase 04 merged in complete from origin/main; resuming Phase 05 at Wave 4
 
-Progress: [████░░░░░░] 43%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
+- Total plans completed: 41
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -48,6 +48,7 @@ Progress: [████░░░░░░] 43%
 | 01 | 13 | - | - |
 | 02 | 9 | - | - |
 | 03 | 6 | - | - |
+| 04 | 6 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -72,6 +73,12 @@ Progress: [████░░░░░░] 43%
 | Phase 03 P04 | 50min | 3 tasks | 2 files |
 | Phase 03 P05 | 40min | 2 tasks | 2 files |
 | Phase 03 P06 | 45min | 2 tasks | 1 files |
+| Phase 04 P01 | 50min | 2 tasks | 17 files |
+| Phase 04 P02 | 20min | 2 tasks | 5 files |
+| Phase 04 P03 | 25min | 2 tasks | 4 files |
+| Phase 04 P04 | 20min | 2 tasks | 7 files |
+| Phase 04 P05 | 30min | 2 tasks | 5 files |
+| Phase 04 P06 | 25min | 2 tasks | 6 files |
 | Phase 05 P01 | 45min | 2 tasks | 15 files |
 | Phase 05 P02 | 45min | 2 tasks | 2 files |
 | Phase 05 P03 | 25min | 3 tasks | 6 files |
@@ -120,23 +127,35 @@ Recent decisions affecting current work:
 - [Phase 01]: check_upstream.py adds UPSTREAM_SHA_INVALID, OFFLINE_UNSUPPORTED and TREE_HASH_MISMATCH categories; a parse error or invalid SHA stops the check before any fetch
 - [Phase 01]: test_wire_decode.py skips without DUMP_DIR inside the full suite; check_wire_decode.sh sets RSGLANG_REQUIRE_DUMP=1 so the gate cannot pass by skipping
 - [Phase 01]: scripts/check_all.sh [--offline] is the Phase 1 Mac gate: cargo tests, pytest, fixture freshness, WIRE-02 decode, check_upstream.py
+- [Phase 04]: hf-hub 1.0.0 blocking API confirmed via docs.rs: HFClientSync::new()?.model(owner,name).download_file().filename(name).send()? -> PathBuf; blocking feature maps to tokio/rt only
+- [Phase 04]: tokenizers 0.22.2 has no dedicated Error type (Result<T, Box<dyn Error+Send+Sync>>, confirmed via docs.rs); special_tokens_map.json is fetched best-effort since Qwen3-0.6B's repo has none (404), matching AutoTokenizer.from_pretrained's own tolerance
+- [Phase 04]: minijinja's tojson filter overridden to match transformers' json.dumps separator spacing (Python's default ', '/': ' separators), since minijinja's built-in tojson is fully compact and diverges from the real oracle on every tool-call/arguments rendering
+- [Phase 04]: eos_token_id is derived via tokenizer.token_to_id(eos_token) rather than a new ModelSpec field
+- [Phase 04]: clean_up_tokenization applies to read_str/surr_str independently before the char-safe slice, matching Python's batch_decode internal behavior (unexercised by Qwen3, wired for Llama in 04-06)
+- [Phase 04]: no-panic proptest uses TestRunner directly (not the proptest! macro) to fetch the real tokenizer once and clone it per case instead of 100x
+- [Phase 04]: chrono approved via blocking-human package-legitimacy checkpoint before being added to the workspace (not in RESEARCH.md's audited six)
+- [Phase 04]: Live canonical Llama-3.2-1B-Instruct spot-check found add_bos_token absent from tokenizer_config.json (diverging from RESEARCH.md mirror assumption); double-BOS risk confirmed real anyway via tokenizer.json's post-processor
+- [Phase 04]: Llama chat-prompt fixture frozen-clock detection is template-content-based (strftime_now substring in chat_template), never model-identity-based, so Qwen3 is unaffected by construction
+- [Phase 04]: GatedAccessError is raised only when a gated model's load failure cause-chain contains huggingface_hub's GatedRepoError/RepositoryNotFoundError, confirmed against real hf-hub/transformers source, not a bare except Exception
+- [Phase 04]: Real Llama BOS count is 2 (not D-10's assumed 1), confirmed empirically against the canonical gated tokenizer -- the Rust test asserts 2, documenting the discrepancy rather than normalizing it
+- [Phase 04]: cargo test -p rsg-tokenizer requires --test-threads=1 to be deterministic (pre-existing env-var/cache-lock races, unrelated to TOK-04); logged to deferred-items.md, not fixed in this plan's scope
 - [Phase 05]: Engine::new takes (writer, dispatch, codec, registry, config); the driver reports Received/Tokenizing/Submitted/Decoding/one-terminal through a single finish helper so LIFE-01's exactly-one-terminal invariant is structural
 - [Phase 05]: Registry actor removes a uid's entry the instant it reaches a terminal state; active is simply the map length at snapshot time, so a leaked or double-terminated request is directly visible
 - [Phase 05]: http_client::send() test helper writes and reads concurrently via tokio::join! on split TcpStream halves kept alive until the response is fully read, since OwnedWriteHalf shuts down the write direction on drop and an early half-close was read by the server as a client disconnect
 - [Phase 05]: Human approved fastapi 0.142.2, uvicorn 0.54.0 and prompt_toolkit 3.0.53 (Task 1 checkpoint) after verifying each PyPI project links to its canonical GitHub repo
 - [Phase 05]: Relock surfaced opentelemetry-api==1.45.1 as an unforeseen transitive dependency of fastapi; human separately approved it after confirming it is the CNCF open-telemetry-python project and correctly spelled
 - [Phase 05]: Relock used no --upgrade flag; uv treated the existing requirements-mac.txt as preferences so all 40 pre-existing pins stayed byte-for-byte identical
-- [Phase 05]: [Phase 05]: list_models is pub(crate), not pub like every other handler in rsg-server, because its return type exposes the crate-private ModelList struct
+- [Phase 05]: list_models is pub(crate), not pub like every other handler in rsg-server, because its return type exposes the crate-private ModelList struct
 - [Phase 05]: The non-streaming chat_completions branch keeps the ActiveRequest (and its AbortGuard) alive in the handler's own future rather than spawning a background stream, so a client disconnect before the response is ready still cancels the backend request
-- [Phase 05]: [Phase 05]: cancel_after_submit(engine, uid, submitted, stream, first_token_seen) is the single decision point for Immediate-vs-Deferred abort timing; both post-submit cancellation checkpoints call through it rather than duplicating the split
+- [Phase 05]: cancel_after_submit(engine, uid, submitted, stream, first_token_seen) is the single decision point for Immediate-vs-Deferred abort timing; both post-submit cancellation checkpoints call through it rather than duplicating the split
 - [Phase 05]: deferred_wait's four outcomes (finished-token/non-finished-token/Dropped/timeout) all end Cancelled, never Decoding -> Cancelled, reported by the caller after deferred_wait returns
 - [Phase 05]: finish_silent reports a terminal state without sending a RequestEvent: every cancellation path is reached only because the AbortGuard/events receiver was already dropped, so nobody is listening
 - [Phase 05]: No tower-http timeout layer: the backend-inactivity deadline is a pinned, resettable tokio::time::sleep_until inside the driver, per CLAUDE.md's prohibition on tower_http::timeout for streaming routes
 - [Phase 05]: An abort reaching Cancelled in the registry only means the AbortBackendMsg was enqueued onto the writer's channel, not that mock-scheduler has received and recorded it in its observe file yet; tests must poll (wait_for_abort/wait_for_observed) rather than assert immediately after a registry snapshot goes idle
-- [Phase 05]: [Phase 05]: python_frontend.py reproduces upstream's start_subprocess spawn (detokenizer/tokenizer tokenize_worker processes) minus scheduler ranks, against an externally started mock-scheduler stand-in on the caller's --rsg-suffix addresses
+- [Phase 05]: python_frontend.py reproduces upstream's start_subprocess spawn (detokenizer/tokenizer tokenize_worker processes) minus scheduler ranks, against an externally started mock-scheduler stand-in on the caller's --rsg-suffix addresses
 - [Phase 05]: gen_api_fixtures.py captured the 18-case API-01 golden fixture set from one fresh live run; chat_nonstream_eos_final's max_tokens is computed at capture time from the chat template so the echoed final token lands on EOS, exercising detokenize.py's finished+EOS exclusion
 - [Phase 05]: Treated the Task 1 precondition as met via a direct read-only check (local_files_only=True) rather than its literal HF_HUB_OFFLINE=1 command, which fails in this environment on a transformers 4.57.3 bug (_patch_mistral_regex calling model_info() for any large-vocab repo-id tokenizer) unrelated to cache completeness
-- [Phase 05]: [Phase 05]: ServerMetrics uses a per-server PrometheusRecorder (never process-global, no set_global_recorder/install_recorder) with no labels on any of its 7 series (T-05-13/T-05-14 fixed cardinality)
+- [Phase 05]: ServerMetrics uses a per-server PrometheusRecorder (never process-global, no set_global_recorder/install_recorder) with no labels on any of its 7 series (T-05-13/T-05-14 fixed cardinality)
 - [Phase 05]: /health is process liveness only (always 200); /health/ready is 200 only after AppState::set_engine — the front-half/end-to-end split Phase 7's cold-start scenario measures
 - [Phase 05]: ServerMetrics::render sets rsg_late_tokens_dropped_total via Counter::absolute(unknown_uid + closed_route) from a live DispatchStatsSnapshot at scrape time, never an internally-accumulated count, so it can never drift from the dispatcher's own single source of truth
 - [Phase 05]: No driver fix was needed in engine.rs for the 128-agent stress test: the existing cancellation/abort-timing/timeout logic from plan 05-04 held up across repeated runs and multiple seeds
@@ -149,7 +168,6 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1]: Phase 1 needs GPU machine access, because launcher criterion 2 runs the real backend. `zmq` vs `zeromq` interop with pyzmq and the bind/connect topology are not yet decided. It is also unverified whether `minisgl.message` imports on macOS for golden-fixture export.
-- [Phase 4]: minijinja must cover the Qwen3 and Llama-3 templates. Two open choices: export the effective tokenizer from Python or load the raw `tokenizer.json`, and how Llama-3.x sets `clean_up_tokenization_spaces`. Access to the gated Llama-3.x repo is needed.
 - [Phase 5]: It is not yet known how quickly hyper/axum detects a client disconnect while a request is queued.
 - [Phase 6]: The upstream abort-during-prefill double free comes from code reading only. If it reproduces, the abort-timing setting (LIFE-05) must apply equally to the baseline.
 
@@ -169,6 +187,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T23:37:01.238Z
-Stopped at: Completed 05-07-PLAN.md
+Last session: 2026-10-07T02:00:00.000Z
+Stopped at: Completed 05-07-PLAN.md; merged Phase 04 from origin/main, resuming at Wave 4
 Resume file: None
