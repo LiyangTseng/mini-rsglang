@@ -94,6 +94,16 @@ impl Stack {
         let rsg_server_bin = require_bin("rsg-server");
         let mock_scheduler_bin = require_bin("mock-scheduler");
         let port = free_port().to_string();
+        // Thread `port` into rsg-server's own HTTP listen port via
+        // `--rsg-server-arg` (the `=` form: clap rejects a hyphen-prefixed
+        // value for a repeatable --long option otherwise). Phase 1/3's
+        // rsg-server skeleton never opened an HTTP listener, so this
+        // `free_port()` call had nothing to protect before Phase 5 landed
+        // in this checkout; without it, every spawned rsg-server defaults
+        // to port 1919 and a second test running concurrently in the same
+        // binary (cargo test's default parallelism) collides with
+        // "Address already in use".
+        let rsg_server_arg = format!("--rsg-server-arg=--port={port}");
 
         let mut child = Command::new(env!("CARGO_BIN_EXE_rsg-mock-stack"))
             .args([
@@ -105,6 +115,7 @@ impl Stack {
                 mock_scheduler_bin.to_str().expect("utf8 path"),
                 "--model",
                 TEST_MODEL,
+                &rsg_server_arg,
             ])
             .env("RUST_LOG", "info")
             .stdin(Stdio::null())
