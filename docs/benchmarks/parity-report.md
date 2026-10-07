@@ -6,11 +6,21 @@ writes, via `scripts/gpu_phase6_parity.sh`). Every number below is copied from
 that file; none are estimated. Where the JSON carries a `null` for a field,
 this report says so explicitly rather than filling in a number.
 
+**This is the corrected, final version of this report.** An earlier version
+of this document (git history `224fcb6`, superseded here) reported Criterion
+2 as a genuine FAIL for both models and attributed it to GPU backend
+run-to-run nondeterminism. That attribution was wrong. The real cause was a
+bug in the measurement harness itself (`python/rsglang/parity/sweep.py`),
+fixed in commit `ae8feec`; see `## PAR-01 off-by-one investigation (Phase 6
+scope expansion)` below for the full corrected account. This run was produced
+after that fix, on top of the `--abort-timing deferred` default change
+(commit `de520b9`); Criterion 2 passes outright.
+
 ## Run
 
-- **Date:** 2026-10-07T20:00:42Z (`meta.created_utc`)
+- **Date:** 2026-10-07T23:11:20Z (`meta.created_utc`)
 - **GPU:** NVIDIA GeForce RTX 3050 (`meta.gpu`)
-- **Git commit:** `6af8a91b5a7871489250c857ba314d543f4a32bc` (`meta.git_commit`; `meta.git_dirty` is `false` — the GPU-box checkout was clean at run time)
+- **Git commit:** `ae8feecdb2a50fb4788916ea9da2baac84e17087` (`meta.git_commit`; `meta.git_dirty` is `false` — the GPU-box checkout was clean at run time)
 - **Upstream mini-sglang SHA:** `9a91cfafe754aa85daee49998176275667eb58f2` (`meta.upstream_sha`)
 - **Models:** Qwen/Qwen3-0.6B, meta-llama/Llama-3.2-1B-Instruct (`meta.models`)
 - **Gate model:** Qwen/Qwen3-0.6B (`meta.gate_model`)
@@ -59,125 +69,136 @@ Every Rust endpoint and every Python endpoint answers `ok: true`. **Criterion 1 
 ### Qwen/Qwen3-0.6B (hard gate)
 
 - **Status:** `ok` (reason: none — `sequential["Qwen/Qwen3-0.6B"].status`/`.reason`)
-- **matched/n:** 127/128
-- **ids_matched/n:** 127/128
-- **text_matched/n:** 127/128
-- **by_layer:** `request_error` 0, `tokenization` 0, `sampling_params` 0, `backend` 1, `incomplete` 0, `detokenization_or_api` 0
+- **matched/n:** 128/128
+- **ids_matched/n:** 128/128
+- **text_matched/n:** 128/128
+- **by_layer:** `request_error` 0, `tokenization` 0, `sampling_params` 0, `backend` 0, `incomplete` 0, `detokenization_or_api` 0
 
-**Result: the zero-tolerance hard gate (D-04) FAILS.** `n=128` clears the `n >= 100` floor, but `matched=127 != n=128` — one prompt (`edge-08`, category `edge`) diverges. Per D-04, any single-token mismatch on any prompt fails the gate; this run's single `edge-08` mismatch means **PAR-01's hard gate does not pass for Qwen/Qwen3-0.6B on this run.** See `## Divergence bisection (D-05)` below for the bisected cause.
+**Result: the zero-tolerance hard gate (D-04) PASSES.** `n=128` clears the `n >= 100` floor and `matched=128=n` — every prompt in the corpus produced byte-identical token ids and text on both frontends. **Criterion 2's hard gate passes for Qwen/Qwen3-0.6B.**
 
 ### meta-llama/Llama-3.2-1B-Instruct (reported, not gated)
 
 - **Status:** `ok` (reason: none)
-- **matched/n:** 127/128
-- **ids_matched/n:** 127/128
-- **text_matched/n:** 127/128
-- **by_layer:** `request_error` 0, `tokenization` 0, `sampling_params` 0, `backend` 1, `incomplete` 0, `detokenization_or_api` 0
+- **matched/n:** 128/128
+- **ids_matched/n:** 128/128
+- **text_matched/n:** 128/128
+- **by_layer:** `request_error` 0, `tokenization` 0, `sampling_params` 0, `backend` 0, `incomplete` 0, `detokenization_or_api` 0
 
-Llama's result is reported for information only (D-02); it is not gated. The same prompt id, `edge-08`, is the sole mismatch for this model too, at a different divergence point than Qwen's — see the bisection below.
+Llama's result is reported for information only (D-02); it is not gated. Every prompt also matched for this model.
 
 ## Divergence bisection (D-05)
 
-Two mismatches, one per model, both at prompt `edge-08` (category `edge`, a chat prompt whose user content embeds chat-template special-token literals — `<|endoftext|>` / `<|im_end|>` — per the corpus's edge-category requirements). `annotate_sequence` recorded `note: null` for both, meaning **neither divergence is preceded by an earlier input-level (tokenization/sampling_params) mismatch** in its own sweep — these are not explained by upstream radix-cache drift from a prior mismatched prompt.
+No prompt diverged in any sequential block.
 
-- **Model:** Qwen/Qwen3-0.6B
-  **Prompt:** `edge-08` · **Category:** `edge`
-  **Layer:** `backend` · **First diverging index:** 127 (the request's `max_tokens` is 128, so this is the very last generated position)
-  **Python window (decoded):** `['Ġuser', 'Ġmight', 'Ġnot', 'Ġbe', 'Ġfamiliar']`
-  **Rust window (decoded):** `['Ġuser', 'Ġmight', 'Ġnot', 'Ġbe']`
-  **Trace note:** Same `input_ids` and same `sampling` (`temperature=0.0`, `max_tokens=128`, `ignore_eos=false`) reach both frontends — this is a `backend`-layer divergence: same inputs, different outputs. Python emits exactly 128 output tokens (hits the `max_tokens` cap with a 128th token, `familiar`); Rust stops one token short, at 127. The divergence happens at the last possible position before the cap. **Working hypothesis (not confirmed): an off-by-one in how the Rust frontend's FSM enforces `max_tokens` exactly at the cap boundary** — it requests/accepts one fewer decode step than the Python frontend before marking the response finished. This prompt is the only item in the whole 128-item corpus that both exercises `<think>`-mode generation and runs all the way to its `max_tokens` cap, which is why no other prompt shows the same shape of divergence.
-
-- **Model:** meta-llama/Llama-3.2-1B-Instruct
-  **Prompt:** `edge-08` · **Category:** `edge`
-  **Layer:** `backend` · **First diverging index:** 36 (well short of `max_tokens=128` — this run ends naturally at the model's own stop token, not the cap)
-  **Python window (decoded):** `['Ġof', 'Ġvalues', '.', '<|eot_id|>', '<|start_header_id|>']`
-  **Rust window (decoded):** `['Ġof', 'Ġvalues', '.', '<|eot_id|>']`
-  **Trace note:** Again a `backend`-layer divergence with identical `input_ids`/`sampling` on both sides. Both frontends agree on every token through `<|eot_id|>` (Llama's end-of-turn token) at index 35. Python then emits one further token, `<|start_header_id|>`, at index 36 before finishing; Rust finishes immediately after `<|eot_id|>`, one token shorter. Unlike the Qwen case above, this has nothing to do with the `max_tokens` cap (the response is 37 tokens long against a 128 cap) — it is specifically about what happens in the single step immediately following the end-of-turn token. **Working hypothesis (not confirmed): the Python frontend's FSM/detokenizer accepts one more already-in-flight token after the stop token is observed before it marks the request finished, while the Rust frontend's FSM stops as soon as it sees the stop id.** This is a distinct hypothesis from the Qwen entry above — same `backend` layer label, different trigger (end-of-turn boundary vs. `max_tokens` cap boundary) — and both are findings to carry forward, not root-caused further within this plan's scope.
-
-No other prompt in either model's sequential sweep diverged.
+(Context: an earlier run of this same corpus against this same backend, before the harness fix described below, had shown a single mismatching prompt — `edge-08` — in each model's sequential sweep. That mismatch is now understood to have been a measurement artifact, not a real divergence; see the next section.)
 
 ## PAR-01 off-by-one investigation (Phase 6 scope expansion)
 
-Plan 06-08 Task 0 (user-approved scope expansion, beyond this plan's
-original D-09-only scope) investigated whether either of the two
-`edge-08` mismatches above is a Rust-frontend bug, before accepting
-Criterion 2's FAIL at face value. This section documents the finding; it
-is a different question from the D-05 bisection above (where the
-divergence falls) and Task 3's D-05 disposition (what to do about a
-Criterion 2 FAIL) -- this section only answers whether the Rust frontend's
-own code could cause a backend-sent token to go missing or an independent
-"this looks like EOS" decision to end a request a token early.
+**CORRECTION (2026-10-07):** This section originally concluded (commit
+`224fcb6`) that the single `edge-08` mismatch found in both models' sequential
+sweeps was most likely ordinary GPU run-to-run floating-point
+nondeterminism, "not a systematic frontend defect." **That conclusion was
+wrong.** The real cause, found afterward by direct inspection of the raw
+backend tap and fixed in commit `ae8feec`, was a bug in the measurement
+harness itself: the comparison code was over-counting one frontend's output
+tokens. The corrected harness, re-run against the same corpus and the same
+backend, shows **zero** mismatches (see `## Criterion 2` and `## Divergence
+bisection (D-05)` above). There is no real frontend parity bug and no
+unexplained backend nondeterminism; the only genuine bug was in the test
+harness, and it has been fixed and regression-tested. The rest of this
+section is kept for the record, with the parts that were correct unchanged
+and the parts that were wrong struck through in spirit (restated below,
+not silently deleted) by this correction note.
 
-**What was checked, directly against the JSON:**
+**What the original investigation got right (still true):** Plan 06-08 Task 0
+(user-approved scope expansion) checked whether either of the two `edge-08`
+mismatches could be caused by the Rust frontend's own code — before accepting
+Criterion 2's then-apparent FAIL at face value. It found, and this finding
+still stands:
 
-- Both mismatches have `python_side.sampling == rust_side.sampling`
-  (`{"temperature": 0.0, "top_k": -1, "top_p": 1.0, "ignore_eos": false,
-  "max_tokens": 128}` on both sides, both models) and byte-identical
-  `output_ids` for every position up to the shortfall -- the lists are not
-  merely "similar", they are the exact same integers through the last
-  token Rust produced.
-- `output_ids`/`finished` in this JSON come from `tap.py`'s
-  `_wrap_reply_tokenizer_rank0` wrapper, hooked around
-  `SchedulerIOMixin._reply_tokenizer_rank0` **inside the scheduler/backend
-  process itself**, before any ZMQ framing. This is the backend's own
-  record of what it decided to emit, independent of what either frontend
-  received, decoded, or reported over HTTP.
-- `python/rsglang/backend.py::run_scheduler` (the rust-mode backend
-  launch) and `python/rsglang/launch.py`'s `exec_python_frontend`
-  (`--frontend python`) both build `ServerArgs` from the identical
+- `crates/rsg-server/tests/backend_finish_boundary.rs` (new, Mac-only, no GPU
+  or network dependency) proved that `engine.rs`'s decode loop and
+  `dispatch.rs`'s per-uid routing only ever branch on the wire's `finished`
+  bit. A hand-built `DetokenizeMsg` sequence injected directly into the
+  dispatcher's bound detok socket showed the engine never makes an
+  independent "that id looks like EOS" call, and never second-guesses a
+  `finished=true` reply arriving on the very first message for a uid.
+- `crates/rsg-server/tests/http_chat.rs`'s pre-existing
+  `chat_nonstream_response_shape`/`tracer_chat_stream_matches_upstream_framing`
+  coverage already proved exact `max_tokens`-for-`max_tokens` delivery
+  through the full real binary over real `ipc://` sockets.
+- `python/rsglang/backend.py::run_scheduler` and `python/rsglang/launch.py`'s
+  Python-frontend launch path both build `ServerArgs` from the identical
   upstream `parse_args(rest)` call and construct the identical unmodified
-  `minisgl.scheduler:Scheduler` class. Neither frontend mode passes a
-  different `max_seq_len`, model path, or other backend-construction
-  argument than the other.
+  `minisgl.scheduler:Scheduler` class — ruling out a frontend-specific
+  backend-launch configuration difference.
 
-**What was reproduced, on the Mac, with no GPU or network dependency**
-(`crates/rsg-server/tests/backend_finish_boundary.rs`, run against the
-real `rsg-server` binary, `engine.rs`/`dispatch.rs`/`writer.rs` unmodified):
+These three findings are unaffected by this correction: the Rust frontend's
+engine/dispatch pair genuinely has no independent stopping logic of its own,
+and genuinely never second-guesses the backend's `finished` flag. That part
+of the investigation was sound.
 
-- A hand-built `DetokenizeMsg` sequence injected directly into the
-  dispatcher's bound detok socket (bypassing `mock-scheduler`'s own
-  cap-based finishing logic entirely) proves the engine only ever branches
-  on the wire's `finished` bit: a `finished=false` reply carrying an
-  eos-shaped id, immediately followed by a different id flagged
-  `finished=true`, arriving well before the client's requested
-  `max_tokens` cap, is reported as (non-finished text, then the finishing
-  token) -- `engine.rs` never makes its own "that id looks like EOS" call.
-- A `finished=true` reply on the very first message for a uid ends the
-  request immediately and correctly -- the shortest "backend decided to
-  stop now" shape.
-- The pre-existing `crates/rsg-server/tests/http_chat.rs` coverage
-  (`chat_nonstream_response_shape`, `tracer_chat_stream_matches_upstream_framing`)
-  already proves exact `max_tokens`-for-`max_tokens` delivery through the
-  full real binary over real `ipc://` sockets against a real
-  `mock-scheduler` subprocess -- re-run here as corroboration, unchanged.
+**What was wrong: the explanation for *why* the counts differed.** The
+original investigation treated the backend tap's `output_ids` field as an
+unimpeachable record of "what the backend decided to emit" and, finding a
+one-token shortfall there with byte-identical inputs on both sides, reached
+for GPU nondeterminism as the explanation (the same shape CONTEXT D-04 had
+named as a plausible hard blocker). That reasoning skipped a question it
+should have asked first: does `output_ids` in the JSON actually represent
+what either frontend's real HTTP response contained?
 
-**Conclusion: no production code change is applied.** The Rust frontend's
-engine/dispatch pair is a faithful pass-through of the backend's own
-`finished` flag, with no independent stopping logic of any kind; the
-shortfall originates inside the shared, unmodified backend itself (per the
-tap's own emission-point record), with byte-identical inputs and no
-earlier divergence in either session. The divergence position in both
-cases -- the `max_tokens` cap; immediately after a stop token -- is
-exactly where a model's logit margin between its top-1 and top-2
-candidates is typically smallest (the natural end of a response), which is
-consistent with ordinary run-to-run GPU floating-point nondeterminism
-flipping a near-tie argmax between two separate backend process launches,
-not with a systematic frontend defect. This is the same shape CONTEXT D-04
-anticipated as a hard blocker ("backend-layer + identical inputs + no
-earlier divergence"); Task 3's `## PAR-01 disposition (D-05)` section
-below records what this means for Criterion 2's FAIL.
+The actual root cause, found by comparing the real HTTP response text both
+frontends sent for `edge-08` against the JSON's `output_ids`/`ids_match`
+field: **the HTTP response text was already byte-identical on both sides**
+(`text_match` showed no difference) even on the run where `ids_match`
+reported a mismatch. `output_ids` and `ids_match` are derived by
+`python/rsglang/parity/sweep.py`'s `join_sequential`/`join_concurrent`
+functions, which collected **every** backend-tap `detok` record for a uid,
+unbounded. The scheduler's own pipelined/overlapped execution can emit one
+extra `detok` record for a uid *after* it already sent `finished: true` —
+observed for the corpus's last request in each sequential session, raced
+against that session's own teardown `SIGINT`. That straggler record is
+backend-internal bookkeeping: neither frontend's own response-finalization
+logic ever consumes it, because each frontend already closed out the HTTP
+response on the first `finished: true`. The unbounded join counted it anyway,
+inflating the Python side's `output_ids` by exactly one token (Rust's
+`engine.rs` returns immediately on the first `finished: true` and
+structurally never sees the straggler at all), which is exactly the
+one-token shortfall both models showed — not a real content discrepancy, and
+not GPU nondeterminism.
+
+**The fix (commit `ae8feec`):** `sweep.py` gained `_bounded_detoks()`, which
+truncates each uid's sequence-sorted detok records at the first
+`finished=True` record (inclusive), applied in both `join_sequential` and
+`join_concurrent`. This matches what every real consumer (both frontends'
+own response-finalization logic, and any real HTTP client) actually
+receives. Two regression tests
+(`test_bounded_detoks_discards_straggler_after_finished`,
+`test_join_sequential_discards_straggler_detok_for_par01` in
+`python/tests/test_parity_check.py`) prove the truncation directly against
+the real raw-tap shape. **No production code change was applied anywhere** —
+not in the Rust frontend (confirmed by the Task 0 findings above, which
+still hold) and not in the shared backend. The bug was entirely in the
+Python-side test harness that joins the backend tap into a comparable
+record, and it has been fixed and is now regression-tested.
+
+**Conclusion, corrected:** PAR-01 and PAR-02 both genuinely pass. The GPU
+re-run reported in `## Criterion 2` above, taken after this fix (and after
+the `--abort-timing deferred` default change, commit `de520b9`), shows
+128/128 for both models with zero divergence anywhere in either sequential
+sweep.
 
 ## Criterion 3: Concurrent-load match rate (PAR-02, informational)
 
 From `concurrent["Qwen/Qwen3-0.6B"]` (`meta.gate_model`, concurrency 128 — Llama has no concurrent block; PAR-02 is measured once, at D-10's single fixed concurrency level, for the gate model only):
 
 - **Status:** `ok` (reason: none)
-- **Rust-vs-Python match rate:** 28.1% (36/128)
-- **Python-vs-its-own-sequential-output match rate:** 27.3% (35/128)
-- **Rust-vs-its-own-sequential-output match rate:** 26.6% (34/128)
+- **Rust-vs-Python match rate:** 32.8% (42/128)
+- **Python-vs-its-own-sequential-output match rate:** 28.9% (37/128)
+- **Rust-vs-its-own-sequential-output match rate:** 23.4% (30/128)
 - **unmatched_tap:** 0
 
-**Reading:** the Rust-vs-Python concurrent match rate (36/128) sits in the same range as *each* frontend's own agreement with its sequential (one-at-a-time) output (35/128 for Python, 34/128 for Rust) — none of the three numbers is dramatically different from the others. This is consistent with D-10's framing: under concurrent load, GPU batch composition (which requests get batched together, in what order, with what padding) changes outputs for *both* frontends roughly equally, rather than one frontend diverging from its own single-request behavior much more than the other. This measurement is informational only (D-10) and is not a gate.
+**Reading:** the Rust-vs-Python concurrent match rate (42/128) sits in the same range as *each* frontend's own agreement with its sequential (one-at-a-time) output (37/128 for Python, 30/128 for Rust) — none of the three numbers is dramatically different from the others. This is consistent with D-10's framing: under concurrent load, GPU batch composition (which requests get batched together, in what order, with what padding) changes outputs for *both* frontends roughly equally, rather than one frontend diverging from its own single-request behavior much more than the other. This measurement is informational only (D-10) and is not a gate.
 
 ## Criterion 4: Cancellation stress and the abort-during-prefill bug (D-08)
 
@@ -186,9 +207,9 @@ From `abort_stress` (model: Qwen/Qwen3-0.6B):
 ### Run: `abort_timing=immediate`
 
 - **stress_rc:** 0 · **stress_timed_out:** false · **canary_ok:** false
-- **watch verdict:** `unhealthy` (samples 14, crashed 0, zombie 1, restarts 0, gpu_unlisted 1, nvsmi_errors 0)
-- **aborts_by_class:** pending 1, pending_chunked 0, prefill_window 1, decode 28, not_found 0 (30 aborts total, out of 131 requests)
-- **late_tokens_after_abort:** 8
+- **watch verdict:** `unhealthy` (samples 9, crashed 0, zombie 1, restarts 0, gpu_unlisted 1, nvsmi_errors 0)
+- **aborts_by_class:** pending 1, pending_chunked 0, prefill_window 1, decode 27, not_found 1 (30 aborts total, out of 131 requests)
+- **late_tokens_after_abort:** 17
 - **double_free_uids:** none (0) · **double_free_in_prefill_window:** none (0) · **dup_free_slot_events:** 0
 - **collisions:** 0 · **integrity_error:** none
 - **failure_mode: crash**
@@ -198,9 +219,9 @@ The stress client's own captured output tail shows the scheduler rank-0 process 
 ### Run: `abort_timing=deferred`
 
 - **stress_rc:** 0 · **stress_timed_out:** false · **canary_ok:** true
-- **watch verdict:** `healthy` (samples 21, crashed 0, zombie 0, restarts 0, gpu_unlisted 0, nvsmi_errors 0)
-- **aborts_by_class:** pending 0, pending_chunked 0, prefill_window 0, decode 26, not_found 1 (27 aborts total, out of 130 requests)
-- **late_tokens_after_abort:** 16
+- **watch verdict:** `healthy` (samples 15, crashed 0, zombie 0, restarts 0, gpu_unlisted 0, nvsmi_errors 0)
+- **aborts_by_class:** pending 0, pending_chunked 0, prefill_window 0, decode 28, not_found 0 (28 aborts total, out of 130 requests)
+- **late_tokens_after_abort:** 12
 - **double_free_uids:** none (0) · **double_free_in_prefill_window:** none (0) · **dup_free_slot_events:** 0
 - **collisions:** 0 · **integrity_error:** none
 - **failure_mode: none**
@@ -224,9 +245,19 @@ The stress client's own captured output tail shows the scheduler rank-0 process 
 **reproduced: yes**
 **conclusive: yes**
 
-**D-08(a) — does it reproduce, and under what trigger conditions:** Yes. The `immediate` abort-timing run landed 1 `prefill_window`-classified abort out of its 30 total aborts, versus 0 of 27 under `deferred`; the dedicated window probe, run only under `immediate` timing, also landed exactly 1 `prefill_window` hit out of 72 trials, and only at `delay_ms=1` — the narrowest tested delay above zero. The window is real but extremely narrow: 71 of 72 probe trials, spread across delays from 0 to 34 ms, missed it. `conclusive: yes` confirms the probe actually exercised the window at least once rather than running 72 trials that all missed it blindly.
+**D-08(a) — does it reproduce, and under what trigger conditions:** Yes. The `immediate` abort-timing run landed 1 `prefill_window`-classified abort out of its 30 total aborts, versus 0 of 28 under `deferred`; the dedicated window probe, run only under `immediate` timing, also landed exactly 1 `prefill_window` hit out of 72 trials, and only at `delay_ms=1` — the narrowest tested delay above zero. The window is real but extremely narrow: 71 of 72 probe trials, spread across delays from 0 to 34 ms, missed it. `conclusive: yes` confirms the probe actually exercised the window at least once rather than running 72 trials that all missed it blindly.
 
-**D-08(b) — crash vs. isolated corruption:** Under `immediate` timing, the observed failure mode is `crash` — the scheduler's own watcher verdict is `unhealthy` (one zombie sample, one GPU-unlisted `nvidia-smi` sample) and the stress client's captured output tail shows a `KeyboardInterrupt` traceback from the scheduler rank-0 process. This is the full-process-failure branch, not RESEARCH.md Pitfall 2's predicted "silent, isolated KV-page corruption on an otherwise-healthy, live scheduler": the tap evidence from both runs records **zero** `double_free_uids`, **zero** `dup_free_slot_events` and **zero** `collisions` — nothing in the collected evidence shows two live requests sharing a page slot or a corrupted-but-completed request. Under `deferred` timing, `failure_mode` is `none` (healthy watch, `canary_ok` true, same zero double-free/collision counts), isolating the crash specifically to the `immediate`-timing path. Given this run's own evidence, the abort-during-prefill condition manifests here as a process crash, not as the silently-corrupted-request failure mode RESEARCH.md's source-reading had predicted as more likely — D-09's decision on what to do about it is out of this plan's scope (deferred to plan 06-08).
+**D-08(b) — crash vs. isolated corruption:** Under `immediate` timing, the observed failure mode is `crash` — the scheduler's own watcher verdict is `unhealthy` (one zombie sample, one GPU-unlisted `nvidia-smi` sample) and the stress client's captured output tail shows a `KeyboardInterrupt` traceback from the scheduler rank-0 process. This is the full-process-failure branch, not RESEARCH.md Pitfall 2's predicted "silent, isolated KV-page corruption on an otherwise-healthy, live scheduler": the tap evidence from both runs records **zero** `double_free_uids`, **zero** `dup_free_slot_events` and **zero** `collisions` — nothing in the collected evidence shows two live requests sharing a page slot or a corrupted-but-completed request. Under `deferred` timing, `failure_mode` is `none` (healthy watch, `canary_ok` true, same zero double-free/collision counts), isolating the crash specifically to the `immediate`-timing path. Given this run's own evidence, the abort-during-prefill condition manifests here as a process crash, not as the silently-corrupted-request failure mode RESEARCH.md's source-reading had predicted as more likely.
+
+## Abort-timing decision (D-09)
+
+**abort-timing default: deferred**
+
+**Branch chosen: C (deep/structural) — route around with `--abort-timing deferred`, not a localized shared fix.**
+
+The evidence above is unambiguous that the condition `abort_stress.reproduced=yes`/`conclusive=yes` holds: the `immediate` run's own failure mode is a scheduler process `crash` (watcher verdict `unhealthy`: 1 zombie sample, 1 gpu-unlisted sample out of 9; a `KeyboardInterrupt` traceback from the scheduler rank-0 process), absent entirely under `deferred` timing (`failure_mode: none`, watcher `healthy`). Zero `double_free_uids`, zero `dup_free_slot_events` and zero `collisions` were recorded in either run or in the dedicated window probe, so no small (≤30-line) fix to `scheduler.py`'s abort/finish bookkeeping is supported by the evidence — there is no double-free or collision to localize a fix around. The crash's own root cause is further masked in the captured traceback by what looks like a second interrupt arriving mid-print of the first, so the original fault is not even visible in this evidence. This is a deep/structural case (branch C), not a small localized one (branch B): the project-wide `--abort-timing` default is changed to `deferred` (`crates/rsg-server/src/main.rs`) rather than patching the vendored, pristine scheduler. `UPSTREAM.md`'s `## Known upstream issues` section records the same finding for anyone auditing the vendored tree.
+
+**Python-baseline fairness note:** the frozen Python frontend (`vendor/mini-sglang/python/minisgl/server/api_server.py` lines 190-209) has no abort-timing switch at all — it aborts only after it observes a client disconnect while yielding a chunk, then sleeps 0.1 s before sending `AbortMsg`. There is nothing to set to `deferred` on the Python side; its own abort latency is fixed by its code shape. Phase 7's A/B benchmark design must state explicitly how its cancellation-stress scenario (scenario 1) treats this asymmetry — comparing the Rust frontend's `deferred` abort timing against the Python frontend's fixed chunk-plus-0.1s latency is not comparing the same knob on both sides, and the benchmark write-up should say so rather than imply a like-for-like setting.
 
 ## Known limits
 

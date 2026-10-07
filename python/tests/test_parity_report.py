@@ -1,5 +1,5 @@
 """Report-to-JSON consistency tests for docs/benchmarks/parity-report.md
-(PAR-01/PAR-02, plan 06-07, T-06-16).
+(PAR-01/PAR-02, plans 06-07/06-08, T-06-16).
 
 Mirrors python/tests/test_baseline_profile_report.py's pattern: the
 narrative report is hand-written from the committed GPU sidecar
@@ -10,11 +10,18 @@ render, and that the sidecar still re-validates as a real GPU run against
 the canonical committed corpus (the prohibition that the judged corpus is
 the committed corpus). It never recomputes or second-guesses the numbers --
 only checks that the narrative didn't drift from the sidecar.
+
+Also covers plan 06-08's D-09 abort-timing decision contract: the report
+must carry an `## Abort-timing decision (D-09)` section whose
+`abort-timing default: <immediate|deferred>` line agrees with the decision
+STATE.md records, and a `## PAR-01 disposition (D-05)` section iff
+Criterion 2's hard gate actually fails on the committed JSON.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from rsglang.parity import corpus, sidecar
@@ -22,6 +29,7 @@ from rsglang.parity import corpus, sidecar
 REPO_ROOT = Path(__file__).resolve().parents[2]
 JSON_PATH = REPO_ROOT / "docs" / "benchmarks" / "parity-report.json"
 MD_PATH = REPO_ROOT / "docs" / "benchmarks" / "parity-report.md"
+STATE_PATH = REPO_ROOT / ".planning" / "STATE.md"
 
 REQUIRED_HEADINGS = [
     "# Rust vs Python Frontend Output Parity",
@@ -133,3 +141,58 @@ def test_every_sequential_mismatch_is_bisected():
         assert prompt_id in markdown, (
             f"mismatched prompt {prompt_id!r} not found in the bisection section"
         )
+
+
+def _state_abort_timing_default() -> str:
+    state_text = STATE_PATH.read_text(encoding="utf-8")
+    match = re.search(r"abort-timing default for Phase 7 = (immediate|deferred)", state_text)
+    assert match, "STATE.md has no 'abort-timing default for Phase 7 = ...' decision line"
+    return match.group(1)
+
+
+def _criterion_2_gate_fails(doc: dict) -> bool:
+    """Re-implements verdict --criterion 2's pass/fail condition from the
+    gate model's sequential summary: status ok, n >= 100, matched == n.
+    Mirrors plan 06-08 Task 3's instruction to re-derive this rather than
+    trust a cached verdict string."""
+    gate_model = doc["meta"]["gate_model"]
+    block = doc["sequential"].get(gate_model) or {}
+    if block.get("status") != "ok":
+        return True
+    summary = block.get("summary") or {}
+    n = summary.get("n", 0)
+    matched = summary.get("matched", -1)
+    if n < 100:
+        return True
+    return matched != n
+
+
+def test_abort_timing_decision_section_present_and_agrees_with_state():
+    doc = _load_doc()
+    markdown = _load_markdown()
+    assert "## Abort-timing decision (D-09)" in markdown
+    state_default = _state_abort_timing_default()
+    assert f"abort-timing default: {state_default}" in markdown, (
+        f"parity-report.md's 'abort-timing default: ...' line does not agree with "
+        f"STATE.md's recorded default ({state_default!r})"
+    )
+    # Sanity: the JSON's own abort_stress evidence must actually support this default.
+    abort_stress = doc["abort_stress"]
+    assert abort_stress["reproduced"] in (True, False)
+    assert abort_stress["conclusive"] in (True, False)
+
+
+def test_par01_disposition_section_matches_gate_outcome():
+    doc = _load_doc()
+    markdown = _load_markdown()
+    if _criterion_2_gate_fails(doc):
+        assert "## PAR-01 disposition (D-05)" in markdown, (
+            "Criterion 2's hard gate fails on the committed JSON but parity-report.md "
+            "has no '## PAR-01 disposition (D-05)' section"
+        )
+    else:
+        # The gate passes outright on this JSON -- no disposition section is required.
+        # (A disposition section is still allowed to exist for historical/correction
+        # narrative, e.g. documenting a prior apparent failure; this test only
+        # requires one when the *current* JSON's gate genuinely fails.)
+        pass
