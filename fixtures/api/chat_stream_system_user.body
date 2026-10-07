@@ -1,0 +1,52 @@
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"role": "assistant", "content": "<|im_start|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "system"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "You"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": " are"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": " terse"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "."}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "<|im_end|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "<|im_start|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "user"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "Say"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": " h"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\u00e9l"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "lo"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": " "}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\ud83d\udc4b"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "<|im_end|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "<|im_start|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "assistant"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {"content": "<|im_start|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-3", "object": "text_completion.chunk", "choices": [{"delta": {}, "index": 0, "finish_reason": "stop"}]}
+
+data: [DONE]
+

@@ -1,0 +1,36 @@
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"role": "assistant", "content": "<|im_start|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "user"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "Count"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": " to"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": " three"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "."}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "<|im_end|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "<|im_start|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "assistant"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "<|im_start|>"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "user"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "\n"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {"content": "Count"}, "index": 0, "finish_reason": null}]}
+
+data: {"id": "cmpl-4", "object": "text_completion.chunk", "choices": [{"delta": {}, "index": 0, "finish_reason": "stop"}]}
+
+data: [DONE]
+

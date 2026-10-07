@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Python Frontend Baseline Profile** - Measure the Python frontend's host overhead on the GPU machine (parallel track, does not gate) (completed 2026-10-05)
 - [x] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development (completed 2026-10-06)
 - [x] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model (completed 2026-10-06)
-- [ ] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend
+- [x] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend (completed 2026-10-06)
 - [ ] **Phase 6: GPU End-to-End Parity** - Rust and Python frontends produce identical output on the real backend
 - [ ] **Phase 7: Frontend Benchmarks** - Reproducible Python-vs-Rust comparison across the three scenarios, plus a throughput regression check
 
@@ -183,7 +183,28 @@ Plans:
   4. An overlong prompt gets an immediate 400, and a request whose backend stops responding times out with an error instead of hanging. Abort timing is configurable: immediate by default, or deferred until the first token.
   5. `/health` and `/health/ready` respond, and `/metrics` exposes the request count, the cancellation count and a TTFT histogram.
 
-**Plans**: TBD
+**Plans:** 9/9 plans complete
+
+Plans:
+
+**Wave 1**
+- [x] 05-01-PLAN.md — Tracer: POST /generate through axum -> per-request engine driver -> single writer -> mock-scheduler -> per-uid dispatcher -> decoder, in upstream's single-newline framing; TextCodec seam; LIFE-01 transition table and the registry actor (exactly one terminal state per request) (wave 1)
+- [x] 05-02-PLAN.md — Blocking-human package gate for fastapi/uvicorn/prompt_toolkit, relocked into the hashed Mac lock, so upstream's api_server imports on the Mac (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 05-03-PLAN.md — /v1/chat/completions (streaming chunks escaped like Python's json.dumps, non-streaming JSON), /v1/models, the multi-method /v1, 422 validation and not-ready 503s (wave 2)
+- [x] 05-04-PLAN.md — Disconnect -> immediate abort with late tokens dropped and counted; --abort-timing immediate|deferred in the engine (D-01); overlong 400 against the handshake's max_seq_len; per-request backend timeout; D-03 queued-disconnect bound (wave 2)
+- [x] 05-05-PLAN.md — Runner for the frozen Python frontend against the mock-scheduler, plus gen_api_fixtures.py capturing 18 golden API cases from a live run (D-02) (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 05-06-PLAN.md — /health, /health/ready and /metrics (request count, cancellation count, TTFT histogram, late tokens) from a per-server Prometheus recorder fed by the registry (wave 3)
+- [x] 05-07-PLAN.md — 128-agent random-cancellation stress test (D-04), non-streaming disconnect bound (D-03), chat-route 504/400 and truncated-stream checks (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 05-08-PLAN.md — rsg-server binary: Phase 4 tokenizer via HfCodec, HTTP listener from startup, handshake-gated readiness, --host/--port/--abort-timing/--backend-timeout-ms; launcher forwards host and port (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 05-09-PLAN.md — Byte-level API parity: replay the Python-frontend fixtures against the rsg-server binary; API fixture freshness in check_all.sh (wave 5)
 
 ### Phase 6: GPU End-to-End Parity
 
@@ -250,6 +271,6 @@ Plans:
 | 2. Python Frontend Baseline Profile | 9/9 | Complete    | 2026-10-05 |
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
-| 5. Request Lifecycle & HTTP API | 0/TBD | Not started | - |
+| 5. Request Lifecycle & HTTP API | 9/9 | Complete    | 2026-10-06 |
 | 6. GPU End-to-End Parity | 5/8 | In Progress|  |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |

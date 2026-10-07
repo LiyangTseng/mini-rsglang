@@ -4,8 +4,16 @@
 //! broadcast channel registered for its `uid`.
 //!
 //! Each uid's channel has a fixed capacity [`UID_CHANNEL_CAPACITY`] — a
-//! power of two, so tokio's internal capacity rounding leaves it at exactly
-//! 16 (D-07: a fixed constant, no CLI or config knob). The dispatcher's
+//! power of two, so tokio's internal capacity rounding is a no-op (D-07: a
+//! fixed constant, no CLI or config knob; raised from the original 16 to
+//! 256 in Phase 5 after CI's own, more CPU-constrained runner reliably
+//! overflowed it against a zero-decode-delay mock -- `rsg-server`'s
+//! `#[tokio::main]` runtime sizes its worker-thread pool to the host's CPU
+//! count, so a 2-4 vCPU CI runner schedules a freshly-spawned request task
+//! far less promptly after `submit()` than an 8-core dev machine does, and a
+//! synthetic zero-latency backend can burst well past 16 replies in that
+//! gap. See PROJECT.md's Key Decisions for the Phase 5 follow-up entry).
+//! The dispatcher's
 //! `send` never blocks: when a uid's channel is full, the oldest buffered
 //! token is overwritten, and the drop is visible only to that uid's own
 //! consumer, on its next `recv()`, as `UidEvent::Dropped(n)` (RESEARCH.md
@@ -54,9 +62,10 @@ use tokio::sync::mpsc::error::TryRecvError;
 
 use crate::transport::DetokSource;
 
-/// Fixed per-uid channel capacity (D-07). Already a power of two, so
-/// tokio's capacity rounding is a no-op.
-pub const UID_CHANNEL_CAPACITY: usize = 16;
+/// Fixed per-uid channel capacity (D-07, raised 16 -> 256 in Phase 5 — see
+/// the module doc). Already a power of two, so tokio's capacity rounding is
+/// a no-op.
+pub const UID_CHANNEL_CAPACITY: usize = 256;
 
 /// How long the dispatcher thread blocks on one `recv_detok` poll before
 /// looping back to drain its control channel again.
@@ -369,25 +378,30 @@ mod tests {
                     dropped: 0,
                 };
 
-                for next_token in 0..20i64 {
+                // Sent 4 past capacity, so exactly 4 drop regardless of the
+                // capacity's own value.
+                const OVERFLOW_MARGIN: i64 = 4;
+                let total_sent = UID_CHANNEL_CAPACITY as i64 + OVERFLOW_MARGIN;
+                let last = total_sent - 1;
+                for next_token in 0..total_sent {
                     tx.send(TokenReply {
                         uid: 3,
                         next_token,
-                        finished: next_token == 19,
+                        finished: next_token == last,
                     })
                     .expect("send");
                 }
 
                 let first = stream.recv().await.expect("first recv");
-                assert_eq!(first, UidEvent::Dropped(4));
-                assert_eq!(stream.dropped(), 4);
+                assert_eq!(first, UidEvent::Dropped(OVERFLOW_MARGIN as u64));
+                assert_eq!(stream.dropped(), OVERFLOW_MARGIN as u64);
 
-                for expected_token in 4..20i64 {
+                for expected_token in OVERFLOW_MARGIN..total_sent {
                     let event = stream.recv().await.expect("recv");
                     match event {
                         UidEvent::Token(reply) => {
                             assert_eq!(reply.next_token, expected_token);
-                            assert_eq!(reply.finished, expected_token == 19);
+                            assert_eq!(reply.finished, expected_token == last);
                         }
                         UidEvent::Dropped(n) => panic!("unexpected extra drop of {n}"),
                     }
@@ -666,20 +680,25 @@ mod tests {
         let d = TestDispatcher::open("lag");
         let mut stream = d.handle.register(1);
 
-        let data: Vec<_> = (0..40i64)
-            .map(|next_token| detok(1, next_token, next_token == 39))
+        // Sent 24 past capacity, so exactly 24 drop regardless of the
+        // capacity's own value.
+        const OVERFLOW_MARGIN: i64 = 24;
+        let total_sent = UID_CHANNEL_CAPACITY as i64 + OVERFLOW_MARGIN;
+        let last = total_sent - 1;
+        let data: Vec<_> = (0..total_sent)
+            .map(|next_token| detok(1, next_token, next_token == last))
             .collect();
         d.send_tokenizer(&rsg_wire::TokenizerMsg::BatchTokenizerMsg { data });
-        d.wait_for_stats(|s| s.routed == 40);
+        d.wait_for_stats(|s| s.routed == total_sent as u64);
 
         let first = tokio::time::timeout(Duration::from_secs(2), stream.recv())
             .await
             .expect("timed out")
             .expect("stream ended");
-        assert_eq!(first, UidEvent::Dropped(24));
-        assert_eq!(stream.dropped(), 24);
+        assert_eq!(first, UidEvent::Dropped(OVERFLOW_MARGIN as u64));
+        assert_eq!(stream.dropped(), OVERFLOW_MARGIN as u64);
 
-        for expected in 24..40i64 {
+        for expected in OVERFLOW_MARGIN..total_sent {
             let event = tokio::time::timeout(Duration::from_secs(2), stream.recv())
                 .await
                 .expect("timed out")
@@ -687,7 +706,7 @@ mod tests {
             match event {
                 UidEvent::Token(reply) => {
                     assert_eq!(reply.next_token, expected);
-                    assert_eq!(reply.finished, expected == 39);
+                    assert_eq!(reply.finished, expected == last);
                 }
                 UidEvent::Dropped(n) => panic!("unexpected extra drop of {n}"),
             }

@@ -449,9 +449,11 @@ impl RsgServer {
                 "--detok-role",
                 "bind",
                 "--model",
-                "mock-model",
+                "Qwen/Qwen3-0.6B",
                 "--run-id",
                 ".rsg=mock",
+                "--port",
+                "0",
             ])
             .env("RUST_LOG", "info")
             .stdin(Stdio::piped())

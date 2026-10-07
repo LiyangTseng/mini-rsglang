@@ -47,7 +47,10 @@ def rust_endpoints(server_args: ServerArgs) -> Dict[str, str]:
 
 
 def rust_cli_args(server_args: ServerArgs) -> List[str]:
-    """The static rsg-server CLI (D-11)."""
+    """The static rsg-server CLI (D-11). Forwards the upstream --host/--port the
+    user asked for (plan 05-08): --abort-timing and --backend-timeout-ms are
+    rsg-server's own flags with their own defaults, left for Phase 6 to forward
+    deliberately once it decides the benchmark setting."""
     ep = rust_endpoints(server_args)
     return [
         "--backend-addr", ep["backend_addr"],
@@ -56,4 +59,6 @@ def rust_cli_args(server_args: ServerArgs) -> List[str]:
         "--detok-role", ep["detok_role"],
         "--model", server_args.model_path,
         "--run-id", server_args._unique_suffix,
+        "--host", server_args.server_host,
+        "--port", str(server_args.server_port),
     ]

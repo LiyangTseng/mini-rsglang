@@ -50,9 +50,11 @@ impl Server {
                 "--detok-role",
                 "bind",
                 "--model",
-                "test-model",
+                "Qwen/Qwen3-0.6B",
                 "--run-id",
                 ".rsg=test",
+                "--port",
+                "0",
             ])
             .env("RUST_LOG", "info")
             .stdin(Stdio::piped())

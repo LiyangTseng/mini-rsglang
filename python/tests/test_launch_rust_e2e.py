@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import signal
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -25,6 +27,7 @@ UPSTREAM_ARGS = [
     "--dtype", "bfloat16",
     "--page-size", "16",
     "--max-running-requests", "8",
+    "--port", "0",
 ]
 
 
@@ -164,8 +167,16 @@ def test_rust_mode_handshake_reaches_rsg_server(launcher, tmp_path):
         assert expected in line, line
 
     launcher.wait_for("backend ready; handshake sent", 10)
-    # D-10: rsg-server is up and waiting before the backend reports ready.
-    assert launcher.index_of("awaiting handshake on stdin") < launcher.index_of("backend ready; handshake sent")
+    # D-10: rsg-server is spawned before the backend reports ready, so its own
+    # front-half startup (tokenizer load, socket open) overlaps backend weight
+    # loading rather than following it. Checked against "rsg-server starting"
+    # (the very first rsg-server log line, emitted before Phase 5's tokenizer
+    # load) rather than "awaiting handshake on stdin": plan 05-08 moved that
+    # second line to after the tokenizer load completes, so on this test's
+    # near-instant fake scheduler -- unlike a real multi-second GPU weight
+    # load -- tokenizer-load latency can legitimately outlast the fake
+    # backend's own "ready" line without violating D-10's actual intent.
+    assert launcher.index_of("rsg-server starting") < launcher.index_of("backend ready; handshake sent")
 
     pid = launcher.proc.pid
     sock0 = Path(f"/tmp/minisgl_0.rsg={pid}")
@@ -178,6 +189,20 @@ def test_rust_mode_handshake_reaches_rsg_server(launcher, tmp_path):
 
     children = launcher.pids()
     assert set(children) == {"rsg-server", "scheduler"}, launcher.lines
+
+    # plan 05-08: the launcher forwards the upstream --host/--port the user asked
+    # for (here --port 0, an ephemeral port); confirm the real rsg-server binary
+    # is listening on the forwarded port and serving end to end.
+    listening_line = launcher.wait_for(r"http server listening addr=", 10)
+    port_match = re.search(r"addr=\S+:(\d+)", listening_line)
+    assert port_match, listening_line
+    port = int(port_match.group(1))
+    launcher.wait_for("ready to serve", 10)
+
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}/v1/models", timeout=10) as resp:
+        assert resp.status == 200
+        body = json.loads(resp.read())
+    assert body["data"][0]["id"] == "Qwen/Qwen3-0.6B", body
 
     launcher.proc.send_signal(signal.SIGTERM)
     assert launcher.proc.wait(timeout=30) == 0, "\n".join(launcher.lines)
