@@ -413,11 +413,6 @@ async fn stress_128_concurrent_requests_with_random_cancellations() {
         .iter()
         .filter(|o| **o == RequestOutcome::Completed)
         .count();
-    let disconnect_after_k_count = all_outcomes
-        .iter()
-        .filter(|o| **o == RequestOutcome::DisconnectedAfterK)
-        .count();
-
     let snap = server.snapshot_when_idle(Duration::from_secs(10)).await;
     assert_eq!(snap.active, 0, "leaked request(s): {snap:?}");
     assert_eq!(snap.failed, 0, "unexpected failure(s): {snap:?}");
@@ -435,9 +430,25 @@ async fn stress_128_concurrent_requests_with_random_cancellations() {
         "finished ({}) must be at least the completed-mode count ({completed_count}): {snap:?}",
         snap.finished
     );
+    // Deliberately NOT `>= completed_count + (a DisconnectedAfterK count)`:
+    // a DisconnectAfterK client only *attempts* to reach the server before
+    // tearing the connection down -- for Endpoint::ChatNonStream
+    // specifically, that's a raw write followed by a sleep of
+    // `non_stream_ms` (randomly 0..=40ms, see Mode::DisconnectAfterK's
+    // construction above) and then an unconditional drop, with no read-back
+    // confirming the server ever accepted the connection at all. Under CI's
+    // slower task/connection scheduling (fewer vCPUs than a dev machine;
+    // `rsg-server`'s `#[tokio::main]` sizes its worker pool to the host's
+    // core count), a low roll of `non_stream_ms` can race the client's own
+    // disconnect ahead of the server's accept+parse, so the request never
+    // reaches `drive_request`'s first `registry.report(Received)` at all --
+    // a legitimate "never arrived" outcome, indistinguishable from the
+    // client never connecting, not a leak or a registry bug. Reproduced on
+    // CI with stress_seed=0x5eed0005 (received=220, completed=132,
+    // disconnect-after-k=92; 220 < 132+92 but >= 132).
     assert!(
-        snap.received as usize >= completed_count + disconnect_after_k_count,
-        "received ({}) must be at least completed ({completed_count}) + disconnect-after-k ({disconnect_after_k_count}): {snap:?}",
+        snap.received as usize >= completed_count,
+        "received ({}) must be at least completed ({completed_count}): {snap:?}",
         snap.received
     );
 
