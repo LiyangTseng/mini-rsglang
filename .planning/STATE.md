@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: GPU End-to-End Parity
 status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-10-07T03:38:22.252Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-10-07T04:04:40.787Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 06 execution started
-state_head: 7e2f457be1a8f6ef5689996b3f385cb236ca13b6
+state_head: c67e6dd3883cc224106a55c52560be6e8cba61f6
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 42
-  completed_plans: 36
+  completed_plans: 37
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 06 (GPU End-to-End Parity) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 06 execution started
 
@@ -81,6 +81,7 @@ Progress: [██████░░░░] 57%
 | Phase 04 P06 | 25min | 2 tasks | 6 files |
 | Phase 06 P01 | 55min | 2 tasks | 10 files |
 | Phase 06 P02 | 20min | 2 tasks | 2 files |
+| Phase 06 P03 | 50min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,8 @@ Recent decisions affecting current work:
 - [Phase 04]: cargo test -p rsg-tokenizer requires --test-threads=1 to be deterministic (pre-existing env-var/cache-lock races, unrelated to TOK-04); logged to deferred-items.md, not fixed in this plan's scope
 - [Phase 06]: Phase 06: one tap (generated sitecustomize shim outside vendor/) and aiohttp instead of RESEARCH's two taps / openai SDK; tdd-red-evidence skipped for pytest (Node-TAP-format-only tool, workflow.tdd_mode disabled), RED verified manually
 - [Phase 06]: D-12 process-health watcher (scripts/gpu_phase6_watch.sh): new standalone script copying gpu_phase1_check.sh's alive/gpu_pids/on_gpu helper semantics rather than sourcing it (preserves Phase 1's signed-off artifact); Task 2's zombie/restart/nvsmi-failure/usage tests passed against Task 1's implementation unmodified since Task 1 already specified the full counter set.
+- [Phase 06]: 06-03: 128-item parity corpus built with 16 items reused from Phase 4's tokenizer corpus (marked phase4:<path>#<id>), 112 original (phase6); corpus.py's validate_canonical enforces exact per-category counts/properties, wired into load_corpus only for the canonical path
+- [Phase 06]: 06-03: compare.py's full D-05 precedence (request_error > tokenization > sampling_params > backend > incomplete > detokenization_or_api) and annotate_sequence's radix-cache note are implemented; wiring annotate_sequence into parity_check.py run is deferred to plan 06-05 per the plan's key_links contract
 
 ### Pending Todos
 
@@ -163,6 +166,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T03:38:22.196Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-10-07T04:04:40.724Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
