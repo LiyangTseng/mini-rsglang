@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: GPU End-to-End Parity
 status: executing
-stopped_at: Completed 06-03-PLAN.md
-last_updated: "2026-10-07T04:04:40.787Z"
+stopped_at: Completed 06-04-PLAN.md
+last_updated: "2026-10-07T04:42:17.184Z"
 last_activity: 2026-10-06
 last_activity_desc: Phase 06 execution started
-state_head: c67e6dd3883cc224106a55c52560be6e8cba61f6
+state_head: 6454fb2920bc21e84cfd7662497aad1d47f3c5b2
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 42
-  completed_plans: 37
+  completed_plans: 38
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 06 (GPU End-to-End Parity) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-10-06 — Phase 06 execution started
 
@@ -82,6 +82,7 @@ Progress: [██████░░░░] 57%
 | Phase 06 P01 | 55min | 2 tasks | 10 files |
 | Phase 06 P02 | 20min | 2 tasks | 2 files |
 | Phase 06 P03 | 50min | 2 tasks | 5 files |
+| Phase 06 P04 | 75min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,7 @@ Recent decisions affecting current work:
 - [Phase 06]: D-12 process-health watcher (scripts/gpu_phase6_watch.sh): new standalone script copying gpu_phase1_check.sh's alive/gpu_pids/on_gpu helper semantics rather than sourcing it (preserves Phase 1's signed-off artifact); Task 2's zombie/restart/nvsmi-failure/usage tests passed against Task 1's implementation unmodified since Task 1 already specified the full counter set.
 - [Phase 06]: 06-03: 128-item parity corpus built with 16 items reused from Phase 4's tokenizer corpus (marked phase4:<path>#<id>), 112 original (phase6); corpus.py's validate_canonical enforces exact per-category counts/properties, wired into load_corpus only for the canonical path
 - [Phase 06]: 06-03: compare.py's full D-05 precedence (request_error > tokenization > sampling_params > backend > incomplete > detokenization_or_api) and annotate_sequence's radix-cache note are implemented; wiring annotate_sequence into parity_check.py run is deferred to plan 06-05 per the plan's key_links contract
+- [Phase 06]: 06-04: concurrent sweep (PAR-02), endpoint check (criterion 1), multi-model gated handling and GPU-only require_gpu validation; fixed two real bugs found while proving the plan's own tests -- ThreadingHTTPServer's default request_queue_size (5) silently dropped connections under concurrency 8, and sidecar.build_meta never set meta.gpu so require_gpu could never pass even on a real GPU box
 
 ### Pending Todos
 
@@ -166,6 +168,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T04:04:40.724Z
-Stopped at: Completed 06-03-PLAN.md
+Last session: 2026-10-07T04:42:17.121Z
+Stopped at: Completed 06-04-PLAN.md
 Resume file: None

@@ -43,8 +43,8 @@
 
 ### End-to-End Parity
 
-- [ ] **PAR-01**: On the GPU machine, with greedy decoding (temperature 0) sent one request at a time, the Rust and Python frontends produce identical output on at least 100 prompts
-- [ ] **PAR-02**: Under concurrent load, the output match rate is reported (not a hard gate, because GPU batch composition affects results)
+- [x] **PAR-01**: On the GPU machine, with greedy decoding (temperature 0) sent one request at a time, the Rust and Python frontends produce identical output on at least 100 prompts
+- [x] **PAR-02**: Under concurrent load, the output match rate is reported (not a hard gate, because GPU batch composition affects results)
 
 ### Benchmarks
 
@@ -110,8 +110,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIFE-05 | Phase 5 | Pending |
 | API-01 | Phase 5 | Pending |
 | API-02 | Phase 5 | Pending |
-| PAR-01 | Phase 6 | Pending |
-| PAR-02 | Phase 6 | Pending |
+| PAR-01 | Phase 6 | Complete |
+| PAR-02 | Phase 6 | Complete |
 | BENCH-02 | Phase 7 | Pending |
 | BENCH-03 | Phase 7 | Pending |
 | BENCH-04 | Phase 7 | Pending |

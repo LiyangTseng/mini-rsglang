@@ -196,7 +196,7 @@ Plans:
   3. Under concurrent load, the Rust-vs-Python output match rate is measured and reported. It is informational only, because GPU batch composition affects the results.
   4. The 128-request cancellation stress test also completes against the real backend without crashing or wedging the scheduler. The run records whether the suspected abort-during-prefill bug reproduces, which settles the abort-timing setting used in the benchmarks.
 
-**Plans:** 3/8 plans executed
+**Plans:** 4/8 plans executed
 
 Plans:
 
@@ -206,7 +206,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 06-03-PLAN.md — Curated 128-prompt corpus shared by both models (D-01/D-03) and full D-05 localization (layer precedence, first diverging token, explain CLI) (wave 2)
-- [ ] 06-04-PLAN.md — PAR-02 single-point concurrent match rate at 128, endpoint check for criterion 1, multi-model runs with gated-checkpoint handling, GPU-only validation, verdicts 1-3 (wave 2)
+- [x] 06-04-PLAN.md — PAR-02 single-point concurrent match rate at 128, endpoint check for criterion 1, multi-model runs with gated-checkpoint handling, GPU-only validation, verdicts 1-3 (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 06-05-PLAN.md — Stress part: Phase 5's tool unchanged under the watcher for both abort timings, tap-based double-free/collision analysis, backend window probe, verdict 4 (wave 3)
@@ -251,5 +251,5 @@ Plans:
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
 | 5. Request Lifecycle & HTTP API | 0/TBD | Not started | - |
-| 6. GPU End-to-End Parity | 3/8 | In Progress|  |
+| 6. GPU End-to-End Parity | 4/8 | In Progress|  |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |
