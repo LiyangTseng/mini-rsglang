@@ -74,6 +74,28 @@ _uid_counter = 0
 _in_flight_lock = threading.Lock()
 _in_flight = 0
 
+_request_count_lock = threading.Lock()
+_request_count = 0
+
+_last_request_lock = threading.Lock()
+_last_request_time: "float | None" = None
+
+_shutdown_event = threading.Event()
+
+
+def _next_request_num() -> int:
+    """Increments and returns the 1-based count of chat requests that have
+    *started* -- --crash-after-requests/--hang-after-requests compare
+    against this, and --log-integrity-error's watcher reads
+    _last_request_time it also updates."""
+    global _request_count, _last_request_time
+    with _request_count_lock:
+        _request_count += 1
+        n = _request_count
+    with _last_request_lock:
+        _last_request_time = time.monotonic()
+    return n
+
 
 def _next_uid() -> int:
     global _uid_counter
@@ -121,8 +143,16 @@ def _deterministic_output(
     *,
     diverge_when: "str | None",
     diverge_output_at: "int | None",
+    perturb_when: "str | None" = None,
 ) -> "tuple[list[int], list[int], str]":
     input_ids = list(rendered_prompt.encode("utf-8"))
+    if perturb_when and perturb_when in rendered_prompt:
+        # A zero-valued id perturbs the ids sequence (length/content differs
+        # from an unperturbed side -> tokenization-layer divergence) without
+        # changing `total` below, so the OUTPUT stays identical -- this knob
+        # is for proving tokenization-layer divergence in isolation, never
+        # entangled with a backend divergence on the same item.
+        input_ids = input_ids + [0]
     total = sum(input_ids)
     n = min(max_tokens, _MAX_OUTPUT_TOKENS)
     output_ids = [((total + 7 * k) % 251) + 1 for k in range(n)]
@@ -140,6 +170,10 @@ def _make_handler(
     diverge_under_load: "int | None" = None,
     flavor: str = "python",
     double_free_on_abort: bool = False,
+    perturb_when: "str | None" = None,
+    crash_after_requests: "int | None" = None,
+    hang_after_requests: "int | None" = None,
+    scheduler_child: "subprocess.Popen | None" = None,
 ):
     class Handler(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -198,6 +232,7 @@ def _make_handler(
                 max_tokens,
                 diverge_when=diverge_when,
                 diverge_output_at=diverge_output_at,
+                perturb_when=perturb_when,
             )
             if diverge_under_load is not None and in_flight_before >= diverge_under_load:
                 output_ids = list(output_ids)
@@ -215,6 +250,19 @@ def _make_handler(
                 self._write_free(uid, dup=True)
 
         def _handle_chat(self) -> None:
+            request_num = _next_request_num()
+
+            if crash_after_requests is not None and request_num >= crash_after_requests:
+                if scheduler_child is not None:
+                    try:
+                        scheduler_child.kill()
+                    except OSError:
+                        pass
+
+            if hang_after_requests is not None and request_num >= hang_after_requests:
+                _shutdown_event.wait()
+                return
+
             payload = self._read_json_body()
             stream = bool(payload.get("stream", False))
             max_tokens = int(payload.get("max_tokens") or 1)
@@ -379,6 +427,10 @@ def _build_server_parser() -> argparse.ArgumentParser:
     parser.add_argument("--emit-scheduler-child", action="store_true")
     parser.add_argument("--abort-timing", default=None, metavar="TIMING")
     parser.add_argument("--double-free-on-abort", action="store_true")
+    parser.add_argument("--crash-after-requests", type=int, default=None, metavar="N")
+    parser.add_argument("--hang-after-requests", type=int, default=None, metavar="N")
+    parser.add_argument("--log-integrity-error", action="store_true")
+    parser.add_argument("--perturb-input-when", default=None, metavar="SUBSTR")
     return parser
 
 
@@ -397,6 +449,29 @@ def _spawn_scheduler_child() -> "subprocess.Popen | None":
     )
     print(f"rsglang.launch: spawned scheduler rank=0 pid={child.pid}", file=sys.stderr, flush=True)
     return child
+
+
+def _start_integrity_watcher() -> None:
+    """--log-integrity-error (06-05 Task 2): once at least one request has
+    happened, print the mirrored CacheManager.check_integrity() error line
+    the first time the server goes >=1s without a new request -- a
+    daemon thread so it never blocks server shutdown."""
+
+    def loop() -> None:
+        printed = False
+        while not _shutdown_event.is_set():
+            time.sleep(0.2)
+            with _last_request_lock:
+                last = _last_request_time
+            if last is not None and not printed and (time.monotonic() - last) >= 1.0:
+                print(
+                    "RuntimeError: Integrity check failed: free_pages + cache_pages != num_pages",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                printed = True
+
+    threading.Thread(target=loop, daemon=True, name="fake-parity-integrity-watcher").start()
 
 
 def _cmd_server(argv: Sequence[str]) -> int:
@@ -429,13 +504,20 @@ def _cmd_server(argv: Sequence[str]) -> int:
         ns.diverge_under_load,
         ns.flavor,
         ns.double_free_on_abort,
+        ns.perturb_input_when,
+        ns.crash_after_requests,
+        ns.hang_after_requests,
+        scheduler_child,
     )
     httpd = _Server(("127.0.0.1", ns.port), handler_cls)
+    if ns.log_integrity_error:
+        _start_integrity_watcher()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        _shutdown_event.set()
         httpd.shutdown()
         httpd.server_close()
         if scheduler_child is not None:

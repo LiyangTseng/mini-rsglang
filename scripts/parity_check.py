@@ -51,9 +51,9 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--corpus", default=corpus.CANONICAL_CORPUS, metavar="PATH")
     run.add_argument(
         "--parts",
-        default="endpoints,sequential,concurrent",
+        default="endpoints,sequential,concurrent,stress",
         metavar="LIST",
-        help="Comma list of sequential, concurrent, endpoints (default: %(default)s)",
+        help="Comma list of sequential, concurrent, endpoints, stress (default: %(default)s)",
     )
     run.add_argument("--port", type=int, default=1919, metavar="PORT")
     run.add_argument("--timeout", type=float, default=900.0, metavar="SECONDS")
@@ -418,6 +418,7 @@ def cmd_run(ns: argparse.Namespace) -> int:
                 records = [
                     compare.compare_prompt(item, python_side[item.id], rust_side[item.id]) for item in items
                 ]
+                records = compare.annotate_sequence(records)
                 summary = compare.summarize(records)
                 sequential_out[model] = {
                     "status": "ok",

@@ -242,3 +242,179 @@ def test_stress_requires_stress_cmd(tmp_path):
     result = _run_parity_check(["run", "--parts", "stress"])
     assert result.returncode == 2
     assert "--stress-cmd" in result.stderr
+
+
+# --- Task 2: crash/wedge/integrity failure modes and annotate_sequence wiring ----------
+
+
+@pytest.mark.slow
+def test_crash_failure_mode(tmp_path):
+    bin_dir = tmp_path / "bin"
+    _write_stub_nvidia_smi(bin_dir)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--parts", "stress",
+            "--abort-timings", "immediate",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--stress-server-cmd", _STRESS_SERVER_CMD + " --crash-after-requests 4",
+            "--stress-cmd", _STRESS_CMD,
+            "--settle-s", "1.0",
+            "--watch-interval-s", "0.1",
+        ],
+        extra_path=bin_dir,
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    run = doc["abort_stress"]["runs"][0]
+    assert run["abort_timing"] == "immediate"
+    # The fake server never reaps the killed child, so the watcher may see it
+    # as a zombie (state Z) rather than fully "gone" -- either way the
+    # watcher's own crash/zombie detection (not liveness alone) is what
+    # failure_mode reduces to "crash" (06-02's watcher contract).
+    assert run["watch"]["crashed"] == 1 or run["watch"]["zombie"] == 1
+    assert run["failure_mode"] == "crash"
+
+
+@pytest.mark.slow
+def test_wedge_failure_mode(tmp_path):
+    bin_dir = tmp_path / "bin"
+    _write_stub_nvidia_smi(bin_dir)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--parts", "stress",
+            "--abort-timings", "immediate",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--stress-server-cmd", _STRESS_SERVER_CMD + " --hang-after-requests 4",
+            "--stress-cmd", _STRESS_CMD,
+            "--stress-timeout", "5",
+            "--canary-timeout-s", "3",
+            "--settle-s", "0.2",
+        ],
+        extra_path=bin_dir,
+        timeout=55,
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    run = doc["abort_stress"]["runs"][0]
+    assert run["stress_timed_out"] is True
+    assert run["canary_ok"] is False
+    assert run["failure_mode"] == "wedge"
+
+
+@pytest.mark.slow
+def test_integrity_error_recorded(tmp_path):
+    bin_dir = tmp_path / "bin"
+    _write_stub_nvidia_smi(bin_dir)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--parts", "stress",
+            "--abort-timings", "immediate",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--stress-server-cmd", _STRESS_SERVER_CMD + " --log-integrity-error",
+            "--stress-cmd", _STRESS_CMD,
+            "--settle-s", "2",
+        ],
+        extra_path=bin_dir,
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    run = doc["abort_stress"]["runs"][0]
+    assert run["integrity_error"] is not None
+    assert "Integrity check failed" in run["integrity_error"]
+
+
+def test_annotate_wired(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    item1_substr = "uniqueperturbmarkerone"
+    item3_substr = "uniquedivergemarkerthree"
+    corpus_doc = {
+        "schema_version": 1,
+        "items": [
+            {
+                "id": "item1",
+                "category": "short",
+                "kind": "raw",
+                "prompt": f"prompt with {item1_substr} inside",
+                "max_tokens": 4,
+                "source": "test",
+            },
+            {
+                "id": "item2",
+                "category": "short",
+                "kind": "raw",
+                "prompt": "a plain unrelated prompt",
+                "max_tokens": 4,
+                "source": "test",
+            },
+            {
+                "id": "item3",
+                "category": "short",
+                "kind": "raw",
+                "prompt": f"prompt with {item3_substr} inside",
+                "max_tokens": 4,
+                "source": "test",
+            },
+        ],
+    }
+    corpus_path.write_text(json.dumps(corpus_doc), encoding="utf-8")
+
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    python_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+    rust_cmd = (
+        "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model} "
+        f"--perturb-input-when {item1_substr} --diverge-when {item3_substr} --diverge-output-at 0"
+    )
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", python_cmd,
+            "--rust-server-cmd", rust_cmd,
+        ]
+    )
+    assert result.returncode == 1, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    prompts = {r["prompt_id"]: r for r in doc["sequential"]["fake/model"]["prompts"]}
+
+    assert prompts["item1"]["divergence"]["layer"] == "tokenization"
+    assert prompts["item3"]["divergence"]["layer"] == "backend"
+    note = prompts["item3"]["divergence"]["note"]
+    assert "item1" in note
+    assert "radix-cache" in note

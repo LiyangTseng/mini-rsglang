@@ -553,6 +553,18 @@ def validate_sidecar(doc: Any, *, require_gpu: bool = False) -> "list[str]":
                     f"concurrent[{gate_model!r}]: require_gpu needs a block for meta.gate_model"
                 )
 
+        if not isinstance(abort_stress, dict):
+            errors.append("abort_stress: require_gpu needs a non-null abort_stress block")
+        else:
+            timings_present = {
+                r.get("abort_timing") for r in (abort_stress.get("runs") or []) if isinstance(r, dict)
+            }
+            for timing in _ABORT_TIMINGS:
+                if timing not in timings_present:
+                    errors.append(
+                        f"abort_stress.runs: require_gpu needs a run for abort_timing {timing!r}"
+                    )
+
     _find_nan_inf(doc, "$", errors)
     return errors
 
