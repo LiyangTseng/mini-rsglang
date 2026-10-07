@@ -96,6 +96,77 @@ Two mismatches, one per model, both at prompt `edge-08` (category `edge`, a chat
 
 No other prompt in either model's sequential sweep diverged.
 
+## PAR-01 off-by-one investigation (Phase 6 scope expansion)
+
+Plan 06-08 Task 0 (user-approved scope expansion, beyond this plan's
+original D-09-only scope) investigated whether either of the two
+`edge-08` mismatches above is a Rust-frontend bug, before accepting
+Criterion 2's FAIL at face value. This section documents the finding; it
+is a different question from the D-05 bisection above (where the
+divergence falls) and Task 3's D-05 disposition (what to do about a
+Criterion 2 FAIL) -- this section only answers whether the Rust frontend's
+own code could cause a backend-sent token to go missing or an independent
+"this looks like EOS" decision to end a request a token early.
+
+**What was checked, directly against the JSON:**
+
+- Both mismatches have `python_side.sampling == rust_side.sampling`
+  (`{"temperature": 0.0, "top_k": -1, "top_p": 1.0, "ignore_eos": false,
+  "max_tokens": 128}` on both sides, both models) and byte-identical
+  `output_ids` for every position up to the shortfall -- the lists are not
+  merely "similar", they are the exact same integers through the last
+  token Rust produced.
+- `output_ids`/`finished` in this JSON come from `tap.py`'s
+  `_wrap_reply_tokenizer_rank0` wrapper, hooked around
+  `SchedulerIOMixin._reply_tokenizer_rank0` **inside the scheduler/backend
+  process itself**, before any ZMQ framing. This is the backend's own
+  record of what it decided to emit, independent of what either frontend
+  received, decoded, or reported over HTTP.
+- `python/rsglang/backend.py::run_scheduler` (the rust-mode backend
+  launch) and `python/rsglang/launch.py`'s `exec_python_frontend`
+  (`--frontend python`) both build `ServerArgs` from the identical
+  upstream `parse_args(rest)` call and construct the identical unmodified
+  `minisgl.scheduler:Scheduler` class. Neither frontend mode passes a
+  different `max_seq_len`, model path, or other backend-construction
+  argument than the other.
+
+**What was reproduced, on the Mac, with no GPU or network dependency**
+(`crates/rsg-server/tests/backend_finish_boundary.rs`, run against the
+real `rsg-server` binary, `engine.rs`/`dispatch.rs`/`writer.rs` unmodified):
+
+- A hand-built `DetokenizeMsg` sequence injected directly into the
+  dispatcher's bound detok socket (bypassing `mock-scheduler`'s own
+  cap-based finishing logic entirely) proves the engine only ever branches
+  on the wire's `finished` bit: a `finished=false` reply carrying an
+  eos-shaped id, immediately followed by a different id flagged
+  `finished=true`, arriving well before the client's requested
+  `max_tokens` cap, is reported as (non-finished text, then the finishing
+  token) -- `engine.rs` never makes its own "that id looks like EOS" call.
+- A `finished=true` reply on the very first message for a uid ends the
+  request immediately and correctly -- the shortest "backend decided to
+  stop now" shape.
+- The pre-existing `crates/rsg-server/tests/http_chat.rs` coverage
+  (`chat_nonstream_response_shape`, `tracer_chat_stream_matches_upstream_framing`)
+  already proves exact `max_tokens`-for-`max_tokens` delivery through the
+  full real binary over real `ipc://` sockets against a real
+  `mock-scheduler` subprocess -- re-run here as corroboration, unchanged.
+
+**Conclusion: no production code change is applied.** The Rust frontend's
+engine/dispatch pair is a faithful pass-through of the backend's own
+`finished` flag, with no independent stopping logic of any kind; the
+shortfall originates inside the shared, unmodified backend itself (per the
+tap's own emission-point record), with byte-identical inputs and no
+earlier divergence in either session. The divergence position in both
+cases -- the `max_tokens` cap; immediately after a stop token -- is
+exactly where a model's logit margin between its top-1 and top-2
+candidates is typically smallest (the natural end of a response), which is
+consistent with ordinary run-to-run GPU floating-point nondeterminism
+flipping a near-tie argmax between two separate backend process launches,
+not with a systematic frontend defect. This is the same shape CONTEXT D-04
+anticipated as a hard blocker ("backend-layer + identical inputs + no
+earlier divergence"); Task 3's `## PAR-01 disposition (D-05)` section
+below records what this means for Criterion 2's FAIL.
+
 ## Criterion 3: Concurrent-load match rate (PAR-02, informational)
 
 From `concurrent["Qwen/Qwen3-0.6B"]` (`meta.gate_model`, concurrency 128 — Llama has no concurrent block; PAR-02 is measured once, at D-10's single fixed concurrency level, for the gate model only):
