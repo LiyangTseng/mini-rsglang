@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development (completed 2026-10-06)
 - [x] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model (completed 2026-10-06)
 - [x] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend (completed 2026-10-06)
-- [ ] **Phase 6: GPU End-to-End Parity** - Rust and Python frontends produce identical output on the real backend
+- [x] **Phase 6: GPU End-to-End Parity** - Rust and Python frontends produce identical output on the real backend (completed 2026-10-07)
 - [ ] **Phase 7: Frontend Benchmarks** - Reproducible Python-vs-Rust comparison across the three scenarios, plus a throughput regression check
 
 ## Phase Details
@@ -217,7 +217,7 @@ Plans:
   3. Under concurrent load, the Rust-vs-Python output match rate is measured and reported. It is informational only, because GPU batch composition affects the results.
   4. The 128-request cancellation stress test also completes against the real backend without crashing or wedging the scheduler. The run records whether the suspected abort-during-prefill bug reproduces, which settles the abort-timing setting used in the benchmarks.
 
-**Plans:** 8/8 plans executed
+**Plans:** 8/8 plans executed — Complete (2026-10-07): PAR-01/PAR-02 both genuinely pass (128/128, zero divergence); D-09 abort-timing default set to `deferred`; final human-check on `docs/benchmarks/parity-report.md` approved (see `06-08-SUMMARY.md` coverage item D5)
 
 Plans:
 
@@ -272,5 +272,5 @@ Plans:
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
 | 5. Request Lifecycle & HTTP API | 9/9 | Complete    | 2026-10-06 |
-| 6. GPU End-to-End Parity | 8/8 | In Progress|  |
+| 6. GPU End-to-End Parity | 8/8 | Complete    | 2026-10-07 |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |
