@@ -25,6 +25,25 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "gpu_phase2_profile.sh"
 
 
+def _path_without_real_hyperfine(bin_dir: Path) -> str:
+    """`bin_dir` first, then every other `PATH` entry that does not itself
+    contain a real `hyperfine` binary.
+
+    Simulating "hyperfine is missing" by deleting it from `bin_dir` only
+    works if nothing else on `PATH` has a real one. On a machine (like
+    this Mac) that has `hyperfine` installed globally per CLAUDE.md's own
+    recommendation (e.g. `~/.cargo/bin/hyperfine`), the default
+    `{bin_dir}{PATH}` composition still finds that real binary further
+    down `PATH`, so the "missing" case never actually fires. This is the
+    PATH-stubbing bug, not the preflight helper under test."""
+    rest = [
+        p
+        for p in os.environ.get("PATH", "").split(os.pathsep)
+        if p and not (Path(p) / "hyperfine").is_file()
+    ]
+    return os.pathsep.join([str(bin_dir), *rest])
+
+
 def _rc(result: subprocess.CompletedProcess[str]) -> int:
     """Extract the `rc=<N>` line a snippet echoes after calling a helper."""
     match = re.search(r"^rc=(-?\d+)$", result.stdout, re.MULTILINE)
@@ -147,7 +166,11 @@ def test_hyperfine_ok(tmp_path):
     assert "1.19.0" in result.stdout, result.stdout
 
     (tmp_path / "bin" / "hyperfine").unlink()
-    result = _bash('rc=0; hyperfine_ok || rc=$?; echo "rc=$rc"', tmp_path)
+    result = _bash(
+        'rc=0; hyperfine_ok || rc=$?; echo "rc=$rc"',
+        tmp_path,
+        PATH=_path_without_real_hyperfine(tmp_path / "bin"),
+    )
     assert _rc(result) == 1, result.stdout + result.stderr
 
 

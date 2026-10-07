@@ -85,6 +85,22 @@ def _run_discover(args: list, env: dict, timeout: int = 180) -> "subprocess.Comp
     )
 
 
+def _path_without_real_hyperfine(bin_dir: Path, path: str) -> str:
+    """`bin_dir` first, then every other `path` entry that does not itself
+    contain a real `hyperfine` binary.
+
+    Simulating "hyperfine is missing" by never writing a `hyperfine` stub
+    into `bin_dir` only works if nothing else on `PATH` has a real one. On
+    a machine (like this Mac) that has `hyperfine` installed globally per
+    CLAUDE.md's own recommendation (e.g. `~/.cargo/bin/hyperfine`), the
+    default `{bin_dir}{PATH}` composition still finds that real binary
+    further down `PATH` via `shutil.which`, so the "missing" case never
+    actually fires. This is the PATH-stubbing bug, not `baseline_profile.py`
+    under test."""
+    rest = [p for p in path.split(os.pathsep) if p and not (Path(p) / "hyperfine").is_file()]
+    return os.pathsep.join([str(bin_dir), *rest])
+
+
 def _run_cli(command: str, args: list, env: dict | None = None, timeout: int = 180) -> "subprocess.CompletedProcess[str]":
     return subprocess.run(
         [sys.executable, "scripts/baseline_profile.py", command, *args],
@@ -536,7 +552,7 @@ def test_run_s3_end_to_end(tmp_path):
 def test_run_s3_hyperfine_missing_exits_2(tmp_path):
     bin_dir = _write_pyspy_stub(tmp_path)
     env = dict(os.environ)
-    env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
+    env["PATH"] = _path_without_real_hyperfine(bin_dir, env.get("PATH", ""))
 
     result = _run_cli(
         "run",
