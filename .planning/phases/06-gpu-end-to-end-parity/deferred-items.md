@@ -27,6 +27,28 @@ directly caused by the current task's changes are recorded here, not fixed.
   (or whatever this project's Mac bootstrap step is) on this checkout before trusting a full
   `scripts/check_all.sh`/`pytest python/tests -q` run that needs the real Python frontend.
 
+## 2a. Pre-existing hyperfine-on-PATH test assumptions break on a box with a real hyperfine installed
+
+- **Found during:** Plan 06-06, Task 2 verification (`bash scripts/check_all.sh --offline`).
+- **Symptom:** `test_gpu_profile_script.py::test_hyperfine_ok` and
+  `test_baseline_profile.py::test_run_s3_hyperfine_missing_exits_2` both fail: each removes its
+  own tmp-dir stub `hyperfine` binary expecting `hyperfine_ok`/`scripts/profile_scenarios.py` to
+  then report hyperfine missing, but this checkout has a real `hyperfine 1.20.0` already
+  installed at `~/.cargo/bin/hyperfine` on the ambient `PATH`, so the removed-stub case still
+  finds a working hyperfine and the test's "now missing" assertion fails.
+- **Scope:** Both tests live in Phase 2 scripts (`scripts/gpu_phase2_profile.sh`,
+  `scripts/profile_scenarios.py`), untouched by this plan (`scripts/parity_check.py`,
+  `scripts/gpu_phase6_parity.sh`, `python/rsglang/launch.py`, `python/rsglang/sockets.py`,
+  `python/rsglang/testing/rust_frontend.py`, `python/rsglang/parity/stress_client.py`,
+  `python/tests/test_parity_rust_mock.py`, `python/tests/test_parity_stress.py`). Confirmed
+  unrelated by running both tests in isolation with the same failure.
+- **Not fixed here:** out of scope per the scope-boundary rule; this is an environment-specific
+  test assumption (no real `hyperfine` reachable via `PATH`) that doesn't hold on this particular
+  dev box, not a regression from this plan's changes.
+- **Recommended follow-up:** either have these two tests scrub `hyperfine` out of `PATH`
+  entirely (not just their own tmp-dir stub) before asserting it's missing, or document that
+  `scripts/check_all.sh` on a box with a real `hyperfine` on `PATH` is expected to fail these two.
+
 ## 2. Pre-existing `cargo test -p rsg-tokenizer` default-parallel-threads flake (confirmed still present)
 
 - **Found during:** Plan 06-06, Task 1 verification (`bash scripts/check_all.sh --offline`).

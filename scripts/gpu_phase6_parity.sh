@@ -32,11 +32,17 @@ Options:
   --python-server-cmd T   override for parity_check.py's --python-server-cmd
                           (default: parity_check.py's own default)
   --rust-server-cmd T     override for parity_check.py's --rust-server-cmd
-                          (default: parity_check.py's own default)
+                          (default: parity_check.py's own default -- the real
+                          rsg-server binary via rsglang.launch, 05-08-SUMMARY.md)
   --stress-server-cmd T   override for parity_check.py's --stress-server-cmd
-                          (default: parity_check.py's own default)
+                          (default: parity_check.py's own default -- the rust
+                          launch plus --abort-timing forwarded through the
+                          launcher, 05-08-SUMMARY.md / 06-06)
   --stress-cmd T          override for parity_check.py's --stress-cmd
-                          (default: parity_check.py's own default)
+                          (default: parity_check.py's own default -- Phase 6's
+                          own external-target stress driver, rsglang.parity
+                          .stress_client; NOT Phase 5's stress_128.rs, which
+                          has no external-target mode, see 06-06-SUMMARY.md)
   --run-extra-args STR    extra args, word-split, appended to the run step
   --help                  show this help
 

@@ -72,21 +72,35 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="TEMPLATE",
     )
     run.add_argument(
+        # 05-08-SUMMARY.md: "the real rsg-server binary, launched directly or
+        # through python -m rsglang.launch --frontend rust ... the one Phase 6
+        # runs on the GPU box." No different Mac-vs-GPU launch exists.
         "--rust-server-cmd",
         default="{python} -m rsglang.launch --frontend rust --model {model} --port {port}",
         metavar="TEMPLATE",
     )
     run.add_argument(
+        # 05-08-SUMMARY.md: "--abort-timing is rsg-server's own flag (D-01) ...
+        # forwarding it through the launcher is deliberately left to Phase 6."
+        # 06-06 adds --abort-timing to rsglang.launch itself (not forwarded
+        # from upstream's own arg parser), so this default now actually
+        # reaches rsg-server.
         "--stress-server-cmd",
         default="{python} -m rsglang.launch --frontend rust --model {model} --port {port} "
         "--abort-timing {abort_timing}",
         metavar="TEMPLATE",
     )
     run.add_argument(
+        # 06-06-SUMMARY.md (checkpoint-resolved scope change): stress_128.rs
+        # (05-07-SUMMARY.md) has no way to target an already-running server
+        # and D-11 forbids changing it, so this points at a new, purpose-built
+        # Phase 6 driver instead -- not Phase 5's tool.
         "--stress-cmd",
-        default="",
+        default="{python} -m rsglang.parity.stress_client --base-url {base_url} "
+        "--requests 128 --abort-fraction 0.3 --seed 0 --model {model}",
         metavar="TEMPLATE",
-        help="Phase 5's 128-agent stress tool invocation (required when --parts includes stress)",
+        help="Phase 6's external-target stress driver invocation (rsglang.parity.stress_client); "
+        "required non-empty when --parts includes stress",
     )
     run.add_argument("--abort-timings", default="immediate,deferred", metavar="LIST")
     run.add_argument("--stress-timeout", type=float, default=900.0, metavar="SECONDS")

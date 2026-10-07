@@ -63,6 +63,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Seconds to wait for the backend to become ready (rust mode)")
     parser.add_argument("--rust-log", metavar="LEVEL", default="info",
                         help="RUST_LOG for rsg-server (rust mode)")
+    parser.add_argument("--abort-timing", choices=["immediate", "deferred"], default=None,
+                        help="Forwarded to rsg-server's own --abort-timing flag (rust mode). "
+                             "Deliberately not forwarded automatically from rest (06-06): "
+                             "rsg-server's own default (immediate) applies when omitted.")
     return parser
 
 
@@ -150,7 +154,7 @@ def _run_rust_mode(ns: argparse.Namespace, server_args: ServerArgs, rust_bin: Pa
 
     # rsg-server first, so its startup overlaps backend startup (D-10).
     rust = subprocess.Popen(
-        [str(rust_bin), *sockets.rust_cli_args(server_args)],
+        [str(rust_bin), *sockets.rust_cli_args(server_args, abort_timing=ns.abort_timing)],
         stdin=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env={**os.environ, "RUST_LOG": ns.rust_log},

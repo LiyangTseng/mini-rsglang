@@ -239,7 +239,10 @@ def test_double_free_reproduced(tmp_path):
 
 
 def test_stress_requires_stress_cmd(tmp_path):
-    result = _run_parity_check(["run", "--parts", "stress"])
+    # 06-06: --stress-cmd now has a non-empty default (Phase 6's own
+    # external-target stress driver), so the empty-string case must be
+    # forced explicitly to exercise this validation path.
+    result = _run_parity_check(["run", "--parts", "stress", "--stress-cmd", ""])
     assert result.returncode == 2
     assert "--stress-cmd" in result.stderr
 
