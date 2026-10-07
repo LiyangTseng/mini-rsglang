@@ -21,13 +21,30 @@ import torch
 import minisgl.scheduler.io as io_module
 import minisgl.scheduler.scheduler as scheduler_module
 from minisgl.core import SamplingParams
+from minisgl.distributed.info import set_tp_info, try_get_tp_info
 from minisgl.message import AbortBackendMsg, BatchTokenizerMsg, DetokenizeMsg, UserMsg
 from minisgl.scheduler.table import TableManager
 
 from rsglang.parity import tap
 
+# The real (unwrapped) _process_one_msg logs through logger.debug_rank0, which
+# reads the process-global TP info. set_tp_info() raises if called twice, so
+# this guards against re-import within the same pytest process.
+if try_get_tp_info() is None:
+    set_tp_info(0, 1)
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VENDOR_MINISGL = REPO_ROOT / "vendor" / "mini-sglang" / "python" / "minisgl"
+
+
+class _StandInReq:
+    """A minimal stand-in for minisgl.core.Req, hashable by identity (unlike
+    types.SimpleNamespace, which defines __eq__ and so is unhashable) -- for
+    use in sets like DecodeManager.running_reqs."""
+
+    def __init__(self, uid, table_idx=None):
+        self.uid = uid
+        self.table_idx = table_idx
 
 
 # --- test_vendored_tap_targets_exist (AST, no import) -----------------------------
@@ -142,7 +159,7 @@ def test_patch_real_scheduler_methods(tmp_path, monkeypatch):
     # AbortBackendMsg: uid 7 is only in running_reqs -> in_running True, in_pending False.
     self_abort = scheduler_module.Scheduler.__new__(scheduler_module.Scheduler)
     self_abort.prefill_manager = types.SimpleNamespace(pending_list=[], abort_req=lambda uid: None)
-    running_req = types.SimpleNamespace(uid=7)
+    running_req = _StandInReq(uid=7)
     self_abort.decode_manager = types.SimpleNamespace(
         running_reqs={running_req}, abort_req=lambda uid: None
     )
