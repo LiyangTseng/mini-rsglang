@@ -5,6 +5,7 @@
 //! (`http_client`, `test_server`).
 
 pub mod http_client;
+pub mod rsg_process;
 pub mod test_server;
 
 use std::io::{BufRead, BufReader};
