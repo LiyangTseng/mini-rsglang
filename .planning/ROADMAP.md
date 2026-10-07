@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Python Frontend Baseline Profile** - Measure the Python frontend's host overhead on the GPU machine (parallel track, does not gate) (completed 2026-10-05)
 - [x] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development (completed 2026-10-06)
 - [x] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model (completed 2026-10-06)
-- [ ] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend
+- [x] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend (completed 2026-10-06)
 - [ ] **Phase 6: GPU End-to-End Parity** - Rust and Python frontends produce identical output on the real backend
 - [ ] **Phase 7: Frontend Benchmarks** - Reproducible Python-vs-Rust comparison across the three scenarios, plus a throughput regression check
 
@@ -183,7 +183,7 @@ Plans:
   4. An overlong prompt gets an immediate 400, and a request whose backend stops responding times out with an error instead of hanging. Abort timing is configurable: immediate by default, or deferred until the first token.
   5. `/health` and `/health/ready` respond, and `/metrics` exposes the request count, the cancellation count and a TTFT histogram.
 
-**Plans:** 9/9 plans executed
+**Plans:** 9/9 plans complete
 
 Plans:
 
@@ -249,6 +249,6 @@ Plans:
 | 2. Python Frontend Baseline Profile | 9/9 | Complete    | 2026-10-05 |
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
-| 5. Request Lifecycle & HTTP API | 9/9 | In Progress|  |
+| 5. Request Lifecycle & HTTP API | 9/9 | Complete    | 2026-10-06 |
 | 6. GPU End-to-End Parity | 0/TBD | Not started | - |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |
