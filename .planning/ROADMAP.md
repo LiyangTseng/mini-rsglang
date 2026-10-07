@@ -183,7 +183,7 @@ Plans:
   4. An overlong prompt gets an immediate 400, and a request whose backend stops responding times out with an error instead of hanging. Abort timing is configurable: immediate by default, or deferred until the first token.
   5. `/health` and `/health/ready` respond, and `/metrics` exposes the request count, the cancellation count and a TTFT histogram.
 
-**Plans:** 8/9 plans executed
+**Plans:** 9/9 plans executed
 
 Plans:
 
@@ -204,7 +204,7 @@ Plans:
 - [x] 05-08-PLAN.md — rsg-server binary: Phase 4 tokenizer via HfCodec, HTTP listener from startup, handshake-gated readiness, --host/--port/--abort-timing/--backend-timeout-ms; launcher forwards host and port (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 05-09-PLAN.md — Byte-level API parity: replay the Python-frontend fixtures against the rsg-server binary; API fixture freshness in check_all.sh (wave 5)
+- [x] 05-09-PLAN.md — Byte-level API parity: replay the Python-frontend fixtures against the rsg-server binary; API fixture freshness in check_all.sh (wave 5)
 
 ### Phase 6: GPU End-to-End Parity
 
@@ -249,6 +249,6 @@ Plans:
 | 2. Python Frontend Baseline Profile | 9/9 | Complete    | 2026-10-05 |
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
-| 5. Request Lifecycle & HTTP API | 8/9 | In Progress|  |
+| 5. Request Lifecycle & HTTP API | 9/9 | In Progress|  |
 | 6. GPU End-to-End Parity | 0/TBD | Not started | - |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |

@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Request Lifecycle & HTTP API
-status: executing
-stopped_at: Completed 05-08-PLAN.md
-last_updated: "2026-10-07T03:08:31.468Z"
+status: verifying
+stopped_at: Completed 05-09-PLAN.md
+last_updated: "2026-10-07T03:42:23.846Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 04 merged in complete from origin/main; Phase 05 execution resuming at Wave 4 (7/9 plans done)
-state_head: 1a06ab8eecf16c21e4572d5f45c5e739e17ad922
+state_head: f3e0983ed6aa196308202f07d61c22cd6727f9c3
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 43
-  completed_plans: 42
+  completed_plans: 43
   percent: 57
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 
 Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
 Plan: 9 of 9
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-07 — Phase 04 merged in complete from origin/main; resuming Phase 05 at Wave 4
 
 Progress: [██████░░░░] 57%
@@ -87,6 +87,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P06 | 50min | 2 tasks | 11 files |
 | Phase 05 P07 | 50min | 3 tasks | 3 files |
 | Phase 05 P08 | 90min | 2 tasks | 13 files |
+| Phase 05 P09 | 70min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,8 @@ Recent decisions affecting current work:
 - [Phase 05]: HfCodec::load's ad hoc ModelSpec always sets gated: false for a CLI-supplied --model; a genuinely gated model surfaces as an ordinary auth error instead of a misleading GatedAccessUnavailable
 - [Phase 05]: Transient hf-hub cache-pointer race (non-atomic remove+symlink in create_pointer_symlink) under concurrent process-level tokenizer loads fixed with a bounded, backed-off retry in hf_codec.rs (rsg-tokenizer itself is out of plan scope)
 - [Phase 05]: test_rust_mode_handshake_reaches_rsg_server's D-10 ordering check now compares against rsg-server's first log line (rsg-server starting) instead of awaiting handshake on stdin, since 05-08 moved the latter after the tokenizer load
+- [Phase 05]: engine.rs builds the per-request IncrementalDecoder (clones the real tokenizer) before register/submit, not after -- doing it after let a zero-decode-delay backend overflow the per-uid broadcast buffer (capacity 16, drop-oldest) before the decode loop's first recv(), deterministically dropping tokens on any response over 16 tokens
+- [Phase 05]: crates/rsg-server/tests/api_parity.rs replays all 18 fixtures/api cases against the real rsg-server binary on mock-scheduler, byte-diffing status/content-type/body (created normalized) -- API-01 is now proven end to end on the Mac; scripts/check_all.sh gained a 7th step (API fixture freshness) keeping the gate honest about both frontends
 
 ### Pending Todos
 
@@ -191,6 +194,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T03:08:31.351Z
-Stopped at: Completed 05-08-PLAN.md
+Last session: 2026-10-07T03:42:23.788Z
+Stopped at: Completed 05-09-PLAN.md
 Resume file: None
