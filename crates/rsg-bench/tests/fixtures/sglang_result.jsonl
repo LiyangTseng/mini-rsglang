@@ -1,0 +1,2 @@
+{"completed": 100, "total": 512}
+{"mean_ttft_ms": 38.9, "p99_ttft_ms": 110.2, "median_e2e_latency_ms": 845.3, "request_throughput": 39.4, "backend": "sglang-oai-chat"}

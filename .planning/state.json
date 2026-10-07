@@ -31,18 +31,18 @@
     {
       "number": "6",
       "name": "GPU End-to-End Parity",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "7",
       "name": "Frontend Benchmarks",
-      "status": "pending"
+      "status": "in_progress"
     }
   ],
   "next": {
-    "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 06 of 7 · 71% · ready to verify"
+    "command": "/gsd-execute-phase 7",
+    "label": "Resume phase 7 at plan 07-10, Task 3",
+    "reason": "Worktree reconciled onto origin/main (Phase 6 now also landed); 07-10's precondition is now met"
   },
-  "updated_at": "2026-10-07T23:46:32.481Z"
+  "updated_at": "2026-10-07T07:30:00.000Z"
 }

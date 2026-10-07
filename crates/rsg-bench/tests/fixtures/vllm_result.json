@@ -1,0 +1,14 @@
+{
+  "backend": "openai-chat",
+  "duration": 12.5,
+  "completed": 512,
+  "mean_ttft_ms": 45.2,
+  "median_ttft_ms": 40.1,
+  "p99_ttft_ms": 120.3,
+  "mean_itl_ms": 8.4,
+  "p99_itl_ms": 22.7,
+  "mean_e2el_ms": 980.6,
+  "p99_e2el_ms": 1500.9,
+  "request_throughput": 42.7,
+  "output_throughput": 1366.4
+}

@@ -256,7 +256,35 @@ Plans:
   4. Every comparison comes from alternating A/B runs and reports the Python frontend at both its default and its best `--num-tokenizer` setting. Results carry confidence intervals and a run manifest that is enough to reproduce the run.
   5. Every scenario report shows frontend memory usage and Python GC pause counts next to TTFT, P99 and RPS, so P99 spikes can be compared against GC pauses.
 
-**Plans**: TBD
+**Plans:** 9/10 plans executed (07-10 partially executed: Tasks 1-2 done, Task 3 blocked on Phase 5 landing in this checkout — resolved by this reconciliation; resume at Task 3)
+
+Plans:
+
+**Wave 1**
+- [x] 07-01-PLAN.md — Tracer: new `crates/rsg-bench` + 127.0.0.1-only `bench-stub` fixture. One streamed request: launch in own process group → ready → SSE → hdrhistogram → guarded killpg teardown. Client-side cancel proven by server-observed disconnects (wave 1)
+- [x] 07-02-PLAN.md — `hook.py` `RSGLANG_PROFILE_MODE=gc_only` (gc.callbacks on, tracemalloc/mem/snapshots off, D-15) + multiprocessing process-name records for role attribution without py-spy (wave 1)
+- [x] 07-03-PLAN.md — BENCH-06 driver `rsglang.bench.standard_throughput`: bench_simple's workload through upstream client helpers (D-12), schema-tagged JSON, AST drift guard (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 07-04-PLAN.md — Load generator: seeded closed-loop agents with think time and cancellation (S1), open-loop Poisson and fixed-concurrency drivers (D-01). SplitMix64, histogram hex encoding, Student-t/Welch CI stats (D-05) (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 07-05-PLAN.md — Observation layer: whole-tree RSS + Linux-only PSS via smaps_rollup (D-14), gc_only hook-file reader, role map, per-role GC stats and the D-16 co-occurrence statistic with Phase 2 semantics (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 07-06-PLAN.md — Shared A/B orchestrator (D-05/D-06/D-08): round-robin arms, D-07 manifest with secret redaction, GC/memory per window, `rsg-bench s1` (BENCH-03) (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 07-07-PLAN.md — `rsg-bench s2` RPS-vs-latency curve (open/closed), `sweep-num-tokenizer` best pick (D-09), vllm/sglang cross-checks (D-04) (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 07-08-PLAN.md — `rsg-bench s3`: hyperfine end-to-end startup, backend-ready-marker frontend cold start, frontend memory at ready, verified detached-group teardown (BENCH-05) (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 07-09-PLAN.md — `rsg-bench throughput` (BENCH-06) + `rsg-bench report` → docs/benchmarks/frontend-benchmarks.{json,md}. CIs, deltas, regression call-out (D-11), GC/memory tables, provenance banner (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 07-10-PLAN.md — `rsg-mock-stack` Mac launcher, GPU wrapper `scripts/gpu_phase7_bench.sh` (end-of-phase GPU human check), D-03 Mac dev pass against rsg-server + mock-scheduler, phase gate (wave 8) — Tasks 1-2 complete (see 07-10-SUMMARY.md); Task 3 resuming now that Phase 5's HTTP API is present in this checkout
 
 ## Progress
 
@@ -273,4 +301,4 @@ Plans:
 | 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
 | 5. Request Lifecycle & HTTP API | 9/9 | Complete    | 2026-10-06 |
 | 6. GPU End-to-End Parity | 8/8 | Complete    | 2026-10-07 |
-| 7. Frontend Benchmarks | 0/TBD | Not started | - |
+| 7. Frontend Benchmarks | 10/10 | Awaiting GPU-box verification | - |
