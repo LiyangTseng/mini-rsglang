@@ -248,6 +248,7 @@ def _skipped_probe_block(probe_delays_ms: "Sequence[int] | None", reason: str) -
 def _run_probe_block(
     ctx: sweep.SessionContext,
     *,
+    scheduler_pid: int,
     probe_delays_ms: "Sequence[int]",
     probe_repeats: int,
     prompt_ids: "Sequence[int]",
@@ -256,14 +257,30 @@ def _run_probe_block(
     if not probe_delays_ms:
         return _skipped_probe_block(probe_delays_ms, "disabled")
 
+    # The stress command immediately above this call can crash the scheduler
+    # (that crash is exactly what this probe exists to help study -- D-08).
+    # A crashed scheduler leaves its ipc:// socket FILE behind without ever
+    # unlinking it, so `backend_path.exists()` alone is not evidence the
+    # backend is still listening. Probing a dead backend means ZmqPushQueue's
+    # blocking PUSH send() fills its HWM buffer and then blocks forever with
+    # no peer to drain it (no SNDTIMEO is set) -- this hung a real GPU run.
+    if not procs.pid_alive(scheduler_pid):
+        return _skipped_probe_block(
+            probe_delays_ms, f"scheduler pid={scheduler_pid} died before the probe could run"
+        )
+
     backend_path = sockets.run_socket_paths(f".rsg={ctx.launcher_pid}")[0]
     if not backend_path.exists():
         return _skipped_probe_block(probe_delays_ms, f"backend socket {backend_path} not found")
 
     backend_addr = "ipc://" + str(backend_path)
-    trials = probe_mod.run_window_probe(
-        backend_addr, delays_ms=probe_delays_ms, repeats=probe_repeats, prompt_ids=prompt_ids
-    )
+    try:
+        trials = probe_mod.run_window_probe(
+            backend_addr, delays_ms=probe_delays_ms, repeats=probe_repeats, prompt_ids=prompt_ids
+        )
+    except probe_mod.BackendUnreachable as exc:
+        # TOCTOU: the scheduler was alive at the check above but died mid-probe.
+        return _skipped_probe_block(probe_delays_ms, str(exc))
 
     # Give the scheduler a moment to process and tap the last abort before
     # reading the tap files back.
@@ -320,6 +337,7 @@ async def _run_one_timing(
     if run_probe:
         probe_block = _run_probe_block(
             ctx,
+            scheduler_pid=scheduler_pid,
             probe_delays_ms=probe_delays_ms,
             probe_repeats=probe_repeats,
             prompt_ids=prompt_ids,

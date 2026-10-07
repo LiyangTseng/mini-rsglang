@@ -21,6 +21,20 @@ from __future__ import annotations
 import time
 from typing import Sequence
 
+#: Bounded PUSH send timeout (ms). ZmqPushQueue.put (vendored, frozen -- never
+#: edited here) calls socket.send() with no SNDTIMEO, which blocks forever
+#: once the PUSH HWM buffer fills with no PULL peer draining it. The caller
+#: (stress.py's _run_probe_block) already checks the scheduler is alive
+#: before probing; this is defense-in-depth for the TOCTOU window between
+#: that check and the actual send (the scheduler can die mid-probe too --
+#: this hung a real GPU run once already).
+_SEND_TIMEOUT_MS = 5_000
+
+
+class BackendUnreachable(RuntimeError):
+    """Raised when a probe send times out because nothing is draining the
+    backend's PULL socket (the scheduler died during the probe itself)."""
+
 
 def run_window_probe(
     backend_addr: str,
@@ -35,14 +49,28 @@ def run_window_probe(
     and, for each repeat and each configured delay, sends UserMsg(uid, ...)
     then AbortBackendMsg(uid) `delay_ms` milliseconds later, for a fresh uid
     starting at `uid_base`. Returns [{uid, delay_ms}, ...] in send order.
+
+    Raises BackendUnreachable if a send times out (the scheduler died mid-probe)
+    rather than hanging forever.
     """
+    import zmq
     import torch
     from minisgl.core import SamplingParams
     from minisgl.message import AbortBackendMsg, BaseBackendMsg, UserMsg
     from minisgl.utils import ZmqPushQueue
 
     queue = ZmqPushQueue(backend_addr, create=False, encoder=BaseBackendMsg.encoder)
+    queue.socket.setsockopt(zmq.SNDTIMEO, _SEND_TIMEOUT_MS)
     time.sleep(0.2)  # let the PUSH/PULL connect settle before the first send
+
+    def _put(msg: object) -> None:
+        try:
+            queue.put(msg)
+        except zmq.Again as exc:
+            raise BackendUnreachable(
+                f"probe send timed out after {_SEND_TIMEOUT_MS}ms at {backend_addr} -- "
+                "the scheduler likely died mid-probe"
+            ) from exc
 
     trials: "list[dict]" = []
     try:
@@ -53,9 +81,9 @@ def run_window_probe(
                 trial_idx += 1
                 input_ids = torch.tensor(list(prompt_ids), dtype=torch.int32)
                 sampling = SamplingParams(temperature=0.0, max_tokens=4)
-                queue.put(UserMsg(uid=uid, input_ids=input_ids, sampling_params=sampling))
+                _put(UserMsg(uid=uid, input_ids=input_ids, sampling_params=sampling))
                 time.sleep(delay_ms / 1000.0)
-                queue.put(AbortBackendMsg(uid=uid))
+                _put(AbortBackendMsg(uid=uid))
                 time.sleep(gap_s)
                 trials.append({"uid": uid, "delay_ms": delay_ms})
     finally:

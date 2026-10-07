@@ -700,3 +700,46 @@ def test_verdict_c4_synthetic(tmp_path):
     r5 = _run_parity_check(["verdict", str(missing_path), "--criterion", "4"])
     assert r5.returncode == 1
     assert "criterion 4: FAIL" in r5.stdout
+
+
+def test_pid_alive():
+    """procs.pid_alive is the liveness check _run_probe_block now gates on
+    before probing a potentially-dead scheduler (a crashed scheduler leaves
+    its ipc:// socket file behind, so path existence alone is not evidence
+    of liveness -- this hung a real GPU run)."""
+    from rsglang.profiling import procs
+
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        assert procs.pid_alive(proc.pid) is True
+    finally:
+        proc.kill()
+        proc.wait(timeout=5)
+    assert procs.pid_alive(proc.pid) is False
+
+
+def test_run_probe_block_skips_when_scheduler_already_dead(tmp_path):
+    """_run_probe_block must check scheduler liveness BEFORE touching the
+    backend socket. Regression test for the hang: a dead scheduler process
+    whose ipc:// socket file is still on disk (crash during the stress
+    command never unlinks it) used to pass the old `backend_path.exists()`
+    check and then hang forever in ZmqPushQueue's blocking PUSH send()."""
+    from rsglang.parity import stress, sweep
+
+    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc.wait(timeout=5)
+    dead_pid = proc.pid
+    assert not stress.procs.pid_alive(dead_pid)
+
+    ctx = sweep.SessionContext(log_path=tmp_path / "launcher.log", launcher_pid=99999, tap_dir=tmp_path / "tap")
+    block = stress._run_probe_block(
+        ctx,
+        scheduler_pid=dead_pid,
+        probe_delays_ms=[5, 10],
+        probe_repeats=1,
+        prompt_ids=[1, 2, 3],
+        prompt_source="test",
+    )
+    assert block["status"] == "skipped"
+    assert f"pid={dead_pid}" in block["reason"]
+    assert "died" in block["reason"]
