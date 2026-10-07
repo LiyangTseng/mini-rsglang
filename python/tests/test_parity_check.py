@@ -573,8 +573,16 @@ def test_report_model_unavailable(tmp_path):
 
 
 def test_canonical_out_refused_off_gpu(tmp_path):
+    # docs/benchmarks/parity-report.json is now the real, committed GPU
+    # sidecar (06-07) -- it legitimately exists on every checkout past that
+    # commit, so this test cannot assert its absence as a precondition. The
+    # guard under test (scripts/parity_check.py) is purely path-based (it
+    # compares --out's resolved path against the canonical path and checks
+    # sys.platform/gpu_name, never file existence), so the correct
+    # assertion is that the refusal leaves whatever is already at that path
+    # byte-for-byte untouched, not that the path stays empty.
     canonical_out = REPO_ROOT / "docs" / "benchmarks" / "parity-report.json"
-    assert not canonical_out.exists(), "pre-existing canonical parity report would invalidate this test"
+    before = canonical_out.read_bytes() if canonical_out.exists() else None
 
     result = _run_parity_check(
         [
@@ -587,7 +595,8 @@ def test_canonical_out_refused_off_gpu(tmp_path):
     )
     assert result.returncode == 2
     assert "refusing to write" in result.stderr
-    assert not canonical_out.exists()
+    after = canonical_out.read_bytes() if canonical_out.exists() else None
+    assert before == after, "a refused run must not modify the canonical parity report"
 
 
 @pytest.mark.slow
