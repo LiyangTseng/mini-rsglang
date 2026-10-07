@@ -48,7 +48,11 @@ impl SplitMix64 {
 
     /// A uniform value in `0..bound`. Returns 0 when `bound == 0`.
     fn next_range(&mut self, bound: u64) -> u64 {
-        if bound == 0 { 0 } else { self.next_u64() % bound }
+        if bound == 0 {
+            0
+        } else {
+            self.next_u64() % bound
+        }
     }
 
     /// A uniform `f64` in `[0, 1)`.
@@ -190,7 +194,10 @@ async fn execute_request(addr: SocketAddr, plan: &RequestPlan) -> RequestOutcome
     };
     let prompt = format!("a{}-r{}-x", plan.agent, plan.req_idx);
     let body = match plan.endpoint {
-        Endpoint::Generate => format!(r#"{{"prompt":"{prompt}","max_tokens":{}}}"#, plan.max_tokens),
+        Endpoint::Generate => format!(
+            r#"{{"prompt":"{prompt}","max_tokens":{}}}"#,
+            plan.max_tokens
+        ),
         Endpoint::ChatStream => format!(
             r#"{{"model":"m","messages":[{{"role":"user","content":"{prompt}"}}],"max_tokens":{},"stream":true}}"#,
             plan.max_tokens
@@ -281,7 +288,9 @@ async fn execute_request(addr: SocketAddr, plan: &RequestPlan) -> RequestOutcome
                 Endpoint::ChatNonStream => {
                     let v: serde_json::Value =
                         serde_json::from_slice(&resp.body).expect("json body");
-                    let content = v["choices"][0]["message"]["content"].as_str().unwrap_or_default();
+                    let content = v["choices"][0]["message"]["content"]
+                        .as_str()
+                        .unwrap_or_default();
                     assert_eq!(
                         content.as_bytes(),
                         expected.as_slice(),
@@ -376,7 +385,8 @@ async fn stress_128_concurrent_requests_with_random_cancellations() {
     let addr = server.addr;
     let mut join_set: JoinSet<Vec<RequestOutcome>> = JoinSet::new();
     for agent in 0..AGENTS {
-        let agent_plans: Vec<RequestPlan> = plans.iter().filter(|p| p.agent == agent).cloned().collect();
+        let agent_plans: Vec<RequestPlan> =
+            plans.iter().filter(|p| p.agent == agent).cloned().collect();
         join_set.spawn(async move {
             let mut outcomes = Vec::with_capacity(agent_plans.len());
             for plan in &agent_plans {
@@ -411,7 +421,10 @@ async fn stress_128_concurrent_requests_with_random_cancellations() {
     let snap = server.snapshot_when_idle(Duration::from_secs(10)).await;
     assert_eq!(snap.active, 0, "leaked request(s): {snap:?}");
     assert_eq!(snap.failed, 0, "unexpected failure(s): {snap:?}");
-    assert_eq!(snap.invalid_transitions, 0, "invalid transition(s): {snap:?}");
+    assert_eq!(
+        snap.invalid_transitions, 0,
+        "invalid transition(s): {snap:?}"
+    );
     assert_eq!(
         snap.received,
         snap.finished + snap.cancelled,
@@ -455,7 +468,10 @@ async fn stress_128_concurrent_requests_with_random_cancellations() {
     for o in &observed {
         match o {
             Observed::Submit { uid, .. } => {
-                assert!(submitted.insert(*uid), "uid {uid} submitted twice: {observed:?}");
+                assert!(
+                    submitted.insert(*uid),
+                    "uid {uid} submitted twice: {observed:?}"
+                );
             }
             Observed::Abort { uid } => {
                 assert!(

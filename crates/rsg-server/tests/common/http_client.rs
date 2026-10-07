@@ -269,7 +269,12 @@ pub struct OpenStream {
 impl OpenStream {
     /// Connects, sends the request, and returns once the response headers
     /// have been read.
-    pub async fn open(addr: SocketAddr, method: &str, path: &str, body: Option<&[u8]>) -> OpenStream {
+    pub async fn open(
+        addr: SocketAddr,
+        method: &str,
+        path: &str,
+        body: Option<&[u8]>,
+    ) -> OpenStream {
         let mut stream = TcpStream::connect(addr).await.expect("connect");
         write_request(&mut stream, method, path, body)
             .await

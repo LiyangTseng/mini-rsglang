@@ -121,7 +121,11 @@ async fn api_parity_matches_python_frontend_fixtures() {
         .as_array()
         .expect("manifest.mock_args is an array")
         .iter()
-        .map(|v| v.as_str().expect("mock_args entries are strings").to_string())
+        .map(|v| {
+            v.as_str()
+                .expect("mock_args entries are strings")
+                .to_string()
+        })
         .collect();
     let mock_args_ref: Vec<&str> = mock_args.iter().map(String::as_str).collect();
 
@@ -241,7 +245,10 @@ async fn api_parity_matches_python_frontend_fixtures() {
         };
 
         if actual_body != expected_body {
-            mismatches.push(format!("{name}: {}", describe_body_diff(&expected_body, &actual_body)));
+            mismatches.push(format!(
+                "{name}: {}",
+                describe_body_diff(&expected_body, &actual_body)
+            ));
         }
     }
 

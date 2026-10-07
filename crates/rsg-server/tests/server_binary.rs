@@ -56,9 +56,13 @@ async fn tracer_binary_serves_generate_through_real_tokenizer() {
     assert_eq!(health.status, 200);
     let ready = http_client::send(addr, "GET", "/health/ready", None).await;
     assert_eq!(ready.status, 503);
-    let gen_before =
-        http_client::send(addr, "POST", "/generate", Some(br#"{"prompt":"x","max_tokens":1}"#))
-            .await;
+    let gen_before = http_client::send(
+        addr,
+        "POST",
+        "/generate",
+        Some(br#"{"prompt":"x","max_tokens":1}"#),
+    )
+    .await;
     assert_eq!(gen_before.status, 503);
 
     server.send_line(&handshake_line);
@@ -133,7 +137,11 @@ fn invalid_cli_values_exit_2() {
         .stderr(Stdio::null())
         .status()
         .expect("spawn rsg-server");
-    assert_eq!(status.code(), Some(2), "--abort-timing sometimes: {status:?}");
+    assert_eq!(
+        status.code(),
+        Some(2),
+        "--abort-timing sometimes: {status:?}"
+    );
 
     let mut bad_backend_timeout: Vec<&str> = base.to_vec();
     bad_backend_timeout.extend(["--backend-timeout-ms", "0"]);

@@ -200,7 +200,10 @@ async fn collect_full_content(active: &mut ActiveRequest) -> Result<String, ApiE
     }
 }
 
-pub async fn chat_completions(State(state): State<AppState>, body: Bytes) -> Result<Response, ApiError> {
+pub async fn chat_completions(
+    State(state): State<AppState>,
+    body: Bytes,
+) -> Result<Response, ApiError> {
     // Parsed before touching the engine: a 422 here must never consume a uid.
     let req: ChatCompletionRequest = parse_json(&body)?;
     let engine = state.engine()?;
@@ -233,7 +236,11 @@ pub async fn chat_completions(State(state): State<AppState>, body: Bytes) -> Res
                 }
                 match st.events.recv().await {
                     Some(RequestEvent::Token { text, finished }) => {
-                        let content = if text.is_empty() { None } else { Some(text.as_str()) };
+                        let content = if text.is_empty() {
+                            None
+                        } else {
+                            Some(text.as_str())
+                        };
                         let chunk = chat_stream_chunk(st.uid, st.first, content, false);
                         st.first = false;
                         st.pending
@@ -248,7 +255,8 @@ pub async fn chat_completions(State(state): State<AppState>, body: Bytes) -> Res
                         }
                     }
                     Some(RequestEvent::Failed(e)) => {
-                        st.pending.push_back(Err(std::io::Error::other(e.to_string())));
+                        st.pending
+                            .push_back(Err(std::io::Error::other(e.to_string())));
                         st.done = true;
                     }
                     Some(other) => {

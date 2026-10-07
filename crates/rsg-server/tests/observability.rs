@@ -74,7 +74,11 @@ async fn tracer_metrics_count_a_finished_request() {
         "rsg_requests_active",
         "rsg_late_tokens_dropped_total",
     ] {
-        assert_eq!(value_of(&samples, name), Some(0.0), "{name} at startup: {text}");
+        assert_eq!(
+            value_of(&samples, name),
+            Some(0.0),
+            "{name} at startup: {text}"
+        );
     }
 
     let body = br#"{"prompt":"abc","max_tokens":3}"#;
@@ -95,13 +99,21 @@ async fn tracer_metrics_count_a_finished_request() {
     let text = String::from_utf8(resp.body).expect("utf8 metrics body");
     let samples = parse_samples(&text);
 
-    assert_eq!(value_of(&samples, "rsg_requests_total"), Some(1.0), "{text}");
+    assert_eq!(
+        value_of(&samples, "rsg_requests_total"),
+        Some(1.0),
+        "{text}"
+    );
     assert_eq!(
         value_of(&samples, "rsg_requests_finished_total"),
         Some(1.0),
         "{text}"
     );
-    assert_eq!(value_of(&samples, "rsg_requests_active"), Some(0.0), "{text}");
+    assert_eq!(
+        value_of(&samples, "rsg_requests_active"),
+        Some(0.0),
+        "{text}"
+    );
     assert_eq!(
         value_of(&samples, "rsg_ttft_seconds_count"),
         Some(1.0),
@@ -111,7 +123,10 @@ async fn tracer_metrics_count_a_finished_request() {
     let has_any_bucket = samples
         .iter()
         .any(|s| s.name == "rsg_ttft_seconds_bucket" && s.labels.contains("le=\""));
-    assert!(has_any_bucket, "expected at least one TTFT bucket line: {text}");
+    assert!(
+        has_any_bucket,
+        "expected at least one TTFT bucket line: {text}"
+    );
 
     let inf_bucket = samples
         .iter()
@@ -143,7 +158,11 @@ async fn health_and_readiness_before_and_after_engine() {
     assert_eq!(resp.status, 200);
     let text = String::from_utf8(resp.body).expect("utf8 metrics body");
     let samples = parse_samples(&text);
-    assert_eq!(value_of(&samples, "rsg_requests_total"), Some(0.0), "{text}");
+    assert_eq!(
+        value_of(&samples, "rsg_requests_total"),
+        Some(0.0),
+        "{text}"
+    );
 
     // Borrow a real engine from a fully-wired TestServer rather than
     // standing up a second mock-scheduler by hand: `/health/ready`'s only
@@ -208,7 +227,11 @@ async fn cancelled_request_and_late_tokens_are_counted() {
     assert_eq!(resp.status, 200);
     let text = String::from_utf8(resp.body).expect("utf8 metrics body");
     let samples = parse_samples(&text);
-    assert_eq!(value_of(&samples, "rsg_requests_total"), Some(2.0), "{text}");
+    assert_eq!(
+        value_of(&samples, "rsg_requests_total"),
+        Some(2.0),
+        "{text}"
+    );
     assert_eq!(
         value_of(&samples, "rsg_requests_cancelled_total"),
         Some(1.0),
@@ -224,7 +247,11 @@ async fn cancelled_request_and_late_tokens_are_counted() {
         Some(2.0),
         "{text}"
     );
-    assert_eq!(value_of(&samples, "rsg_requests_active"), Some(0.0), "{text}");
+    assert_eq!(
+        value_of(&samples, "rsg_requests_active"),
+        Some(0.0),
+        "{text}"
+    );
     assert_eq!(
         value_of(&samples, "rsg_late_tokens_dropped_total"),
         Some(3.0),
@@ -335,5 +362,9 @@ async fn concurrent_scrapes_are_monotonic() {
         Some(16.0),
         "{text}"
     );
-    assert_eq!(value_of(&samples, "rsg_requests_active"), Some(0.0), "{text}");
+    assert_eq!(
+        value_of(&samples, "rsg_requests_active"),
+        Some(0.0),
+        "{text}"
+    );
 }

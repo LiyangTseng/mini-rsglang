@@ -39,9 +39,13 @@ async fn tracer_generate_streams_echo_tokens_end_to_end() {
 
     let observed = server.mock.observed();
     assert!(
-        observed
-            .iter()
-            .any(|o| matches!(o, Observed::Submit { uid: 0, input_len: 3 })),
+        observed.iter().any(|o| matches!(
+            o,
+            Observed::Submit {
+                uid: 0,
+                input_len: 3
+            }
+        )),
         "{observed:?}"
     );
     assert!(
@@ -86,9 +90,13 @@ async fn empty_prompt_is_forwarded_and_finishes() {
 
     let observed = server.mock.observed();
     assert!(
-        observed
-            .iter()
-            .any(|o| matches!(o, Observed::Submit { uid: 0, input_len: 0 })),
+        observed.iter().any(|o| matches!(
+            o,
+            Observed::Submit {
+                uid: 0,
+                input_len: 0
+            }
+        )),
         "{observed:?}"
     );
 
@@ -176,11 +184,7 @@ async fn concurrent_requests_get_only_their_own_tokens() {
                 expected.push_str(&format!("data: {}\n", *t as u8 as char));
             }
             expected.push_str("data: [DONE]\n");
-            assert_eq!(
-                resp.body,
-                expected.as_bytes(),
-                "uid {i}: prompt {prompt:?}"
-            );
+            assert_eq!(resp.body, expected.as_bytes(), "uid {i}: prompt {prompt:?}");
         });
     }
 

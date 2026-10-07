@@ -69,9 +69,8 @@ fn load_model_assets_with_retry(spec: ModelSpec) -> Result<ModelAssets, Tokenize
             Err(e) => return Err(e),
         }
     }
-    Err(last_err.expect(
-        "the loop above always either returns or sets last_err before exhausting attempts",
-    ))
+    Err(last_err
+        .expect("the loop above always either returns or sets last_err before exhausting attempts"))
 }
 
 /// Adapts [`rsg_tokenizer`]'s model assets, chat-template environment and

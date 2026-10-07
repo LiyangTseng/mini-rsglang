@@ -18,9 +18,7 @@ fn extract_created(body: &[u8]) -> (u64, String) {
     let key = "\"created\":";
     let key_start = s.find(key).expect("created field");
     let digits_start = key_start + key.len();
-    let digits_len = s[digits_start..]
-        .find(',')
-        .expect("created delimiter");
+    let digits_len = s[digits_start..].find(',').expect("created delimiter");
     let created: u64 = s[digits_start..digits_start + digits_len]
         .parse()
         .expect("created is a number");
@@ -120,10 +118,7 @@ async fn chat_prompt_text_used_when_no_messages() {
 
     assert_eq!(resp.status, 200);
     let (_created, normalized) = extract_created(&resp.body);
-    assert!(
-        normalized.contains(r#""content":"xyz""#),
-        "{normalized}"
-    );
+    assert!(normalized.contains(r#""content":"xyz""#), "{normalized}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

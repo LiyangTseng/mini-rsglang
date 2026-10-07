@@ -409,7 +409,33 @@ async fn drive_request(
     // tokens before the decode loop ever called its first `recv()`. The
     // clone itself doesn't depend on backend state, only on `engine.codec`,
     // so there is no ordering reason to delay it past encode.
-    let mut decoder = engine.codec.decoder();
+    //
+    // Run the clone on `spawn_blocking` (code review WR-01, confirmed on CI:
+    // a synchronous clone with no `.await` runs on a shared tokio worker
+    // thread and can starve *other* in-flight requests' own `stream.recv()`
+    // polls long enough to overflow their own 16-entry buffer -- the same
+    // failure class the ordering fix above addresses for this request's own
+    // stream, just inflicted on a sibling instead. `spawn_blocking` moves the
+    // clone to tokio's dedicated blocking pool, so the ordering guarantee
+    // above still holds (this `.await` completes before register/submit)
+    // but no async worker thread is blocked while it runs.
+    let codec_for_decoder = engine.codec.clone();
+    let mut decoder = match tokio::task::spawn_blocking(move || codec_for_decoder.decoder()).await {
+        Ok(decoder) => decoder,
+        Err(join_err) => {
+            tracing::warn!(uid, %join_err, "decoder construction panicked");
+            finish(
+                &engine,
+                &tx,
+                uid,
+                LifecycleState::Failed,
+                RequestEvent::Rejected(SubmitError::Codec(format!(
+                    "decoder construction panicked: {join_err}"
+                ))),
+            );
+            return;
+        }
+    };
 
     // Register before submitting (Phase 3 caller contract): a reply could
     // otherwise arrive before this uid has a route.

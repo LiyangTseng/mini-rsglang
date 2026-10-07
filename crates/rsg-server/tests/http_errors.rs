@@ -46,7 +46,12 @@ async fn overlong_prompt_gets_immediate_400_and_boundary_is_accepted() {
     let t0 = Instant::now();
     let resp = tokio::time::timeout(
         Duration::from_millis(500),
-        http_client::send(server.addr, "POST", "/generate", Some(overlong_body.as_bytes())),
+        http_client::send(
+            server.addr,
+            "POST",
+            "/generate",
+            Some(overlong_body.as_bytes()),
+        ),
     )
     .await
     .unwrap_or_else(|_| panic!("400 took too long: {:?}", t0.elapsed()));
@@ -82,8 +87,13 @@ async fn overlong_prompt_gets_immediate_400_and_boundary_is_accepted() {
 
     let boundary_prompt = "a".repeat(15);
     let boundary_body = format!(r#"{{"prompt":"{boundary_prompt}","max_tokens":1}}"#);
-    let resp2 = http_client::send(server.addr, "POST", "/generate", Some(boundary_body.as_bytes()))
-        .await;
+    let resp2 = http_client::send(
+        server.addr,
+        "POST",
+        "/generate",
+        Some(boundary_body.as_bytes()),
+    )
+    .await;
     assert_eq!(resp2.status, 200);
     assert!(resp2.body.ends_with(b"data: [DONE]\n"));
 

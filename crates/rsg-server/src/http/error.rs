@@ -98,9 +98,7 @@ impl From<SubmitError> for ApiError {
 impl From<RequestError> for ApiError {
     fn from(e: RequestError) -> Self {
         match e {
-            RequestError::BackendTimeout { timeout_ms } => {
-                ApiError::BackendTimeout { timeout_ms }
-            }
+            RequestError::BackendTimeout { timeout_ms } => ApiError::BackendTimeout { timeout_ms },
             other => ApiError::Internal(other.to_string()),
         }
     }

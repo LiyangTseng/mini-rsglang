@@ -107,7 +107,8 @@ impl ServerMetrics {
             "Time to first token, in seconds, measured from Received to the first Decoding transition.".into(),
         );
 
-        let requests_total = recorder.register_counter(&Key::from_name("rsg_requests_total"), &META);
+        let requests_total =
+            recorder.register_counter(&Key::from_name("rsg_requests_total"), &META);
         let requests_finished_total =
             recorder.register_counter(&Key::from_name("rsg_requests_finished_total"), &META);
         let requests_cancelled_total =
@@ -116,7 +117,8 @@ impl ServerMetrics {
             recorder.register_counter(&Key::from_name("rsg_requests_failed_total"), &META);
         let late_tokens_dropped_total =
             recorder.register_counter(&Key::from_name("rsg_late_tokens_dropped_total"), &META);
-        let requests_active = recorder.register_gauge(&Key::from_name("rsg_requests_active"), &META);
+        let requests_active =
+            recorder.register_gauge(&Key::from_name("rsg_requests_active"), &META);
         let ttft_seconds = recorder.register_histogram(&Key::from_name("rsg_ttft_seconds"), &META);
 
         requests_total.increment(0);

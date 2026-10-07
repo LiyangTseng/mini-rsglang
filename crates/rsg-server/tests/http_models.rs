@@ -58,7 +58,11 @@ async fn v1_root_all_methods() {
     for method in ["GET", "POST", "OPTIONS"] {
         let resp = http_client::send(server.addr, method, "/v1", None).await;
         assert_eq!(resp.status, 200, "{method}");
-        assert_eq!(resp.header("content-type"), Some("application/json"), "{method}");
+        assert_eq!(
+            resp.header("content-type"),
+            Some("application/json"),
+            "{method}"
+        );
         assert_eq!(resp.body, br#"{"status":"ok"}"#, "{method}");
     }
 
@@ -81,7 +85,8 @@ async fn validation_422_cases_consume_no_uid() {
     assert_eq!(resp.status, 422, "no model");
 
     let null_stop = br#"{"model":"m","messages":[{"role":"user","content":"x"}],"stop":null}"#;
-    let resp = http_client::send(server.addr, "POST", "/v1/chat/completions", Some(null_stop)).await;
+    let resp =
+        http_client::send(server.addr, "POST", "/v1/chat/completions", Some(null_stop)).await;
     assert_eq!(resp.status, 422, "stop null");
 
     let no_max_tokens = br#"{"prompt":"x"}"#;

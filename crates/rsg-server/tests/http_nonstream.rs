@@ -125,10 +125,7 @@ async fn nonstream_backend_timeout_gets_504() {
     assert_eq!(resp.status, 504);
     assert_eq!(resp.header("content-type"), Some("application/json"));
     let body_json: serde_json::Value = serde_json::from_slice(&resp.body).expect("json body");
-    assert_eq!(
-        body_json["error"]["type"].as_str(),
-        Some("backend_timeout")
-    );
+    assert_eq!(body_json["error"]["type"].as_str(), Some("backend_timeout"));
 
     let observed = wait_for_abort(&server, 0).await;
     let submit_idx = observed

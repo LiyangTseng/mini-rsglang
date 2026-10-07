@@ -117,9 +117,7 @@ pub fn spawn_registry(metrics: ServerMetrics) -> RegistryHandle {
                                         if to.is_terminal() {
                                             match to {
                                                 LifecycleState::Finished => counts.finished += 1,
-                                                LifecycleState::Cancelled => {
-                                                    counts.cancelled += 1
-                                                }
+                                                LifecycleState::Cancelled => counts.cancelled += 1,
                                                 LifecycleState::Failed => counts.failed += 1,
                                                 _ => {}
                                             }

@@ -77,12 +77,14 @@ pub async fn handler(State(state): State<AppState>, body: Bytes) -> Result<Respo
                     st.pending
                         .push_back(Ok(Bytes::from(format!("data: {text}\n"))));
                     if finished {
-                        st.pending.push_back(Ok(Bytes::from_static(b"data: [DONE]\n")));
+                        st.pending
+                            .push_back(Ok(Bytes::from_static(b"data: [DONE]\n")));
                         st.done = true;
                     }
                 }
                 Some(RequestEvent::Failed(e)) => {
-                    st.pending.push_back(Err(std::io::Error::other(e.to_string())));
+                    st.pending
+                        .push_back(Err(std::io::Error::other(e.to_string())));
                     st.done = true;
                 }
                 Some(other) => {
