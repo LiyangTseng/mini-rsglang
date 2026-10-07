@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Request Lifecycle & HTTP API
 status: executing
-stopped_at: Completed 05-07-PLAN.md; merged Phase 04 from origin/main, resuming Wave 4
-last_updated: "2026-10-07T02:00:00.000Z"
+stopped_at: Completed 05-08-PLAN.md
+last_updated: "2026-10-07T03:08:31.468Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 04 merged in complete from origin/main; Phase 05 execution resuming at Wave 4 (7/9 plans done)
-state_head: 99703b9614373ab01cb2de65c643bd373ccae712
+state_head: 1a06ab8eecf16c21e4572d5f45c5e739e17ad922
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 43
-  completed_plans: 41
+  completed_plans: 42
   percent: 57
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-06)
 ## Current Position
 
 Phase: 05 (Request Lifecycle & HTTP API) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 04 merged in complete from origin/main; resuming Phase 05 at Wave 4
 
@@ -86,6 +86,7 @@ Progress: [██████░░░░] 57%
 | Phase 05 P05 | 55min | 2 tasks | 20 files |
 | Phase 05 P06 | 50min | 2 tasks | 11 files |
 | Phase 05 P07 | 50min | 3 tasks | 3 files |
+| Phase 05 P08 | 90min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,9 @@ Recent decisions affecting current work:
 - [Phase 05]: ServerMetrics::render sets rsg_late_tokens_dropped_total via Counter::absolute(unknown_uid + closed_route) from a live DispatchStatsSnapshot at scrape time, never an internally-accumulated count, so it can never drift from the dispatcher's own single source of truth
 - [Phase 05]: No driver fix was needed in engine.rs for the 128-agent stress test: the existing cancellation/abort-timing/timeout logic from plan 05-04 held up across repeated runs and multiple seeds
 - [Phase 05]: A disconnect-mode stress-test agent picks OpenStream vs. a raw TcpStream based on when the server actually commits to response headers, not just streaming-vs-non-streaming as a label: chat non-stream has no headers until the whole generation is ready, so OpenStream::open would block past the intended disconnect point
+- [Phase 05]: HfCodec::load's ad hoc ModelSpec always sets gated: false for a CLI-supplied --model; a genuinely gated model surfaces as an ordinary auth error instead of a misleading GatedAccessUnavailable
+- [Phase 05]: Transient hf-hub cache-pointer race (non-atomic remove+symlink in create_pointer_symlink) under concurrent process-level tokenizer loads fixed with a bounded, backed-off retry in hf_codec.rs (rsg-tokenizer itself is out of plan scope)
+- [Phase 05]: test_rust_mode_handshake_reaches_rsg_server's D-10 ordering check now compares against rsg-server's first log line (rsg-server starting) instead of awaiting handshake on stdin, since 05-08 moved the latter after the tokenizer load
 
 ### Pending Todos
 
@@ -187,6 +191,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T02:00:00.000Z
-Stopped at: Completed 05-07-PLAN.md; merged Phase 04 from origin/main, resuming at Wave 4
+Last session: 2026-10-07T03:08:31.351Z
+Stopped at: Completed 05-08-PLAN.md
 Resume file: None
