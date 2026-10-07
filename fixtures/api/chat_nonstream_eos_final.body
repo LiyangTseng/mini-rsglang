@@ -1,0 +1,1 @@
+{"id":"chatcmpl-6","object":"chat.completion","created":0,"model":"qwen3","choices":[{"index":0,"message":{"role":"assistant","content":"<|im_start|>user\nhi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":0,"completion_tokens":0,"total_tokens":0}}

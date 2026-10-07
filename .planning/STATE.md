@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 5
-current_phase_name: Request Lifecycle & HTTP API
+current_phase: 6
+current_phase_name: GPU End-to-End Parity
 status: planning
-stopped_at: Phase 04 complete, ready to plan Phase 5
-last_updated: "2026-10-07T02:00:00.000Z"
-last_activity: 2026-10-06
-last_activity_desc: Phase 03 and Phase 04 complete, transitioned to Phase 5
-state_head: 1431f5e
+stopped_at: Phase 05 complete, ready to plan Phase 6
+last_updated: "2026-10-07T04:07:45.357Z"
+last_activity: 2026-10-07
+last_activity_desc: Phase 05 complete, transitioned to Phase 6
+state_head: efe8a98191e342948a3c4734511d9720ec89c5f1
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 34
-  completed_plans: 34
-  percent: 57
+  completed_phases: 5
+  total_plans: 43
+  completed_plans: 43
+  percent: 71
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-06)
+See: .planning/PROJECT.md (updated 2026-10-07)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 5 — Request Lifecycle & HTTP API
+**Current focus:** Phase 6 — GPU End-to-End Parity
 
 ## Current Position
 
-Phase: 5 — Request Lifecycle & HTTP API
+Phase: 6 — GPU End-to-End Parity
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-06 — Phase 03 and Phase 04 complete, transitioned to Phase 5
+Last activity: 2026-10-07 — Phase 05 complete, transitioned to Phase 6
 
-Progress: [██████░░░░] 57%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 34
+- Total plans completed: 43
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -49,6 +49,7 @@ Progress: [██████░░░░] 57%
 | 02 | 9 | - | - |
 | 03 | 6 | - | - |
 | 04 | 6 | - | - |
+| 05 | 9 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -79,6 +80,15 @@ Progress: [██████░░░░] 57%
 | Phase 04 P04 | 20min | 2 tasks | 7 files |
 | Phase 04 P05 | 30min | 2 tasks | 5 files |
 | Phase 04 P06 | 25min | 2 tasks | 6 files |
+| Phase 05 P01 | 45min | 2 tasks | 15 files |
+| Phase 05 P02 | 45min | 2 tasks | 2 files |
+| Phase 05 P03 | 25min | 3 tasks | 6 files |
+| Phase 05 P04 | 70min | 3 tasks | 4 files |
+| Phase 05 P05 | 55min | 2 tasks | 20 files |
+| Phase 05 P06 | 50min | 2 tasks | 11 files |
+| Phase 05 P07 | 50min | 3 tasks | 3 files |
+| Phase 05 P08 | 90min | 2 tasks | 13 files |
+| Phase 05 P09 | 70min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -132,6 +142,32 @@ Recent decisions affecting current work:
 - [Phase 04]: GatedAccessError is raised only when a gated model's load failure cause-chain contains huggingface_hub's GatedRepoError/RepositoryNotFoundError, confirmed against real hf-hub/transformers source, not a bare except Exception
 - [Phase 04]: Real Llama BOS count is 2 (not D-10's assumed 1), confirmed empirically against the canonical gated tokenizer -- the Rust test asserts 2, documenting the discrepancy rather than normalizing it
 - [Phase 04]: cargo test -p rsg-tokenizer requires --test-threads=1 to be deterministic (pre-existing env-var/cache-lock races, unrelated to TOK-04); logged to deferred-items.md, not fixed in this plan's scope
+- [Phase 05]: Engine::new takes (writer, dispatch, codec, registry, config); the driver reports Received/Tokenizing/Submitted/Decoding/one-terminal through a single finish helper so LIFE-01's exactly-one-terminal invariant is structural
+- [Phase 05]: Registry actor removes a uid's entry the instant it reaches a terminal state; active is simply the map length at snapshot time, so a leaked or double-terminated request is directly visible
+- [Phase 05]: http_client::send() test helper writes and reads concurrently via tokio::join! on split TcpStream halves kept alive until the response is fully read, since OwnedWriteHalf shuts down the write direction on drop and an early half-close was read by the server as a client disconnect
+- [Phase 05]: Human approved fastapi 0.142.2, uvicorn 0.54.0 and prompt_toolkit 3.0.53 (Task 1 checkpoint) after verifying each PyPI project links to its canonical GitHub repo
+- [Phase 05]: Relock surfaced opentelemetry-api==1.45.1 as an unforeseen transitive dependency of fastapi; human separately approved it after confirming it is the CNCF open-telemetry-python project and correctly spelled
+- [Phase 05]: Relock used no --upgrade flag; uv treated the existing requirements-mac.txt as preferences so all 40 pre-existing pins stayed byte-for-byte identical
+- [Phase 05]: list_models is pub(crate), not pub like every other handler in rsg-server, because its return type exposes the crate-private ModelList struct
+- [Phase 05]: The non-streaming chat_completions branch keeps the ActiveRequest (and its AbortGuard) alive in the handler's own future rather than spawning a background stream, so a client disconnect before the response is ready still cancels the backend request
+- [Phase 05]: cancel_after_submit(engine, uid, submitted, stream, first_token_seen) is the single decision point for Immediate-vs-Deferred abort timing; both post-submit cancellation checkpoints call through it rather than duplicating the split
+- [Phase 05]: deferred_wait's four outcomes (finished-token/non-finished-token/Dropped/timeout) all end Cancelled, never Decoding -> Cancelled, reported by the caller after deferred_wait returns
+- [Phase 05]: finish_silent reports a terminal state without sending a RequestEvent: every cancellation path is reached only because the AbortGuard/events receiver was already dropped, so nobody is listening
+- [Phase 05]: No tower-http timeout layer: the backend-inactivity deadline is a pinned, resettable tokio::time::sleep_until inside the driver, per CLAUDE.md's prohibition on tower_http::timeout for streaming routes
+- [Phase 05]: An abort reaching Cancelled in the registry only means the AbortBackendMsg was enqueued onto the writer's channel, not that mock-scheduler has received and recorded it in its observe file yet; tests must poll (wait_for_abort/wait_for_observed) rather than assert immediately after a registry snapshot goes idle
+- [Phase 05]: python_frontend.py reproduces upstream's start_subprocess spawn (detokenizer/tokenizer tokenize_worker processes) minus scheduler ranks, against an externally started mock-scheduler stand-in on the caller's --rsg-suffix addresses
+- [Phase 05]: gen_api_fixtures.py captured the 18-case API-01 golden fixture set from one fresh live run; chat_nonstream_eos_final's max_tokens is computed at capture time from the chat template so the echoed final token lands on EOS, exercising detokenize.py's finished+EOS exclusion
+- [Phase 05]: Treated the Task 1 precondition as met via a direct read-only check (local_files_only=True) rather than its literal HF_HUB_OFFLINE=1 command, which fails in this environment on a transformers 4.57.3 bug (_patch_mistral_regex calling model_info() for any large-vocab repo-id tokenizer) unrelated to cache completeness
+- [Phase 05]: ServerMetrics uses a per-server PrometheusRecorder (never process-global, no set_global_recorder/install_recorder) with no labels on any of its 7 series (T-05-13/T-05-14 fixed cardinality)
+- [Phase 05]: /health is process liveness only (always 200); /health/ready is 200 only after AppState::set_engine — the front-half/end-to-end split Phase 7's cold-start scenario measures
+- [Phase 05]: ServerMetrics::render sets rsg_late_tokens_dropped_total via Counter::absolute(unknown_uid + closed_route) from a live DispatchStatsSnapshot at scrape time, never an internally-accumulated count, so it can never drift from the dispatcher's own single source of truth
+- [Phase 05]: No driver fix was needed in engine.rs for the 128-agent stress test: the existing cancellation/abort-timing/timeout logic from plan 05-04 held up across repeated runs and multiple seeds
+- [Phase 05]: A disconnect-mode stress-test agent picks OpenStream vs. a raw TcpStream based on when the server actually commits to response headers, not just streaming-vs-non-streaming as a label: chat non-stream has no headers until the whole generation is ready, so OpenStream::open would block past the intended disconnect point
+- [Phase 05]: HfCodec::load's ad hoc ModelSpec always sets gated: false for a CLI-supplied --model; a genuinely gated model surfaces as an ordinary auth error instead of a misleading GatedAccessUnavailable
+- [Phase 05]: Transient hf-hub cache-pointer race (non-atomic remove+symlink in create_pointer_symlink) under concurrent process-level tokenizer loads fixed with a bounded, backed-off retry in hf_codec.rs (rsg-tokenizer itself is out of plan scope)
+- [Phase 05]: test_rust_mode_handshake_reaches_rsg_server's D-10 ordering check now compares against rsg-server's first log line (rsg-server starting) instead of awaiting handshake on stdin, since 05-08 moved the latter after the tokenizer load
+- [Phase 05]: engine.rs builds the per-request IncrementalDecoder (clones the real tokenizer) before register/submit, not after -- doing it after let a zero-decode-delay backend overflow the per-uid broadcast buffer (capacity 16, drop-oldest) before the decode loop's first recv(), deterministically dropping tokens on any response over 16 tokens
+- [Phase 05]: crates/rsg-server/tests/api_parity.rs replays all 18 fixtures/api cases against the real rsg-server binary on mock-scheduler, byte-diffing status/content-type/body (created normalized) -- API-01 is now proven end to end on the Mac; scripts/check_all.sh gained a 7th step (API fixture freshness) keeping the gate honest about both frontends
 
 ### Pending Todos
 
@@ -139,9 +175,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: Phase 1 needs GPU machine access, because launcher criterion 2 runs the real backend. `zmq` vs `zeromq` interop with pyzmq and the bind/connect topology are not yet decided. It is also unverified whether `minisgl.message` imports on macOS for golden-fixture export.
-- [Phase 5]: It is not yet known how quickly hyper/axum detects a client disconnect while a request is queued.
 - [Phase 6]: The upstream abort-during-prefill double free comes from code reading only. If it reproduces, the abort-timing setting (LIFE-05) must apply equally to the baseline.
+- [Phase 4, pre-existing tech debt]: `cargo test -p rsg-tokenizer`'s `loader::tests::gated_access_unavailable_*` tests race under default parallel test threads (global env-var mutation between concurrently-run tests in that crate); deterministic on this machine. `scripts/check_all.sh --offline` does not pin `--test-threads=1` internally, so it can fail on this specific crate even when nothing in the phase under test is actually broken — confirm with `cargo test -p rsg-tokenizer --lib -- --test-threads=1` before trusting a `check_all.sh` red on this crate. Logged to `.planning/phases/04-tokenizer-detokenizer-parity/deferred-items.md`; not yet fixed.
+- [Phase 5, code review WR-01, open]: `drive_request`'s `IncrementalDecoder` construction (full tokenizer vocab/merge clone) runs synchronously on the async driver task with no `.await` — can starve other concurrent requests' token streams under load. Worth a look before Phase 7's benchmark numbers are trusted at high concurrency; see `05-REVIEW.md`/`05-REVIEW-DISPOSITION.md`.
 
 ### Quick Tasks Completed
 
@@ -159,6 +195,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T01:12:12.826Z
-Stopped at: Phase 04 complete, ready to plan Phase 5
+Last session: 2026-10-07T03:42:23.788Z
+Stopped at: Phase 05 complete, ready to plan Phase 6
 Resume file: None

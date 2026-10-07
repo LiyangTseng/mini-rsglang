@@ -8,7 +8,7 @@ mod common;
 
 use std::time::Duration;
 
-use rsg_server::dispatch::{UidEvent, spawn_dispatcher};
+use rsg_server::dispatch::{UID_CHANNEL_CAPACITY, UidEvent, spawn_dispatcher};
 use rsg_server::writer::spawn_writer;
 use rsg_wire::{SamplingParams, Tensor};
 
@@ -29,6 +29,14 @@ fn tracer_slow_consumer_does_not_stall_other_uids() {
         .build()
         .expect("build runtime");
 
+    // Sent well past the channel's fixed capacity so the backlog overflows
+    // by a fixed, meaningful margin (200 tokens dropped) regardless of the
+    // exact capacity value -- this test asserts the overflow CONTRACT
+    // (drop-oldest, exact count, exact tail), not the capacity constant
+    // itself.
+    const OVERFLOW_MARGIN: u64 = 200;
+    let total_sent = UID_CHANNEL_CAPACITY as i64 + OVERFLOW_MARGIN as i64;
+
     rt.block_on(async {
         let mut stream1 = dispatcher.register(1);
         let mut stream2 = dispatcher.register(2);
@@ -41,7 +49,7 @@ fn tracer_slow_consumer_does_not_stall_other_uids() {
                 1,
                 Tensor::from_i32_slice(&[101, 102, 103]),
                 SamplingParams {
-                    max_tokens: 200,
+                    max_tokens: total_sent,
                     ..SamplingParams::default()
                 },
             )
@@ -52,7 +60,7 @@ fn tracer_slow_consumer_does_not_stall_other_uids() {
                 2,
                 Tensor::from_i32_slice(&[201, 202, 203]),
                 SamplingParams {
-                    max_tokens: 200,
+                    max_tokens: total_sent,
                     ..SamplingParams::default()
                 },
             )
@@ -77,10 +85,11 @@ fn tracer_slow_consumer_does_not_stall_other_uids() {
                 UidEvent::Dropped(n) => panic!("uid 2 unexpectedly dropped {n} tokens"),
             }
         }
-        assert_eq!(tokens2, echo_tokens(&[201, 202, 203], 200));
+        assert_eq!(tokens2, echo_tokens(&[201, 202, 203], total_sent as usize));
 
-        // Now read uid 1's backlog: exactly one Dropped(184), then the last
-        // 16 echo tokens (indices 184..200, the last one finished).
+        // Now read uid 1's backlog: exactly one Dropped(OVERFLOW_MARGIN),
+        // then the last UID_CHANNEL_CAPACITY echo tokens, the last one
+        // finished.
         let mut events1 = Vec::new();
         loop {
             let event = tokio::time::timeout(Duration::from_secs(5), stream1.recv())
@@ -94,11 +103,11 @@ fn tracer_slow_consumer_does_not_stall_other_uids() {
 
         assert_eq!(
             events1.first(),
-            Some(&UidEvent::Dropped(184)),
-            "uid 1's first event must be exactly Dropped(184): {events1:?}"
+            Some(&UidEvent::Dropped(OVERFLOW_MARGIN)),
+            "uid 1's first event must be exactly Dropped({OVERFLOW_MARGIN}): {events1:?}"
         );
-        let expected_tail = echo_tokens(&[101, 102, 103], 200);
-        let expected_tail = &expected_tail[184..200];
+        let expected_tail = echo_tokens(&[101, 102, 103], total_sent as usize);
+        let expected_tail = &expected_tail[(OVERFLOW_MARGIN as usize)..(total_sent as usize)];
         let got_tokens: Vec<i64> = events1[1..]
             .iter()
             .map(|e| match e {
@@ -109,17 +118,20 @@ fn tracer_slow_consumer_does_not_stall_other_uids() {
                 UidEvent::Dropped(n) => panic!("unexpected extra drop of {n} for uid 1"),
             })
             .collect();
-        assert_eq!(got_tokens, expected_tail, "uid 1's last 16 echo tokens");
+        assert_eq!(
+            got_tokens, expected_tail,
+            "uid 1's last {UID_CHANNEL_CAPACITY} echo tokens"
+        );
         assert_eq!(
             events1.len(),
-            17,
-            "Dropped(184) + 16 tokens, then stream end"
+            UID_CHANNEL_CAPACITY + 1,
+            "Dropped({OVERFLOW_MARGIN}) + {UID_CHANNEL_CAPACITY} tokens, then stream end"
         );
         match events1.last() {
             Some(UidEvent::Token(reply)) => assert!(reply.finished, "last token must be finished"),
             other => panic!("expected the last event to be a finished Token, got {other:?}"),
         }
-        assert_eq!(stream1.dropped(), 184);
+        assert_eq!(stream1.dropped(), OVERFLOW_MARGIN);
 
         writer.exit().await.expect("exit");
     });
