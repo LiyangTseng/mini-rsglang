@@ -18,9 +18,9 @@ affects: [07]
 actuals:
   tokens: 253289
   tasks: 4
-  commits: 12
+  commits: 9
   plan_head_before: 001b266c2228a965080467f5472b2c853494ea43
-  plan_head_after: PENDING_FINAL_COMMIT
+  plan_head_after: d9411173d0c87df4dd5c3ff5ff9865a6be230991
 
 tech-stack:
   added: []
@@ -145,7 +145,7 @@ status: complete
 8. **Task 3: Record the D-09 decision and the harness-bug correction in STATE.md** — `feef0ad` (docs)
 9. **Task 3: Add dated correction notes to 06-07-SUMMARY.md and 06-08-PLAN.md Task 0** — `25b084e` (docs)
 
-**Plan metadata:** this commit (pending, see below — includes this SUMMARY, STATE.md, ROADMAP.md, REQUIREMENTS.md).
+**Plan metadata:** `d941117` (docs: complete GPU end-to-end parity phase — this SUMMARY, STATE.md, ROADMAP.md, `.planning/state.json`).
 
 ## Files Created/Modified
 
@@ -217,7 +217,7 @@ None - no external service configuration required.
 - `docs/benchmarks/parity-report.md` found on disk; contains the exact lines `## Abort-timing decision (D-09)`, `## Divergence bisection (D-05)` and `## Criterion 4: Cancellation stress and the abort-during-prefill bug (D-08)`.
 - `crates/rsg-server/tests/backend_finish_boundary.rs` found on disk.
 - `python/rsglang/parity/sweep.py` contains `_bounded_detoks`.
-- Commits `6558c46`, `224fcb6`, `de520b9`, `ae8feec`, `95f819f`, `19f4ce4`, `feef0ad`, `25b084e` all found in `git log --oneline`.
+- Commits `6558c46`, `224fcb6`, `de520b9`, `ae8feec`, `95f819f`, `19f4ce4`, `feef0ad`, `25b084e`, `d941117` all found in `git log --oneline`.
 - `git diff --quiet HEAD -- docs/benchmarks/parity-report.json` exits 0 (the committed JSON is unedited).
 - Re-ran `.venv/bin/python scripts/parity_check.py validate docs/benchmarks/parity-report.json --require-gpu` -> `valid`, exit 0.
 - Re-ran `.venv/bin/python scripts/parity_check.py verdict docs/benchmarks/parity-report.json --criterion 1|2|3|4` -> all four print `PASS`.
