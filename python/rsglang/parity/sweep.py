@@ -85,6 +85,12 @@ def run_session(
     log_path = work_dir / f"{label}.log"
 
     handle = procs.launch_server(list(argv), env=env, log_path=log_path)
+    # T-06-14 safety net: record this session's process-group id so an
+    # interrupted gpu_phase6_parity.sh run (Ctrl-C, unexpected error) can
+    # kill -9 every session it started, even ones whose own teardown never
+    # got to run. A plain append, created if missing.
+    with open(work_dir / "sessions.pgid", "a", encoding="utf-8") as fh:
+        fh.write(f"{handle.pgid}\n")
     value: Any = None
     alive_after_teardown: "list[int]" = []
     try:
