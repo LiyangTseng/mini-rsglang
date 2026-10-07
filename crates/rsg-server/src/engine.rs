@@ -404,9 +404,10 @@ async fn drive_request(
     // milliseconds, not free. Building it *after* submit left a window
     // where the backend (especially a zero-decode-delay mock) could
     // already be streaming tokens into the per-uid broadcast channel
-    // (capacity 16, drop-oldest, D-07) while this task was still busy
-    // cloning, overflowing the buffer for any response longer than ~16
-    // tokens before the decode loop ever called its first `recv()`. The
+    // (fixed capacity, drop-oldest, D-07 -- see dispatch::UID_CHANNEL_CAPACITY)
+    // while this task was still busy cloning, overflowing the buffer for a
+    // long enough response before the decode loop ever called its first
+    // `recv()`. The
     // clone itself doesn't depend on backend state, only on `engine.codec`,
     // so there is no ordering reason to delay it past encode.
     //
