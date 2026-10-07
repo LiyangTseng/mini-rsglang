@@ -22,9 +22,9 @@ import time
 from pathlib import Path
 from typing import Any, Sequence
 
-from .. import handshake
+from .. import handshake, sockets
 from ..profiling import procs
-from . import abort_analysis, sweep, tap
+from . import abort_analysis, probe as probe_mod, sweep, tap
 
 _SCHEDULER_PID_RE = re.compile(r"spawned scheduler rank=0 pid=(\d+)")
 
@@ -230,6 +230,61 @@ def _format_argv(template: str, **kwargs: Any) -> "list[str]":
     return shlex.split(template.format(**kwargs))
 
 
+def _skipped_probe_block(probe_delays_ms: "Sequence[int] | None", reason: str) -> "dict[str, Any]":
+    return {
+        "status": "skipped",
+        "reason": reason,
+        "delays_ms": list(probe_delays_ms or []),
+        "repeats": None,
+        "trials": 0,
+        "prompt_source": None,
+        "prefill_window_hits": 0,
+        "double_free_total": 0,
+        "collisions_total": 0,
+        "by_delay": [],
+    }
+
+
+def _run_probe_block(
+    ctx: sweep.SessionContext,
+    *,
+    probe_delays_ms: "Sequence[int]",
+    probe_repeats: int,
+    prompt_ids: "Sequence[int]",
+    prompt_source: str,
+) -> "dict[str, Any]":
+    if not probe_delays_ms:
+        return _skipped_probe_block(probe_delays_ms, "disabled")
+
+    backend_path = sockets.run_socket_paths(f".rsg={ctx.launcher_pid}")[0]
+    if not backend_path.exists():
+        return _skipped_probe_block(probe_delays_ms, f"backend socket {backend_path} not found")
+
+    backend_addr = "ipc://" + str(backend_path)
+    trials = probe_mod.run_window_probe(
+        backend_addr, delays_ms=probe_delays_ms, repeats=probe_repeats, prompt_ids=prompt_ids
+    )
+
+    # Give the scheduler a moment to process and tap the last abort before
+    # reading the tap files back.
+    time.sleep(0.5)
+    records = tap.load_tap_records(ctx.tap_dir).records
+    analysis = abort_analysis.analyze_probe(records, trials)
+
+    return {
+        "status": "ok",
+        "reason": None,
+        "delays_ms": list(probe_delays_ms),
+        "repeats": probe_repeats,
+        "trials": len(trials),
+        "prompt_source": prompt_source,
+        "prefill_window_hits": analysis["prefill_window_hits"],
+        "double_free_total": analysis["double_free_total"],
+        "collisions_total": analysis["collisions_total"],
+        "by_delay": analysis["by_delay"],
+    }
+
+
 async def _run_one_timing(
     base_url: str,
     ctx: sweep.SessionContext,
@@ -244,7 +299,12 @@ async def _run_one_timing(
     canary_timeout_s: float,
     watch_interval_s: float,
     work_dir: Path,
-) -> "dict[str, Any]":
+    run_probe: bool,
+    probe_delays_ms: "Sequence[int]",
+    probe_repeats: int,
+    prompt_ids: "Sequence[int]",
+    prompt_source: str,
+) -> "tuple[dict[str, Any], dict[str, Any] | None]":
     scheduler_pid = _poll_scheduler_pid(ctx.log_path)
 
     watch_out = work_dir / f"watch-{timing}.log"
@@ -255,6 +315,16 @@ async def _run_one_timing(
     stress_argv = _format_argv(stress_cmd, python=python, base_url=base_url, port=port, model=model)
     stress_log = work_dir / f"stress-{timing}.log"
     stress_rc, stress_timed_out = _run_stress_cmd(stress_argv, log_path=stress_log, timeout_s=stress_timeout_s)
+
+    probe_block: "dict[str, Any] | None" = None
+    if run_probe:
+        probe_block = _run_probe_block(
+            ctx,
+            probe_delays_ms=probe_delays_ms,
+            probe_repeats=probe_repeats,
+            prompt_ids=prompt_ids,
+            prompt_source=prompt_source,
+        )
 
     await asyncio.sleep(settle_s)
     canary_ok = await _canary(base_url, model, canary_timeout_s)
@@ -277,7 +347,7 @@ async def _run_one_timing(
         "analysis": analysis,
     }
     run["failure_mode"] = abort_analysis.failure_mode(run)
-    return run
+    return run, probe_block
 
 
 def run_stress_part(
@@ -294,12 +364,21 @@ def run_stress_part(
     watch_interval_s: float,
     work_dir: Path,
     python: str,
+    probe_delays_ms: "Sequence[int] | None" = None,
+    probe_repeats: int = 8,
+    prompt_ids: "Sequence[int] | None" = None,
+    prompt_source: str = "synthetic",
 ) -> "dict[str, Any]":
     """Runs the stress tool once per abort timing, each against a fresh
     tapped session, and reduces the result to the abort_stress sidecar
-    block: {model, runs, probe, reproduced, conclusive}. `probe` is always
-    None here -- probe.py (Task 3) fills it in."""
+    block: {model, runs, probe, reproduced, conclusive}. The backend window
+    probe (Task 3) runs only in the "immediate" timing, right after the
+    stress command and before settle/canary."""
     runs: "list[dict[str, Any]]" = []
+    probe_block: "dict[str, Any] | None" = None
+
+    effective_prompt_ids = list(prompt_ids) if prompt_ids else list(range(1000, 2024))
+    effective_prompt_source = prompt_source if prompt_ids else "synthetic"
 
     for timing in abort_timings:
         if not sweep.port_free(port):
@@ -307,9 +386,10 @@ def run_stress_part(
             continue
 
         argv = _format_argv(stress_server_cmd, python=python, model=model, port=port, abort_timing=timing)
+        run_probe_this_timing = timing == "immediate"
 
-        def _make_workload(_timing: str):
-            async def workload(base_url: str, ctx: sweep.SessionContext) -> "dict[str, Any]":
+        def _make_workload(_timing: str, _run_probe: bool):
+            async def workload(base_url: str, ctx: sweep.SessionContext) -> "tuple[dict[str, Any], dict[str, Any] | None]":
                 return await _run_one_timing(
                     base_url,
                     ctx,
@@ -323,6 +403,11 @@ def run_stress_part(
                     canary_timeout_s=canary_timeout_s,
                     watch_interval_s=watch_interval_s,
                     work_dir=work_dir,
+                    run_probe=_run_probe,
+                    probe_delays_ms=probe_delays_ms or [],
+                    probe_repeats=probe_repeats,
+                    prompt_ids=effective_prompt_ids,
+                    prompt_source=effective_prompt_source,
                 )
 
             return workload
@@ -334,26 +419,34 @@ def run_stress_part(
                 port=port,
                 timeout_s=session_timeout_s,
                 work_dir=work_dir,
-                workload=_make_workload(timing),
+                workload=_make_workload(timing, run_probe_this_timing),
                 pass_context=True,
             )
-            run = session_result.value
+            run, this_probe_block = session_result.value
         except (StressSetupError, procs.ServerExited, TimeoutError) as exc:
             run = _setup_failed_run(timing, exc)
+            this_probe_block = None
 
         runs.append(run)
+        if run_probe_this_timing:
+            probe_block = this_probe_block
+
+    if probe_block is None:
+        probe_block = _skipped_probe_block(probe_delays_ms, "no immediate run")
 
     immediate_run = next((r for r in runs if r["abort_timing"] == "immediate"), None)
-    reproduced = immediate_run is not None and immediate_run["failure_mode"] != "none"
+    reproduced = (immediate_run is not None and immediate_run["failure_mode"] != "none") or (
+        probe_block.get("double_free_total", 0) + probe_block.get("collisions_total", 0) > 0
+    )
     conclusive = (
         immediate_run is not None
         and immediate_run["analysis"]["aborts_by_class"]["prefill_window"] > 0
-    )
+    ) or probe_block.get("prefill_window_hits", 0) > 0
 
     return {
         "model": model,
         "runs": runs,
-        "probe": None,
+        "probe": probe_block,
         "reproduced": reproduced,
         "conclusive": conclusive,
     }

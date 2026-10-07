@@ -431,7 +431,68 @@ def _build_server_parser() -> argparse.ArgumentParser:
     parser.add_argument("--hang-after-requests", type=int, default=None, metavar="N")
     parser.add_argument("--log-integrity-error", action="store_true")
     parser.add_argument("--perturb-input-when", default=None, metavar="SUBSTR")
+    parser.add_argument("--bind-backend", action="store_true")
     return parser
+
+
+def _start_backend_bind():
+    """--bind-backend (06-05 Task 3): binds a pyzmq PULL socket at this
+    process's own backend address (rsglang.sockets.run_socket_paths'
+    `.rsg=<own pid>` suffix) and decodes frames with upstream's own
+    minisgl.message.BaseBackendMsg.decoder in a daemon thread, writing a tap
+    user record per UserMsg and an abort record (in_pending=True,
+    in_running=False, chunked=False) per AbortBackendMsg -- so
+    run_window_probe's wire delivery can be proven against a fake backend,
+    without a real scheduler. Returns (zmq_context, zmq_socket, backend_path)
+    for cleanup at shutdown."""
+    import msgpack
+    import zmq
+    from minisgl.message import BaseBackendMsg
+
+    from rsglang import sockets as rsg_sockets
+
+    suffix = f".rsg={os.getpid()}"
+    backend_path = rsg_sockets.run_socket_paths(suffix)[0]
+    try:
+        backend_path.unlink()
+    except FileNotFoundError:
+        pass
+
+    context = zmq.Context()
+    sock = context.socket(zmq.PULL)
+    sock.bind(f"ipc://{backend_path}")
+
+    def loop() -> None:
+        while True:
+            try:
+                raw = sock.recv()
+            except zmq.ZMQError:
+                return
+            try:
+                msg = BaseBackendMsg.decoder(msgpack.unpackb(raw, raw=False))
+            except Exception:
+                continue
+            kind = type(msg).__name__
+            if kind == "UserMsg":
+                _tap_writer.write(
+                    tap.KIND_USER,
+                    uid=msg.uid,
+                    input_ids=msg.input_ids.tolist(),
+                    sampling={
+                        "temperature": msg.sampling_params.temperature,
+                        "top_k": msg.sampling_params.top_k,
+                        "top_p": msg.sampling_params.top_p,
+                        "ignore_eos": msg.sampling_params.ignore_eos,
+                        "max_tokens": msg.sampling_params.max_tokens,
+                    },
+                )
+            elif kind == "AbortBackendMsg":
+                _tap_writer.write(
+                    tap.KIND_ABORT, uid=msg.uid, in_pending=True, in_running=False, chunked=False
+                )
+
+    threading.Thread(target=loop, daemon=True, name="fake-parity-backend-bind").start()
+    return context, sock, backend_path
 
 
 def _spawn_scheduler_child() -> "subprocess.Popen | None":
@@ -486,6 +547,7 @@ def _cmd_server(argv: Sequence[str]) -> int:
         print(f"abort_timing={ns.abort_timing}", file=sys.stderr, flush=True)
 
     scheduler_child = _spawn_scheduler_child() if ns.emit_scheduler_child else None
+    backend_bind = _start_backend_bind() if ns.bind_backend else None
 
     _tap_writer.write(
         tap.KIND_PATCHED,
@@ -525,6 +587,17 @@ def _cmd_server(argv: Sequence[str]) -> int:
                 scheduler_child.kill()
                 scheduler_child.wait(timeout=5.0)
             except Exception:
+                pass
+        if backend_bind is not None:
+            context, sock, backend_path = backend_bind
+            try:
+                sock.close()
+                context.term()
+            except Exception:
+                pass
+            try:
+                backend_path.unlink()
+            except OSError:
                 pass
     return 0
 

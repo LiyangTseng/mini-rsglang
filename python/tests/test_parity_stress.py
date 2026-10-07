@@ -418,3 +418,282 @@ def test_annotate_wired(tmp_path):
     note = prompts["item3"]["divergence"]["note"]
     assert "item1" in note
     assert "radix-cache" in note
+
+
+# --- Task 3: backend window probe, conclusive/reproduced refinement, verdict 4 --------
+
+
+@pytest.mark.slow
+def test_probe_wire_delivery(tmp_path):
+    import msgpack
+    import zmq
+    from minisgl.message import BaseBackendMsg
+
+    from rsglang.parity import probe
+
+    # ipc:// paths are limited to sizeof(sockaddr_un.sun_path) (103 chars on
+    # macOS); pytest's tmp_path is often too long, so use a short /tmp path.
+    sock_path = Path(f"/tmp/rsglang-probe-test-{os.getpid()}.sock")
+    sock_path.unlink(missing_ok=True)
+    addr = f"ipc://{sock_path}"
+    context = zmq.Context()
+    sock = context.socket(zmq.PULL)
+    sock.bind(addr)
+    try:
+        trials = probe.run_window_probe(addr, delays_ms=[0, 5], repeats=2, prompt_ids=[1, 2, 3])
+        assert len(trials) == 4
+
+        frames = []
+        for _ in range(8):
+            raw = sock.recv()
+            frames.append(BaseBackendMsg.decoder(msgpack.unpackb(raw, raw=False)))
+
+        uids_seen = set()
+        for i in range(0, 8, 2):
+            user_msg = frames[i]
+            abort_msg = frames[i + 1]
+            assert type(user_msg).__name__ == "UserMsg"
+            assert type(abort_msg).__name__ == "AbortBackendMsg"
+            assert user_msg.uid == abort_msg.uid
+            assert user_msg.uid >= 1 << 40
+            uids_seen.add(user_msg.uid)
+            assert user_msg.input_ids.tolist() == [1, 2, 3]
+            assert str(user_msg.input_ids.dtype) == "torch.int32"
+            assert user_msg.sampling_params.temperature == 0.0
+            assert user_msg.sampling_params.max_tokens == 4
+
+        assert len(uids_seen) == 4
+        assert {t["uid"] for t in trials} == uids_seen
+        for t in trials:
+            assert t["delay_ms"] in (0, 5)
+    finally:
+        sock.close()
+        context.term()
+        sock_path.unlink(missing_ok=True)
+
+
+def test_analyze_probe():
+    trials = [
+        {"uid": 100, "delay_ms": 0},
+        {"uid": 101, "delay_ms": 0},
+        {"uid": 102, "delay_ms": 5},
+        {"uid": 103, "delay_ms": 5},
+    ]
+    records = [
+        {"kind": tap.KIND_ABORT, "pid": 1, "seq": 0, "uid": 100, "in_pending": False, "in_running": True, "chunked": False},
+        {"kind": tap.KIND_ABORT, "pid": 1, "seq": 1, "uid": 101, "in_pending": True, "in_running": False, "chunked": False},
+        {"kind": tap.KIND_DETOK, "pid": 1, "seq": 2, "uid": 102, "next_token": 1, "finished": False},
+        {"kind": tap.KIND_ABORT, "pid": 1, "seq": 3, "uid": 102, "in_pending": False, "in_running": True, "chunked": False},
+        {"kind": tap.KIND_ABORT, "pid": 1, "seq": 4, "uid": 103, "in_pending": False, "in_running": False, "chunked": False},
+        {"kind": tap.KIND_FREE, "pid": 1, "seq": 5, "uid": 103, "table_idx": 2, "dup_free_slots": False},
+        {"kind": tap.KIND_FREE, "pid": 1, "seq": 6, "uid": 103, "table_idx": 2, "dup_free_slots": True},
+        {"kind": tap.KIND_COLLISION, "pid": 1, "seq": 7, "table_idx": 9, "uids": [100, 999]},
+        # non-probe uid -- must be ignored entirely.
+        {"kind": tap.KIND_ABORT, "pid": 1, "seq": 8, "uid": 999, "in_pending": True, "in_running": False, "chunked": False},
+    ]
+
+    result = abort_analysis.analyze_probe(records, trials)
+
+    by_delay = {entry["delay_ms"]: entry for entry in result["by_delay"]}
+    assert by_delay[0]["trials"] == 2
+    assert by_delay[0]["by_class"]["prefill_window"] == 1
+    assert by_delay[0]["by_class"]["pending"] == 1
+    assert by_delay[0]["collisions"] == 1
+    assert by_delay[5]["trials"] == 2
+    assert by_delay[5]["by_class"]["decode"] == 1
+    assert by_delay[5]["by_class"]["not_found"] == 1
+    assert by_delay[5]["double_free"] == 1
+
+    assert result["prefill_window_hits"] == 1
+    assert result["double_free_total"] == 1
+    assert result["collisions_total"] == 1
+
+
+@pytest.mark.slow
+def test_stress_with_probe_against_fake(tmp_path):
+    bin_dir = tmp_path / "bin"
+    _write_stub_nvidia_smi(bin_dir)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--parts", "stress",
+            "--abort-timings", "immediate",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--stress-server-cmd", _STRESS_SERVER_CMD + " --bind-backend",
+            "--stress-cmd", _STRESS_CMD,
+            "--settle-s", "0.5",
+            "--probe-delays-ms", "0,5",
+            "--probe-repeats", "2",
+        ],
+        extra_path=bin_dir,
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    probe = doc["abort_stress"]["probe"]
+    assert probe["status"] == "ok"
+    assert probe["trials"] == 4
+
+
+@pytest.mark.slow
+def test_probe_skipped(tmp_path):
+    bin_dir = tmp_path / "bin"
+    _write_stub_nvidia_smi(bin_dir)
+
+    port1 = _free_port()
+    out_path1 = tmp_path / "out1.json"
+    work_dir1 = tmp_path / "w1"
+    result1 = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--parts", "stress",
+            "--abort-timings", "immediate",
+            "--port", str(port1),
+            "--out", str(out_path1),
+            "--work-dir", str(work_dir1),
+            "--stress-server-cmd", _STRESS_SERVER_CMD,
+            "--stress-cmd", _STRESS_CMD,
+            "--settle-s", "0.5",
+            "--probe-delays-ms", "",
+        ],
+        extra_path=bin_dir,
+    )
+    assert result1.returncode == 0, f"stdout={result1.stdout!r} stderr={result1.stderr!r}"
+    probe1 = json.loads(out_path1.read_text())["abort_stress"]["probe"]
+    assert probe1["status"] == "skipped"
+    assert probe1["reason"] == "disabled"
+
+    port2 = _free_port()
+    out_path2 = tmp_path / "out2.json"
+    work_dir2 = tmp_path / "w2"
+    result2 = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--parts", "stress",
+            "--abort-timings", "immediate",
+            "--port", str(port2),
+            "--out", str(out_path2),
+            "--work-dir", str(work_dir2),
+            "--stress-server-cmd", _STRESS_SERVER_CMD,
+            "--stress-cmd", _STRESS_CMD,
+            "--settle-s", "0.5",
+        ],
+        extra_path=bin_dir,
+    )
+    assert result2.returncode == 0, f"stdout={result2.stdout!r} stderr={result2.stderr!r}"
+    probe2 = json.loads(out_path2.read_text())["abort_stress"]["probe"]
+    assert probe2["status"] == "skipped"
+    assert "not found" in probe2["reason"]
+
+
+def _synthetic_watch(crashed: int = 0) -> dict:
+    return {
+        "pid": 1,
+        "samples": 1,
+        "crashed": crashed,
+        "zombie": 0,
+        "restarts": 0,
+        "gpu_unlisted": 0,
+        "nvsmi_errors": 0,
+        "verdict": "unhealthy" if crashed else "healthy",
+    }
+
+
+def _synthetic_stress_run(timing: str, *, failure_mode: str = "none") -> dict:
+    return {
+        "abort_timing": timing,
+        "stress_rc": 0,
+        "stress_timed_out": False,
+        "stress_output_tail": "",
+        "canary_ok": True,
+        "watch": _synthetic_watch(crashed=1 if failure_mode == "crash" else 0),
+        "integrity_error": None,
+        "analysis": abort_analysis.analyze([]),
+        "failure_mode": failure_mode,
+    }
+
+
+def _synthetic_probe_block(*, status: str = "ok", trials: int = 72, reason: "str | None" = None) -> dict:
+    return {
+        "status": status,
+        "reason": reason,
+        "delays_ms": [0, 1, 2],
+        "repeats": 8,
+        "trials": trials,
+        "prompt_source": "synthetic",
+        "prefill_window_hits": 1,
+        "double_free_total": 0,
+        "collisions_total": 0,
+        "by_delay": [],
+    }
+
+
+def _synthetic_sidecar_doc(abort_stress: dict) -> dict:
+    return {
+        "schema_version": sidecar.SCHEMA_VERSION,
+        "generated_by": sidecar.GENERATED_BY,
+        "meta": {"models": ["fake/gate"], "gate_model": "fake/gate"},
+        "endpoints": None,
+        "sequential": None,
+        "concurrent": None,
+        "abort_stress": abort_stress,
+        "warnings": [],
+    }
+
+
+def test_verdict_c4_synthetic(tmp_path):
+    good_abort_stress = {
+        "model": "fake/gate",
+        "runs": [_synthetic_stress_run("immediate"), _synthetic_stress_run("deferred")],
+        "probe": _synthetic_probe_block(),
+        "reproduced": False,
+        "conclusive": True,
+    }
+    good_path = tmp_path / "good.json"
+    good_path.write_text(json.dumps(_synthetic_sidecar_doc(good_abort_stress)), encoding="utf-8")
+    r = _run_parity_check(["verdict", str(good_path), "--criterion", "4"])
+    assert r.returncode == 0, f"stdout={r.stdout!r} stderr={r.stderr!r}"
+    assert "criterion 4: PASS" in r.stdout
+
+    bad = json.loads(json.dumps(good_abort_stress))
+    bad["runs"][1] = _synthetic_stress_run("deferred", failure_mode="crash")
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text(json.dumps(_synthetic_sidecar_doc(bad)), encoding="utf-8")
+    r2 = _run_parity_check(["verdict", str(bad_path), "--criterion", "4"])
+    assert r2.returncode == 1
+    assert "criterion 4: FAIL" in r2.stdout
+
+    skipped = json.loads(json.dumps(good_abort_stress))
+    skipped["probe"] = _synthetic_probe_block(status="skipped", trials=0, reason="disabled")
+    skipped_path = tmp_path / "skipped.json"
+    skipped_path.write_text(json.dumps(_synthetic_sidecar_doc(skipped)), encoding="utf-8")
+    r3 = _run_parity_check(["verdict", str(skipped_path), "--criterion", "4"])
+    assert r3.returncode == 1
+    assert "criterion 4: FAIL" in r3.stdout
+
+    immediate_crash = json.loads(json.dumps(good_abort_stress))
+    immediate_crash["runs"][0] = _synthetic_stress_run("immediate", failure_mode="crash")
+    immediate_crash["reproduced"] = True
+    immediate_path = tmp_path / "immediate_crash.json"
+    immediate_path.write_text(json.dumps(_synthetic_sidecar_doc(immediate_crash)), encoding="utf-8")
+    r4 = _run_parity_check(["verdict", str(immediate_path), "--criterion", "4"])
+    assert r4.returncode == 0, f"stdout={r4.stdout!r} stderr={r4.stderr!r}"
+    assert "criterion 4: PASS" in r4.stdout
+    assert "reproduced=yes" in r4.stdout
+
+    missing_deferred = json.loads(json.dumps(good_abort_stress))
+    missing_deferred["runs"] = [missing_deferred["runs"][0]]
+    missing_path = tmp_path / "missing.json"
+    missing_path.write_text(json.dumps(_synthetic_sidecar_doc(missing_deferred)), encoding="utf-8")
+    r5 = _run_parity_check(["verdict", str(missing_path), "--criterion", "4"])
+    assert r5.returncode == 1
+    assert "criterion 4: FAIL" in r5.stdout

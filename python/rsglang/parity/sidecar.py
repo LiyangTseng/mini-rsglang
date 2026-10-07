@@ -564,6 +564,9 @@ def validate_sidecar(doc: Any, *, require_gpu: bool = False) -> "list[str]":
                     errors.append(
                         f"abort_stress.runs: require_gpu needs a run for abort_timing {timing!r}"
                     )
+            probe_block = abort_stress.get("probe")
+            if not (isinstance(probe_block, dict) and probe_block.get("status") == "ok"):
+                errors.append("abort_stress.probe.status: require_gpu needs 'ok'")
 
     _find_nan_inf(doc, "$", errors)
     return errors

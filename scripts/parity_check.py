@@ -482,6 +482,20 @@ def cmd_run(ns: argparse.Namespace) -> int:
                 )
 
         if "stress" in parts:
+            probe_prompt_ids = None
+            probe_prompt_source = "synthetic"
+            if gate_sides is not None:
+                longest_item_id = None
+                longest_ids = None
+                for pid, side in gate_sides["python"].items():
+                    ids = side.get("input_ids")
+                    if ids and (longest_ids is None or len(ids) > len(longest_ids)):
+                        longest_ids = ids
+                        longest_item_id = pid
+                if longest_ids:
+                    probe_prompt_ids = longest_ids
+                    probe_prompt_source = f"corpus:{longest_item_id}"
+
             abort_stress_out = stress.run_stress_part(
                 model=gate_model,
                 stress_server_cmd=ns.stress_server_cmd,
@@ -495,6 +509,10 @@ def cmd_run(ns: argparse.Namespace) -> int:
                 watch_interval_s=ns.watch_interval_s,
                 work_dir=work_dir,
                 python=sys.executable,
+                probe_delays_ms=probe_delays_ms,
+                probe_repeats=ns.probe_repeats,
+                prompt_ids=probe_prompt_ids,
+                prompt_source=probe_prompt_source,
             )
             for run in abort_stress_out["runs"]:
                 analysis = run["analysis"]
@@ -736,6 +754,57 @@ def _verdict_criterion_3(doc: dict) -> int:
     return 1
 
 
+def _verdict_criterion_4(doc: dict) -> int:
+    abort_stress = doc.get("abort_stress")
+    if not isinstance(abort_stress, dict):
+        print("criterion 4: FAIL abort_stress is null")
+        return 1
+
+    runs = {r.get("abort_timing"): r for r in (abort_stress.get("runs") or []) if isinstance(r, dict)}
+    immediate_run = runs.get("immediate")
+    deferred_run = runs.get("deferred")
+
+    if not (
+        isinstance(immediate_run, dict)
+        and immediate_run.get("stress_rc") is not None
+        and immediate_run.get("stress_timed_out") is False
+    ):
+        print("criterion 4: FAIL immediate run missing or did not run to completion")
+        return 1
+
+    if not (
+        isinstance(deferred_run, dict)
+        and deferred_run.get("stress_rc") is not None
+        and deferred_run.get("stress_timed_out") is False
+    ):
+        print("criterion 4: FAIL deferred run missing or did not run to completion")
+        return 1
+
+    if deferred_run.get("failure_mode") in ("crash", "wedge", "setup_failed"):
+        print(f"criterion 4: FAIL deferred run failure_mode={deferred_run.get('failure_mode')!r}")
+        return 1
+
+    reproduced = abort_stress.get("reproduced")
+    conclusive = abort_stress.get("conclusive")
+    if not (isinstance(reproduced, bool) and isinstance(conclusive, bool)):
+        print("criterion 4: FAIL reproduced/conclusive are not both recorded booleans")
+        return 1
+
+    probe = abort_stress.get("probe")
+    if not (isinstance(probe, dict) and probe.get("status") == "ok" and (probe.get("trials") or 0) > 0):
+        print("criterion 4: FAIL probe did not run (status != 'ok' or trials == 0)")
+        return 1
+
+    print(
+        f"criterion 4: PASS immediate={immediate_run.get('failure_mode')} "
+        f"deferred={deferred_run.get('failure_mode')} "
+        f"reproduced={'yes' if reproduced else 'no'} conclusive={'yes' if conclusive else 'no'} "
+        f"probe {probe.get('trials')} trials, {probe.get('prefill_window_hits')} prefill-window hits, "
+        f"{probe.get('double_free_total')} double frees"
+    )
+    return 0
+
+
 def cmd_verdict(ns: argparse.Namespace) -> int:
     try:
         doc = json.loads(Path(ns.file).read_text(encoding="utf-8"))
@@ -755,6 +824,8 @@ def cmd_verdict(ns: argparse.Namespace) -> int:
         return _verdict_criterion_2(doc)
     if ns.criterion == 3:
         return _verdict_criterion_3(doc)
+    if ns.criterion == 4:
+        return _verdict_criterion_4(doc)
 
     print(f"verdict: unknown criterion {ns.criterion}", file=sys.stderr)
     return 2
