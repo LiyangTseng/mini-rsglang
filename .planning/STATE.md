@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: GPU End-to-End Parity
 status: executing
-stopped_at: Completed 06-06-PLAN.md (Task 2 checkpoint resolved and completed)
-last_updated: "2026-10-07T06:46:33.718Z"
+stopped_at: Completed 06-07-PLAN.md Task 2 (06-07-SUMMARY.md written); Task 2's human-check reply still outstanding
+last_updated: "2026-10-07T20:17:38.274Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 06 execution started; Phase 05 merged in from origin/main
-state_head: ea0ab188d52be1c8384c729d3f81e093700c5cce
+state_head: 81fd33aa88c8c0b67275479bb52d32f8f9132baa
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 51
-  completed_plans: 49
+  completed_plans: 50
   percent: 71
 ---
 
@@ -96,6 +96,7 @@ Progress: [███████░░░] 71%
 | Phase 06 P05 | 20min | 3 tasks | 8 files |
 | Phase 06 P06 | 75 min | 1 tasks | 3 files |
 | Phase 06 P06 | 90min | 1 tasks | 10 files |
+| Phase 06 P07 | ~50 min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -186,6 +187,7 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-06 Task 2 checkpoint resolved: built a new, purpose-built external-target stress driver (rsglang.parity.stress_client) instead of reusing/modifying stress_128.rs, which has no external-target mode and D-11 forbids changing
 - [Phase 06]: 06-06: rsglang.launch gains its own --abort-timing flag, forwarded to rsg-server via sockets.rust_cli_args -- 05-08-SUMMARY.md left this forwarding deliberately for Phase 6 to decide
 - [Phase 06]: 06-06: rsglang.testing.rust_frontend (new, Mac-only) wires a real rsg-server binary to a real mock-scheduler subprocess, forwarding the handshake stdout->stdin; the existing RSGLANG_SCHEDULER_FACTORY=FakeScheduler harness cannot drive real generations (its run_forever never answers UserMsg)
+- [Phase 06]: Reported Criterion 2 as a genuine FAIL (Qwen3-0.6B 127/128) rather than softening it; both mismatches bisected to prompt edge-08 with per-model hypotheses (max_tokens-cap off-by-one vs end-of-turn-token off-by-one)
 
 ### Pending Todos
 
@@ -213,6 +215,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T06:46:33.635Z
-Stopped at: Completed 06-06-PLAN.md (Task 2 checkpoint resolved and completed)
+Last session: 2026-10-07T20:17:38.210Z
+Stopped at: Completed 06-07-PLAN.md Task 2 (06-07-SUMMARY.md written); Task 2's human-check reply still outstanding
 Resume file: None

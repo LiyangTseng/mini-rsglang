@@ -217,7 +217,7 @@ Plans:
   3. Under concurrent load, the Rust-vs-Python output match rate is measured and reported. It is informational only, because GPU batch composition affects the results.
   4. The 128-request cancellation stress test also completes against the real backend without crashing or wedging the scheduler. The run records whether the suspected abort-during-prefill bug reproduces, which settles the abort-timing setting used in the benchmarks.
 
-**Plans:** 6/8 plans executed
+**Plans:** 7/8 plans executed
 
 Plans:
 
@@ -236,7 +236,7 @@ Plans:
 - [x] 06-06-PLAN.md — Human-run GPU wrapper `scripts/gpu_phase6_parity.sh` proven by a Mac dry run; defaults bound to Phase 5's delivered commands and checked against rsg-server + mock-scheduler (wave 4) — **HALTED: Task 2 blocked on an unmet precondition (Phase 5's stress tool has no way to target an already-running server); see 06-06-SUMMARY.md**
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 06-07-PLAN.md — GPU run (human) and the hand-written `docs/benchmarks/parity-report.md` tied to the JSON, with D-05 bisection and D-08 findings (wave 5)
+- [x] 06-07-PLAN.md — GPU run (human) and the hand-written `docs/benchmarks/parity-report.md` tied to the JSON, with D-05 bisection and D-08 findings (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 06-08-PLAN.md — D-09 triage by fix scope (shared fix with GPU re-run, or route around with deferred), abort-timing default for Phase 7 and PAR-01 disposition recorded (wave 6)
@@ -272,5 +272,5 @@ Plans:
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
 | 5. Request Lifecycle & HTTP API | 9/9 | Complete    | 2026-10-06 |
-| 6. GPU End-to-End Parity | 6/8 | In Progress|  |
+| 6. GPU End-to-End Parity | 7/8 | In Progress|  |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |
