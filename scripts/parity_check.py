@@ -28,7 +28,7 @@ from rsglang.profiling import procs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-_SUPPORTED_PARTS = ("sequential",)
+_SUPPORTED_PARTS = ("sequential", "concurrent")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -49,10 +49,17 @@ def _build_parser() -> argparse.ArgumentParser:
         "--parts",
         default="sequential",
         metavar="LIST",
-        help="Comma list; this plan accepts only 'sequential' (default: %(default)s)",
+        help="Comma list of sequential, concurrent (default: %(default)s)",
     )
     run.add_argument("--port", type=int, default=1919, metavar="PORT")
     run.add_argument("--timeout", type=float, default=900.0, metavar="SECONDS")
+    run.add_argument(
+        "--concurrency",
+        type=int,
+        default=128,
+        metavar="N",
+        help="In-flight request cap for the 'concurrent' part (default: %(default)s)",
+    )
     run.add_argument("--out", default=sidecar.CANONICAL_OUT, metavar="PATH")
     run.add_argument("--work-dir", default=None, metavar="DIR")
     run.add_argument(
@@ -77,15 +84,128 @@ def _slug(model: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in model).strip("-").lower()
 
 
+class _PortInUse(Exception):
+    def __init__(self, port: int):
+        self.port = port
+
+
+def _require_port_free(port: int) -> None:
+    if not sweep.port_free(port):
+        print(f"port {port} in use", file=sys.stderr)
+        raise _PortInUse(port)
+
+
+def _run_concurrent_part(
+    *,
+    gate_model: str,
+    items: "list",
+    concurrency: int,
+    python_argv: "list[str]",
+    rust_argv: "list[str]",
+    port: int,
+    timeout_s: float,
+    work_dir: Path,
+    slug: str,
+    gate_sides: "dict[str, dict]",
+) -> dict:
+    """Runs a fresh Python session, then a fresh Rust session, each sending
+    the whole corpus at `concurrency` at once, and joins each frontend's
+    results against that SAME frontend's own sequential sides for the gate
+    model (D-10)."""
+    _require_port_free(port)
+    try:
+        python_session = sweep.run_session(
+            f"conc-python-{slug}",
+            argv=python_argv,
+            port=port,
+            timeout_s=timeout_s,
+            work_dir=work_dir,
+            workload=lambda url: sweep.send_concurrent(url, gate_model, items, concurrency, timeout_s),
+        )
+    except (procs.ServerExited, TimeoutError) as exc:
+        print(f"concurrent {gate_model} python: {exc}", file=sys.stderr)
+        return {
+            "status": "failed",
+            "reason": str(exc),
+            "concurrency": concurrency,
+            "summary": None,
+            "prompts": [],
+        }
+
+    _require_port_free(port)
+    try:
+        rust_session = sweep.run_session(
+            f"conc-rust-{slug}",
+            argv=rust_argv,
+            port=port,
+            timeout_s=timeout_s,
+            work_dir=work_dir,
+            workload=lambda url: sweep.send_concurrent(url, gate_model, items, concurrency, timeout_s),
+        )
+    except (procs.ServerExited, TimeoutError) as exc:
+        print(f"concurrent {gate_model} rust: {exc}", file=sys.stderr)
+        return {
+            "status": "failed",
+            "reason": str(exc),
+            "concurrency": concurrency,
+            "summary": None,
+            "prompts": [],
+        }
+
+    python_seq_side = gate_sides["python"]
+    rust_seq_side = gate_sides["rust"]
+    python_expected = {pid: side["input_ids"] for pid, side in python_seq_side.items() if side.get("input_ids")}
+    rust_expected = {pid: side["input_ids"] for pid, side in rust_seq_side.items() if side.get("input_ids")}
+
+    python_conc_side, python_unmatched = sweep.join_by_input_ids(
+        items, python_session.value, python_session.tap, python_expected
+    )
+    rust_conc_side, rust_unmatched = sweep.join_by_input_ids(
+        items, rust_session.value, rust_session.tap, rust_expected
+    )
+
+    prompts = []
+    for item in items:
+        record = compare.compare_prompt(item, python_conc_side[item.id], rust_conc_side[item.id])
+        record["python_vs_sequential"] = compare.compare_prompt(
+            item, python_seq_side[item.id], python_conc_side[item.id]
+        )["match"]
+        record["rust_vs_sequential"] = compare.compare_prompt(
+            item, rust_seq_side[item.id], rust_conc_side[item.id]
+        )["match"]
+        prompts.append(record)
+
+    summary = compare.summarize(prompts)
+    summary["python_vs_sequential_matched"] = sum(1 for r in prompts if r["python_vs_sequential"])
+    summary["rust_vs_sequential_matched"] = sum(1 for r in prompts if r["rust_vs_sequential"])
+    summary["unmatched_tap"] = python_unmatched + rust_unmatched
+
+    return {
+        "status": "ok",
+        "reason": None,
+        "concurrency": concurrency,
+        "summary": summary,
+        "prompts": prompts,
+    }
+
+
 def cmd_run(ns: argparse.Namespace) -> int:
     parts = [p.strip() for p in ns.parts.split(",") if p.strip()]
     for part in parts:
         if part not in _SUPPORTED_PARTS:
             print(
-                f"unsupported --parts value {part!r}; this plan accepts only 'sequential'",
+                f"unsupported --parts value {part!r}; expected a comma list from {_SUPPORTED_PARTS}",
                 file=sys.stderr,
             )
             return 2
+
+    if "concurrent" in parts and "sequential" not in parts:
+        print("concurrent needs sequential in the same run", file=sys.stderr)
+        return 2
+
+    if ns.concurrency < 1:
+        print(f"--concurrency must be >= 1, got {ns.concurrency}", file=sys.stderr)
+        return 2
 
     models = [m.strip() for m in ns.models.split(",") if m.strip()]
     if not models:
@@ -104,63 +224,121 @@ def cmd_run(ns: argparse.Namespace) -> int:
     work_dir.mkdir(parents=True, exist_ok=True)
 
     sequential_out: dict = {}
+    concurrent_out: "dict | None" = None
     any_failure = False
+    warnings: "list[str]" = []
+    gate_sides: "dict[str, dict] | None" = None
+    effective_concurrency: "int | None" = None
 
-    for model in models:
-        slug = _slug(model)
-        python_argv = procs.server_argv(
-            ns.python_server_cmd, python=sys.executable, model=model, port=ns.port
-        )
-        rust_argv = procs.server_argv(
-            ns.rust_server_cmd, python=sys.executable, model=model, port=ns.port
-        )
+    try:
+        for model in models:
+            slug = _slug(model)
+            python_argv = procs.server_argv(
+                ns.python_server_cmd, python=sys.executable, model=model, port=ns.port
+            )
+            rust_argv = procs.server_argv(
+                ns.rust_server_cmd, python=sys.executable, model=model, port=ns.port
+            )
 
-        try:
-            python_session = sweep.run_session(
-                f"seq-python-{slug}",
-                argv=python_argv,
-                port=ns.port,
-                timeout_s=ns.timeout,
-                work_dir=work_dir,
-                workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
-            )
-            rust_session = sweep.run_session(
-                f"seq-rust-{slug}",
-                argv=rust_argv,
-                port=ns.port,
-                timeout_s=ns.timeout,
-                work_dir=work_dir,
-                workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
-            )
-        except (procs.ServerExited, TimeoutError) as exc:
-            print(f"{model}: {exc}", file=sys.stderr)
+            try:
+                _require_port_free(ns.port)
+                python_session = sweep.run_session(
+                    f"seq-python-{slug}",
+                    argv=python_argv,
+                    port=ns.port,
+                    timeout_s=ns.timeout,
+                    work_dir=work_dir,
+                    workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
+                )
+                _require_port_free(ns.port)
+                rust_session = sweep.run_session(
+                    f"seq-rust-{slug}",
+                    argv=rust_argv,
+                    port=ns.port,
+                    timeout_s=ns.timeout,
+                    work_dir=work_dir,
+                    workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
+                )
+            except (procs.ServerExited, TimeoutError) as exc:
+                print(f"{model}: {exc}", file=sys.stderr)
+                sequential_out[model] = {
+                    "status": "failed",
+                    "reason": str(exc),
+                    "summary": None,
+                    "prompts": [],
+                }
+                any_failure = True
+                continue
+
+            python_side = sweep.join_sequential(items, python_session.value, python_session.tap)
+            rust_side = sweep.join_sequential(items, rust_session.value, rust_session.tap)
+
+            records = [
+                compare.compare_prompt(item, python_side[item.id], rust_side[item.id]) for item in items
+            ]
+            summary = compare.summarize(records)
             sequential_out[model] = {
-                "status": "failed",
-                "reason": str(exc),
-                "summary": None,
-                "prompts": [],
+                "status": "ok",
+                "reason": None,
+                "summary": summary,
+                "prompts": records,
             }
-            any_failure = True
-            continue
 
-        python_side = sweep.join_sequential(items, python_session.value, python_session.tap)
-        rust_side = sweep.join_sequential(items, rust_session.value, rust_session.tap)
+            matched, n = summary["matched"], summary["n"]
+            print(f"sequential {model}: {matched}/{n} identical")
+            if matched < n:
+                any_failure = True
+            if model == gate_model:
+                gate_sides = {"python": python_side, "rust": rust_side}
 
-        records = [
-            compare.compare_prompt(item, python_side[item.id], rust_side[item.id]) for item in items
-        ]
-        summary = compare.summarize(records)
-        sequential_out[model] = {
-            "status": "ok",
-            "reason": None,
-            "summary": summary,
-            "prompts": records,
-        }
+        if "concurrent" in parts:
+            effective_concurrency = min(ns.concurrency, len(items)) if items else ns.concurrency
+            if effective_concurrency < ns.concurrency:
+                warnings.append(
+                    f"concurrency {ns.concurrency} clamped to {effective_concurrency} (corpus size)"
+                )
 
-        matched, n = summary["matched"], summary["n"]
-        print(f"sequential {model}: {matched}/{n} identical")
-        if matched < n:
-            any_failure = True
+            if gate_sides is None:
+                concurrent_out = {
+                    gate_model: {
+                        "status": "failed",
+                        "reason": "gate model sequential failed; concurrent skipped",
+                        "concurrency": effective_concurrency,
+                        "summary": None,
+                        "prompts": [],
+                    }
+                }
+                any_failure = True
+            else:
+                slug = _slug(gate_model)
+                python_argv = procs.server_argv(
+                    ns.python_server_cmd, python=sys.executable, model=gate_model, port=ns.port
+                )
+                rust_argv = procs.server_argv(
+                    ns.rust_server_cmd, python=sys.executable, model=gate_model, port=ns.port
+                )
+                conc_block = _run_concurrent_part(
+                    gate_model=gate_model,
+                    items=items,
+                    concurrency=effective_concurrency,
+                    python_argv=python_argv,
+                    rust_argv=rust_argv,
+                    port=ns.port,
+                    timeout_s=ns.timeout,
+                    work_dir=work_dir,
+                    slug=slug,
+                    gate_sides=gate_sides,
+                )
+                concurrent_out = {gate_model: conc_block}
+                if conc_block["status"] == "failed":
+                    any_failure = True
+                s = conc_block.get("summary") or {}
+                print(
+                    f"concurrent {gate_model} @{conc_block['concurrency']}: "
+                    f"{s.get('matched')}/{s.get('n')} identical (informational)"
+                )
+    except _PortInUse:
+        return 2
 
     doc = {
         "schema_version": sidecar.SCHEMA_VERSION,
@@ -172,13 +350,13 @@ def cmd_run(ns: argparse.Namespace) -> int:
             corpus_path=str(ns.corpus),
             corpus_sha256=corpus.corpus_sha256(Path(ns.corpus)),
             corpus_n=len(items),
-            concurrency=None,
+            concurrency=effective_concurrency,
         ),
         "endpoints": None,
         "sequential": sequential_out,
-        "concurrent": None,
+        "concurrent": concurrent_out,
         "abort_stress": None,
-        "warnings": [],
+        "warnings": warnings,
     }
 
     out_path = Path(ns.out)

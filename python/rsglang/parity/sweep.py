@@ -12,9 +12,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import socket
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Sequence
+from typing import Any, Awaitable, Callable, Mapping, Sequence
 
 import aiohttp
 
@@ -78,6 +79,33 @@ def run_session(
     )
 
 
+def _build_payload(model: str, item: Any) -> "dict[str, Any]":
+    payload: "dict[str, Any]" = {
+        "model": model,
+        "temperature": 0.0,
+        "top_k": -1,
+        "top_p": 1.0,
+        "max_tokens": item.max_tokens,
+        "stream": False,
+    }
+    if item.kind == "chat":
+        payload["messages"] = item.messages
+    else:
+        payload["prompt"] = item.prompt
+    return payload
+
+
+def port_free(port: int) -> bool:
+    """True iff 127.0.0.1:port can be bound right now (T-06-09)."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
 async def send_sequential(
     base_url: str, model: str, items: "Sequence[Any]", timeout_s: float
 ) -> "list[HttpResult]":
@@ -87,18 +115,7 @@ async def send_sequential(
     timeout = aiohttp.ClientTimeout(total=timeout_s)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         for item in items:
-            payload: "dict[str, Any]" = {
-                "model": model,
-                "temperature": 0.0,
-                "top_k": -1,
-                "top_p": 1.0,
-                "max_tokens": item.max_tokens,
-                "stream": False,
-            }
-            if item.kind == "chat":
-                payload["messages"] = item.messages
-            else:
-                payload["prompt"] = item.prompt
+            payload = _build_payload(model, item)
 
             try:
                 async with session.post(f"{base_url}/v1/chat/completions", json=payload) as resp:
@@ -195,3 +212,120 @@ def join_sequential(
                 "text": http_result.text,
             }
     return result
+
+
+async def send_concurrent(
+    base_url: str, model: str, items: "Sequence[Any]", concurrency: int, timeout_s: float
+) -> "list[HttpResult]":
+    """POST every item at once, bounded to `concurrency` requests in flight by
+    both the connector's limit and an explicit semaphore. Results come back
+    in item order -- asyncio.gather preserves the order of its awaitables
+    regardless of completion order (PAR-02, D-10)."""
+    timeout = aiohttp.ClientTimeout(total=timeout_s)
+    connector = aiohttp.TCPConnector(limit=concurrency)
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def _one(session: aiohttp.ClientSession, item: Any) -> HttpResult:
+        payload = _build_payload(model, item)
+        async with semaphore:
+            try:
+                async with session.post(f"{base_url}/v1/chat/completions", json=payload) as resp:
+                    body_text = await resp.text()
+                    if resp.status != 200:
+                        return HttpResult(
+                            item.id, "error", f"HTTP {resp.status}: {body_text[:200]}", None
+                        )
+                    try:
+                        body = json.loads(body_text)
+                        text = body["choices"][0]["message"]["content"]
+                    except (json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
+                        return HttpResult(item.id, "error", f"malformed body: {exc}", None)
+                    return HttpResult(item.id, resp.status, None, text)
+            except asyncio.TimeoutError:
+                return HttpResult(item.id, "error", "timeout", None)
+            except aiohttp.ClientError as exc:
+                return HttpResult(item.id, "error", str(exc), None)
+
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+        results = await asyncio.gather(*(_one(session, item) for item in items))
+    return list(results)
+
+
+def join_by_input_ids(
+    items: "Sequence[Any]",
+    http_results: "Sequence[HttpResult]",
+    tap_records: tap.TapRecords,
+    expected_input_ids: "Mapping[str, list]",
+) -> "tuple[dict[str, dict], int]":
+    """Join user tap records to corpus prompts by matching input_ids against
+    expected_input_ids -- built from the SAME frontend's own sequential sides
+    for the gate model, never cross-frontend. Unlike join_sequential, this
+    makes no ordering assumption between the tap and the HTTP results: under
+    concurrent load requests can be serviced in any order.
+
+    Returns (sides, unmatched_tap). A user record whose input_ids match no
+    expected prompt increments unmatched_tap instead of being silently
+    dropped. A prompt with no matching user record gets status error
+    "no tap user record".
+    """
+    ids_to_prompt: "dict[tuple, str]" = {}
+    for prompt_id, ids in expected_input_ids.items():
+        key = tuple(ids)
+        if key in ids_to_prompt:
+            raise ValueError(f"ambiguous input_ids for prompts {ids_to_prompt[key]}, {prompt_id}")
+        ids_to_prompt[key] = prompt_id
+
+    user_records = [r for r in tap_records.records if r["kind"] == tap.KIND_USER]
+    detok_records = [r for r in tap_records.records if r["kind"] == tap.KIND_DETOK]
+
+    detok_by_uid: "dict[int, list[dict]]" = {}
+    for r in detok_records:
+        detok_by_uid.setdefault(r["uid"], []).append(r)
+    for recs in detok_by_uid.values():
+        recs.sort(key=lambda r: r["seq"])
+
+    http_by_id = {r.prompt_id: r for r in http_results}
+
+    sides_by_prompt: "dict[str, dict]" = {}
+    unmatched_tap = 0
+    for user_record in user_records:
+        key = tuple(user_record["input_ids"])
+        prompt_id = ids_to_prompt.get(key)
+        if prompt_id is None:
+            unmatched_tap += 1
+            continue
+
+        uid = user_record["uid"]
+        detoks = detok_by_uid.get(uid, [])
+        output_ids = [d["next_token"] for d in detoks]
+        finished = any(d.get("finished") for d in detoks)
+
+        http_result = http_by_id.get(prompt_id)
+        if http_result is None or http_result.status == "error":
+            sides_by_prompt[prompt_id] = {
+                "status": "error",
+                "error": http_result.error if http_result is not None else "no http result",
+                "uid": uid,
+                "input_ids": user_record["input_ids"],
+                "sampling": user_record["sampling"],
+                "output_ids": output_ids,
+                "finished": finished,
+                "text": None,
+            }
+        else:
+            sides_by_prompt[prompt_id] = {
+                "status": "ok",
+                "error": None,
+                "uid": uid,
+                "input_ids": user_record["input_ids"],
+                "sampling": user_record["sampling"],
+                "output_ids": output_ids,
+                "finished": finished,
+                "text": http_result.text,
+            }
+
+    result: "dict[str, dict]" = {}
+    for item in items:
+        result[item.id] = sides_by_prompt.get(item.id) or _error_side("no tap user record")
+
+    return result, unmatched_tap

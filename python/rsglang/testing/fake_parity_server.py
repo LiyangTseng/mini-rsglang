@@ -63,6 +63,9 @@ _tap_writer = _TapWriter()
 _uid_lock = threading.Lock()
 _uid_counter = 0
 
+_in_flight_lock = threading.Lock()
+_in_flight = 0
+
 
 def _next_uid() -> int:
     global _uid_counter
@@ -70,6 +73,30 @@ def _next_uid() -> int:
         uid = _uid_counter
         _uid_counter += 1
         return uid
+
+
+def _enter_in_flight() -> int:
+    """Increments the in-flight counter and returns the count *before* this
+    request was added, so --diverge-under-load can compare against the
+    caller-specified threshold."""
+    global _in_flight
+    with _in_flight_lock:
+        before = _in_flight
+        _in_flight += 1
+        return before
+
+
+def _exit_in_flight() -> None:
+    global _in_flight
+    with _in_flight_lock:
+        _in_flight -= 1
+
+
+def _token_delay_s() -> float:
+    try:
+        return float(os.environ.get("RSGLANG_FAKE_PARITY_TOKEN_DELAY_S", "0.002"))
+    except ValueError:
+        return 0.002
 
 
 def _render_prompt(payload: dict) -> str:
@@ -98,7 +125,12 @@ def _deterministic_output(
     return input_ids, output_ids, text
 
 
-def _make_handler(model_id: str, diverge_when: "str | None", diverge_output_at: "int | None"):
+def _make_handler(
+    model_id: str,
+    diverge_when: "str | None",
+    diverge_output_at: "int | None",
+    diverge_under_load: "int | None" = None,
+):
     class Handler(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
 
@@ -144,38 +176,65 @@ def _make_handler(model_id: str, diverge_when: "str | None", diverge_output_at: 
             }
 
             rendered = _render_prompt(payload)
-            input_ids, output_ids, text = _deterministic_output(
-                rendered,
-                max_tokens,
-                diverge_when=diverge_when,
-                diverge_output_at=diverge_output_at,
-            )
 
-            uid = _next_uid()
-            _tap_writer.write(tap.KIND_USER, uid=uid, input_ids=input_ids, sampling=sampling)
-            for k, token in enumerate(output_ids):
-                finished = k == len(output_ids) - 1
-                _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
+            in_flight_before = _enter_in_flight()
+            try:
+                input_ids, output_ids, text = _deterministic_output(
+                    rendered,
+                    max_tokens,
+                    diverge_when=diverge_when,
+                    diverge_output_at=diverge_output_at,
+                )
+                if diverge_under_load is not None and in_flight_before >= diverge_under_load:
+                    output_ids = list(output_ids)
+                    output_ids[0] += 1
+                    text = "".join(chr(0x61 + (i % 26)) for i in output_ids)
 
-            self._send_json(
-                200,
-                {
-                    "id": f"chatcmpl-{uid}",
-                    "object": "chat.completion",
-                    "created": int(time.time()),
-                    "model": model_id,
-                    "choices": [
-                        {
-                            "index": 0,
-                            "message": {"role": "assistant", "content": text},
-                            "finish_reason": "stop",
-                        }
-                    ],
-                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                },
-            )
+                uid = _next_uid()
+                _tap_writer.write(tap.KIND_USER, uid=uid, input_ids=input_ids, sampling=sampling)
+
+                delay = _token_delay_s()
+                for k, token in enumerate(output_ids):
+                    if delay:
+                        time.sleep(delay)
+                    finished = k == len(output_ids) - 1
+                    _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
+
+                self._send_json(
+                    200,
+                    {
+                        "id": f"chatcmpl-{uid}",
+                        "object": "chat.completion",
+                        "created": int(time.time()),
+                        "model": model_id,
+                        "choices": [
+                            {
+                                "index": 0,
+                                "message": {"role": "assistant", "content": text},
+                                "finish_reason": "stop",
+                            }
+                        ],
+                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                    },
+                )
+            finally:
+                _exit_in_flight()
 
     return Handler
+
+
+class _Server(http.server.ThreadingHTTPServer):
+    """ThreadingHTTPServer's default request_queue_size (5, from
+    socketserver.BaseServer) is smaller than PAR-02's 128-wide concurrent
+    sweep; under real concurrent load the OS silently drops/refuses the
+    overflow, so a handful of requests never reach do_POST and their tap
+    user records never get written -- producing spurious "no tap user
+    record" joins unrelated to the frontends being compared. A generous
+    fixed backlog (well above any --concurrency this phase uses) avoids
+    that entirely."""
+
+    request_queue_size = 256
+    daemon_threads = True
 
 
 def _build_server_parser() -> argparse.ArgumentParser:
@@ -184,6 +243,7 @@ def _build_server_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", required=True)
     parser.add_argument("--diverge-when", default=None)
     parser.add_argument("--diverge-output-at", type=int, default=None)
+    parser.add_argument("--diverge-under-load", type=int, default=None)
     return parser
 
 
@@ -200,8 +260,8 @@ def _cmd_server(argv: Sequence[str]) -> int:
         ],
     )
 
-    handler_cls = _make_handler(ns.model, ns.diverge_when, ns.diverge_output_at)
-    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", ns.port), handler_cls)
+    handler_cls = _make_handler(ns.model, ns.diverge_when, ns.diverge_output_at, ns.diverge_under_load)
+    httpd = _Server(("127.0.0.1", ns.port), handler_cls)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

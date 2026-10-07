@@ -55,6 +55,22 @@ def _write_corpus(path: Path) -> None:
     path.write_text(json.dumps(doc), encoding="utf-8")
 
 
+def _write_concurrent_corpus(path: Path, n: int = 8) -> None:
+    items = []
+    for i in range(n):
+        items.append(
+            {
+                "id": f"item-{i}",
+                "category": "short",
+                "kind": "raw",
+                "prompt": f"distinct concurrent prompt marker number {i}",
+                "max_tokens": 4,
+                "source": "test",
+            }
+        )
+    path.write_text(json.dumps({"schema_version": 1, "items": items}), encoding="utf-8")
+
+
 def _run_parity_check(args: list, timeout: int = 120) -> "subprocess.CompletedProcess[str]":
     return subprocess.run(
         [sys.executable, "scripts/parity_check.py", *args],
@@ -212,3 +228,151 @@ def test_validate_cli(tmp_path):
 
     result = _run_parity_check(["validate", str(bad_path)])
     assert result.returncode == 1
+
+
+@pytest.mark.slow
+def test_concurrent_tracer(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_concurrent_corpus(corpus_path, n=8)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential,concurrent",
+            "--concurrency", "8",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert "(informational)" in result.stdout
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_sidecar(doc) == []
+
+    block = doc["concurrent"]["fake/model"]
+    assert block["status"] == "ok"
+    assert block["concurrency"] == 8
+    summary = block["summary"]
+    assert summary["n"] == 8
+    assert summary["matched"] == 8
+    assert summary["python_vs_sequential_matched"] == 8
+    assert summary["rust_vs_sequential_matched"] == 8
+    assert summary["unmatched_tap"] == 0
+
+    # Same corpus/concurrency, but --diverge-under-load 4 on the Rust cmd only.
+    python_cmd = server_cmd
+    rust_cmd = server_cmd + " --diverge-under-load 4"
+    out_path2 = tmp_path / "out2.json"
+    work_dir2 = tmp_path / "w2"
+    port2 = _free_port()
+
+    result2 = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential,concurrent",
+            "--concurrency", "8",
+            "--port", str(port2),
+            "--out", str(out_path2),
+            "--work-dir", str(work_dir2),
+            "--python-server-cmd", python_cmd,
+            "--rust-server-cmd", rust_cmd,
+        ]
+    )
+    assert result2.returncode == 0, f"stdout={result2.stdout!r} stderr={result2.stderr!r}"
+    assert "(informational)" in result2.stdout
+
+    doc2 = json.loads(out_path2.read_text())
+    assert sidecar.validate_sidecar(doc2) == []
+
+    seq_block2 = doc2["sequential"]["fake/model"]
+    assert seq_block2["summary"]["matched"] == 8
+
+    conc_block2 = doc2["concurrent"]["fake/model"]
+    summary2 = conc_block2["summary"]
+    assert summary2["matched"] < 8
+    assert summary2["rust_vs_sequential_matched"] < 8
+    assert summary2["python_vs_sequential_matched"] == 8
+
+
+def test_concurrent_requires_sequential(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_concurrent_corpus(corpus_path, n=8)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "concurrent",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 2
+    assert "concurrent needs sequential" in result.stderr
+
+
+@pytest.mark.slow
+def test_concurrency_bounds(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_concurrent_corpus(corpus_path, n=8)
+    port = _free_port()
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    zero_result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential,concurrent",
+            "--concurrency", "0",
+            "--port", str(port),
+            "--out", str(work_dir / "zero.json"),
+            "--work-dir", str(work_dir / "zero"),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert zero_result.returncode == 2
+
+    out_path = work_dir / "clamped.json"
+    clamp_result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential,concurrent",
+            "--concurrency", "50",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir / "clamp"),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert clamp_result.returncode == 0, f"stdout={clamp_result.stdout!r} stderr={clamp_result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert doc["concurrent"]["fake/model"]["concurrency"] == 8
+    assert any("clamped" in w for w in doc["warnings"])

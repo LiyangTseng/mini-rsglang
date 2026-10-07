@@ -65,6 +65,13 @@ _RECORD_KEYS = (
 
 _BLOCK_STATUSES = ("ok", "unavailable", "failed")
 
+_CONCURRENT_RECORD_EXTRA_KEYS = ("python_vs_sequential", "rust_vs_sequential")
+_CONCURRENT_SUMMARY_EXTRA_KEYS = (
+    "python_vs_sequential_matched",
+    "rust_vs_sequential_matched",
+    "unmatched_tap",
+)
+
 
 class SidecarError(ValueError):
     """Raised by write_sidecar() when validate_sidecar() returns any problems."""
@@ -142,6 +149,67 @@ def _validate_record(record: Any, path: str, errors: "list[str]") -> None:
             errors.append(f"{path}.divergence.layer: must be one of {compare.LAYERS}")
 
 
+def _is_plain_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _validate_concurrent_record(record: Any, path: str, errors: "list[str]") -> None:
+    _validate_record(record, path, errors)
+    if not isinstance(record, dict):
+        return
+    for key in _CONCURRENT_RECORD_EXTRA_KEYS:
+        if key not in record:
+            errors.append(f"{path}: missing key {key!r}")
+        elif not isinstance(record[key], bool):
+            errors.append(f"{path}.{key}: must be a bool")
+
+
+def _validate_concurrent_block(block: Any, path: str, errors: "list[str]") -> None:
+    if not isinstance(block, dict):
+        errors.append(f"{path}: must be an object")
+        return
+
+    status = block.get("status")
+    if status not in _BLOCK_STATUSES:
+        errors.append(f"{path}.status: must be one of {_BLOCK_STATUSES}, got {status!r}")
+
+    reason = block.get("reason")
+    if reason is not None and not isinstance(reason, str):
+        errors.append(f"{path}.reason: must be a string or null")
+
+    concurrency = block.get("concurrency")
+    if not (_is_plain_int(concurrency) and concurrency >= 1):
+        errors.append(f"{path}.concurrency: must be an int >= 1, got {concurrency!r}")
+
+    prompts = block.get("prompts")
+    if not isinstance(prompts, list):
+        errors.append(f"{path}.prompts: must be a list")
+        prompts = []
+    else:
+        for i, record in enumerate(prompts):
+            _validate_concurrent_record(record, f"{path}.prompts[{i}]", errors)
+
+    summary = block.get("summary")
+    if summary is not None:
+        if not isinstance(summary, dict):
+            errors.append(f"{path}.summary: must be an object or null")
+        else:
+            if summary.get("n") != len(prompts):
+                errors.append(f"{path}.summary.n: must equal len(prompts)")
+            matched_count = sum(
+                1 for r in prompts if isinstance(r, dict) and r.get("match") is True
+            )
+            if summary.get("matched") != matched_count:
+                errors.append(
+                    f"{path}.summary.matched: must equal the number of prompts with match true"
+                )
+            for key in _CONCURRENT_SUMMARY_EXTRA_KEYS:
+                if key not in summary:
+                    errors.append(f"{path}.summary.{key}: missing")
+                elif not _is_plain_int(summary[key]):
+                    errors.append(f"{path}.summary.{key}: must be an int")
+
+
 def _validate_block(block: Any, path: str, errors: "list[str]") -> None:
     if not isinstance(block, dict):
         errors.append(f"{path}: must be an object")
@@ -198,6 +266,14 @@ def validate_sidecar(doc: Any, *, require_gpu: bool = False) -> "list[str]":
         else:
             for model, block in sequential.items():
                 _validate_block(block, f"sequential[{model!r}]", errors)
+
+    concurrent = doc.get("concurrent")
+    if concurrent is not None:
+        if not isinstance(concurrent, dict):
+            errors.append("concurrent: must be an object")
+        else:
+            for model, block in concurrent.items():
+                _validate_concurrent_block(block, f"concurrent[{model!r}]", errors)
 
     if require_gpu:
         meta = doc.get("meta")
