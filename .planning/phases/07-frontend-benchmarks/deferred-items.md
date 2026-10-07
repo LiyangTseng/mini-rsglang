@@ -32,3 +32,54 @@ passed cleanly, including 07-10's new `mock_stack` tests.
 
 Status: deferred, not fixed by 07-10 (out of scope: neither file nor the
 scripts they test were touched by this plan).
+
+**Resolved by 07-10 Task 3** (WINDOWS.md entry 4, marked `fixed`): both
+tests' PATH composition was the actual bug -- each prepended its stub
+`bin_dir` but kept the rest of `os.environ["PATH"]`, so a real `hyperfine`
+elsewhere on PATH (not in the stub dir) was still found by `shutil.which`/
+`command -v` after the stub was removed, and the "missing" branch they
+meant to simulate never fired. Fixed by excluding, in each PATH, any
+directory other than the test's own stub `bin_dir` that itself contains a
+real `hyperfine` binary. `.venv/bin/python -m pytest python/tests -q`
+passed in full (197 passed, 37 skipped, 0 failed) after this fix plus a
+`scripts/bootstrap_mac_env.sh` rerun (this worktree's `.venv` predated
+Phase 5 landing via the reconcile and was missing fastapi/uvicorn, needed
+by two unrelated Phase 5 tests to spawn the real upstream Python frontend
+-- a venv-sync, not a code change).
+
+## 2026-10-07 -- 07-10, running `cargo test --workspace` as part of `check_all.sh --offline`
+
+`cargo test -p rsg-tokenizer --lib` is intermittently flaky:
+`loader::tests::gated_access_unavailable_with_blank_token_file` sometimes
+panics with "expected GatedAccessUnavailable, got Ok(_)" under the
+workspace-wide run, but passes reliably when run alone
+(`-- --exact`). Confirmed non-deterministic by re-running
+`cargo test -p rsg-tokenizer --lib` three times in a row: 1 failed, 2
+passed, no code change between runs.
+
+Root cause: `loader.rs`'s test-only `EnvGuard` mutates process-global
+`HF_TOKEN`/`HF_TOKEN_PATH`/`HF_HOME`/`HF_HUB_DISABLE_IMPLICIT_TOKEN` env
+vars with no cross-test mutex, and Rust's default test runner executes
+multiple `#[test]` functions in the same binary concurrently across
+threads -- two EnvGuard-using tests (`gated_access_unavailable_with_blank_
+token_file` and `gated_access_unavailable_when_implicit_token_disabled`)
+can interleave their save/mutate/restore cycles. This is a pre-existing,
+already-documented Phase 4 limitation, not introduced by 07-10:
+`crates/rsg-server/src/hf_codec.rs`'s own comment already notes
+rsg-tokenizer's test suite "requires --test-threads=1 to be
+deterministic" for an identical category of race Phase 4 found and
+deferred.
+
+**Resolved by 07-10 Task 3** (WINDOWS.md entry 5, marked `fixed`):
+re-running `cargo test --workspace` unchanged did not reliably pass --
+two re-runs under full workspace load both reproduced the failure
+deterministically, ruling out "just retry" as a viable path. Rule 1
+(race condition) applies: fixed surgically inside
+`crates/rsg-tokenizer/src/loader.rs`'s own test module with a `static
+Mutex<()>` held for each `EnvGuard`'s full lifetime, serializing the
+save/mutate/run/restore cycle across the binary's parallel test
+threads -- narrower than forcing `--test-threads=1` on
+`scripts/check_all.sh`'s shared `cargo test --workspace` step, which
+would have slowed every future phase's test gate to fix a bug local to
+one test module. Verified with 6 repeated `cargo test -p rsg-tokenizer
+--lib` runs, all green.
