@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: GPU End-to-End Parity
 status: executing
-stopped_at: Halted at 06-06-PLAN.md Task 2 (unmet precondition; Task 1 complete)
-last_updated: "2026-10-07T05:58:54.902Z"
+stopped_at: Completed 06-06-PLAN.md (Task 2 checkpoint resolved and completed)
+last_updated: "2026-10-07T06:46:33.718Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 06 execution started; Phase 05 merged in from origin/main
-state_head: 295ab9de9c1dd97c59c2d0a942add45ab6b99d61
+state_head: ea0ab188d52be1c8384c729d3f81e093700c5cce
 progress:
   total_phases: 7
   completed_phases: 5
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 ## Current Position
 
 Phase: 06 (GPU End-to-End Parity) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-10-07 — Phase 05 merged in from origin/main; Phase 06 execution continuing
 
@@ -95,6 +95,7 @@ Progress: [███████░░░] 71%
 | Phase 06 P04 | 75min | 3 tasks | 5 files |
 | Phase 06 P05 | 20min | 3 tasks | 8 files |
 | Phase 06 P06 | 75 min | 1 tasks | 3 files |
+| Phase 06 P06 | 90min | 1 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -182,6 +183,9 @@ Recent decisions affecting current work:
 - [Phase 05]: engine.rs builds the per-request IncrementalDecoder (clones the real tokenizer) before register/submit, not after -- doing it after let a zero-decode-delay backend overflow the per-uid broadcast buffer (capacity 16, drop-oldest) before the decode loop's first recv(), deterministically dropping tokens on any response over 16 tokens
 - [Phase 05]: crates/rsg-server/tests/api_parity.rs replays all 18 fixtures/api cases against the real rsg-server binary on mock-scheduler, byte-diffing status/content-type/body (created normalized) -- API-01 is now proven end to end on the Mac; scripts/check_all.sh gained a 7th step (API fixture freshness) keeping the gate honest about both frontends
 - [Phase 06]: 06-06: Task 1 (GPU wrapper tracer) complete and committed; Task 2 halted -- Phase 5's stress_128.rs has no way to target an already-running server, and D-11 forbids changing it in this phase. Plan marked status: halted, blocking 06-07/06-08 until a human/re-plan decision resolves the gap.
+- [Phase 06]: 06-06 Task 2 checkpoint resolved: built a new, purpose-built external-target stress driver (rsglang.parity.stress_client) instead of reusing/modifying stress_128.rs, which has no external-target mode and D-11 forbids changing
+- [Phase 06]: 06-06: rsglang.launch gains its own --abort-timing flag, forwarded to rsg-server via sockets.rust_cli_args -- 05-08-SUMMARY.md left this forwarding deliberately for Phase 6 to decide
+- [Phase 06]: 06-06: rsglang.testing.rust_frontend (new, Mac-only) wires a real rsg-server binary to a real mock-scheduler subprocess, forwarding the handshake stdout->stdin; the existing RSGLANG_SCHEDULER_FACTORY=FakeScheduler harness cannot drive real generations (its run_forever never answers UserMsg)
 
 ### Pending Todos
 
@@ -192,7 +196,6 @@ None yet.
 - [Phase 6]: The upstream abort-during-prefill double free comes from code reading only. If it reproduces, the abort-timing setting (LIFE-05) must apply equally to the baseline.
 - [Phase 4, pre-existing tech debt]: `cargo test -p rsg-tokenizer`'s `loader::tests::gated_access_unavailable_*` tests race under default parallel test threads (global env-var mutation between concurrently-run tests in that crate); deterministic on this machine. `scripts/check_all.sh --offline` does not pin `--test-threads=1` internally, so it can fail on this specific crate even when nothing in the phase under test is actually broken — confirm with `cargo test -p rsg-tokenizer --lib -- --test-threads=1` before trusting a `check_all.sh` red on this crate. Logged to `.planning/phases/04-tokenizer-detokenizer-parity/deferred-items.md`; not yet fixed.
 - [Phase 5, code review WR-01, open]: `drive_request`'s `IncrementalDecoder` construction (full tokenizer vocab/merge clone) runs synchronously on the async driver task with no `.await` — can starve other concurrent requests' token streams under load. Worth a look before Phase 7's benchmark numbers are trusted at high concurrency; see `05-REVIEW.md`/`05-REVIEW-DISPOSITION.md`.
-- 06-06 Task 2 halted: Phase 5's 128-agent stress test (crates/rsg-server/tests/stress_128.rs) is a cargo test that spawns its own in-process mock-scheduler/server and asserts against in-process state (engine registry, mock observation log); it has no CLI/base-URL way to target an already-running server, and D-11 forbids changing the tool in this phase. Blocks 06-07/06-08 until resolved by re-plan/human decision. See 06-06-SUMMARY.md Checkpoint section.
 
 ### Quick Tasks Completed
 
@@ -210,6 +213,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T05:58:54.844Z
-Stopped at: Halted at 06-06-PLAN.md Task 2 (unmet precondition; Task 1 complete)
+Last session: 2026-10-07T06:46:33.635Z
+Stopped at: Completed 06-06-PLAN.md (Task 2 checkpoint resolved and completed)
 Resume file: None
