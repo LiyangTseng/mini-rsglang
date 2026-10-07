@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # Phase gate (D-14): Rust tests, Python tests, fixture freshness, tokenizer fixture freshness,
-# the WIRE-02 decode check and the vendored-tree check, stopping at the first failure. Fixture
-# freshness (step 3) and tokenizer fixture freshness (step 4) run alongside the vendored-tree
-# check (step 6), so a vendored-code change cannot silently stale either fixture set.
+# API fixture freshness, the WIRE-02 decode check and the vendored-tree check, stopping at the
+# first failure. Fixture freshness (step 3), tokenizer fixture freshness (step 4) and API
+# fixture freshness (step 5) run alongside the vendored-tree check (step 7), so a vendored-code
+# change cannot silently stale any of the three fixture sets.
+#
+# Step 1 (cargo test --workspace) also runs rsg-server's own API-01 parity test
+# (crates/rsg-server/tests/api_parity.rs, plan 05-09), which replays fixtures/api/manifest.json
+# against the real rsg-server binary and needs the Qwen/Qwen3-0.6B tokenizer available in the
+# local Hugging Face cache (no network required once cached).
 #
 # Usage: scripts/check_all.sh [--offline]   (--offline is passed to check_upstream.py)
 set -euo pipefail
@@ -17,7 +23,7 @@ for arg in "$@"; do
   esac
 done
 
-step() { echo; echo "=== check_all [$1/6] $2 ==="; }
+step() { echo; echo "=== check_all [$1/7] $2 ==="; }
 
 # crates/rsg-server/tests/stress_128.rs needs more open files than macOS's
 # default soft limit of 256 (128 client sockets, 128 server sockets, plus
@@ -39,9 +45,11 @@ step 3 "fixture freshness (gen_wire_fixtures.py --check)"
 "$PYTHON" scripts/gen_wire_fixtures.py --check
 step 4 "tokenizer fixture freshness (gen_tokenizer_fixtures.py --check)"
 "$PYTHON" scripts/gen_tokenizer_fixtures.py --check
-step 5 "WIRE-02 decode (check_wire_decode.sh)"
+step 5 "API fixture freshness (gen_api_fixtures.py --check)"
+"$PYTHON" scripts/gen_api_fixtures.py --check
+step 6 "WIRE-02 decode (check_wire_decode.sh)"
 bash scripts/check_wire_decode.sh
-step 6 "vendored tree (check_upstream.py${UPSTREAM_ARGS[*]:+ ${UPSTREAM_ARGS[*]}})"
+step 7 "vendored tree (check_upstream.py${UPSTREAM_ARGS[*]:+ ${UPSTREAM_ARGS[*]}})"
 "$PYTHON" scripts/check_upstream.py ${UPSTREAM_ARGS[@]+"${UPSTREAM_ARGS[@]}"}
 
 echo
