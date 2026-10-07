@@ -53,6 +53,18 @@ class SessionResult:
     alive_after_teardown: "list[int]"
 
 
+@dataclass
+class SessionContext:
+    """Passed to workload(base_url, ctx) when run_session(pass_context=True)
+    -- gives a workload the session's own log path, launcher pid and tap dir
+    without reaching into run_session's internals (06-05: the stress part
+    needs the launcher pid to watch and the tap dir to read mid-session)."""
+
+    log_path: Path
+    launcher_pid: int
+    tap_dir: Path
+
+
 def run_session(
     label: str,
     *,
@@ -60,11 +72,13 @@ def run_session(
     port: int,
     timeout_s: float,
     work_dir: Path,
-    workload: "Callable[[str], Awaitable[Any]]",
+    workload: "Callable[..., Awaitable[Any]]",
+    pass_context: bool = False,
 ) -> SessionResult:
-    """Launch argv, wait for /v1/models, run workload(base_url), then always
-    tear down -- even if wait_ready or workload raises. Readiness failures
-    propagate as procs.ServerExited or TimeoutError."""
+    """Launch argv, wait for /v1/models, run workload(base_url) (or
+    workload(base_url, ctx) when pass_context=True), then always tear down
+    -- even if wait_ready or workload raises. Readiness failures propagate
+    as procs.ServerExited or TimeoutError."""
     work_dir = Path(work_dir)
     tap_dir = work_dir / f"tap-{label}"
     env = tap.tap_env(os.environ, work_dir=work_dir, tap_dir=tap_dir)
@@ -76,7 +90,11 @@ def run_session(
     try:
         procs.wait_ready(handle, port=port, timeout_s=timeout_s)
         base_url = f"http://127.0.0.1:{port}"
-        value = asyncio.run(workload(base_url))
+        if pass_context:
+            ctx = SessionContext(log_path=log_path, launcher_pid=handle.proc.pid, tap_dir=tap_dir)
+            value = asyncio.run(workload(base_url, ctx))
+        else:
+            value = asyncio.run(workload(base_url))
     finally:
         alive_after_teardown = procs.teardown(handle, grace_s=60.0)
 

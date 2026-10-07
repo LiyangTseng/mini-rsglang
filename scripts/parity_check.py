@@ -24,12 +24,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
-from rsglang.parity import compare, corpus, sidecar, sweep, tap  # noqa: E402
+from rsglang.parity import compare, corpus, sidecar, stress, sweep, tap  # noqa: E402
 from rsglang.profiling import procs  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-_SUPPORTED_PARTS = ("sequential", "concurrent", "endpoints")
+_SUPPORTED_PARTS = ("sequential", "concurrent", "endpoints", "stress")
 
 _DEFAULT_PYTHON_SERVER_CMD = "{python} -m rsglang.launch --frontend python --model {model} --port {port}"
 _DEFAULT_RUST_SERVER_CMD = "{python} -m rsglang.launch --frontend rust --model {model} --port {port}"
@@ -76,6 +76,30 @@ def _build_parser() -> argparse.ArgumentParser:
         default="{python} -m rsglang.launch --frontend rust --model {model} --port {port}",
         metavar="TEMPLATE",
     )
+    run.add_argument(
+        "--stress-server-cmd",
+        default="{python} -m rsglang.launch --frontend rust --model {model} --port {port} "
+        "--abort-timing {abort_timing}",
+        metavar="TEMPLATE",
+    )
+    run.add_argument(
+        "--stress-cmd",
+        default="",
+        metavar="TEMPLATE",
+        help="Phase 5's 128-agent stress tool invocation (required when --parts includes stress)",
+    )
+    run.add_argument("--abort-timings", default="immediate,deferred", metavar="LIST")
+    run.add_argument("--stress-timeout", type=float, default=900.0, metavar="SECONDS")
+    run.add_argument("--settle-s", type=float, default=10.0, metavar="SECONDS")
+    run.add_argument("--canary-timeout-s", type=float, default=60.0, metavar="SECONDS")
+    run.add_argument("--watch-interval-s", type=float, default=1.0, metavar="SECONDS")
+    run.add_argument(
+        "--probe-delays-ms",
+        default="0,1,2,3,5,8,13,21,34",
+        metavar="LIST",
+        help="Comma list of millisecond delays for the backend window probe; empty disables it",
+    )
+    run.add_argument("--probe-repeats", type=int, default=8, metavar="N")
 
     validate = sub.add_parser("validate", help="Validate a parity-report.json sidecar")
     validate.add_argument("file", metavar="FILE", type=Path)
@@ -251,6 +275,13 @@ def cmd_run(ns: argparse.Namespace) -> int:
         print(f"--concurrency must be >= 1, got {ns.concurrency}", file=sys.stderr)
         return 2
 
+    if "stress" in parts and not ns.stress_cmd.strip():
+        print("--stress-cmd must be set when --parts includes stress", file=sys.stderr)
+        return 2
+
+    abort_timings = [t.strip() for t in ns.abort_timings.split(",") if t.strip()]
+    probe_delays_ms = [int(d.strip()) for d in ns.probe_delays_ms.split(",") if d.strip()]
+
     models = [m.strip() for m in ns.models.split(",") if m.strip()]
     if not models:
         print("--models must list at least one model", file=sys.stderr)
@@ -281,6 +312,7 @@ def cmd_run(ns: argparse.Namespace) -> int:
     sequential_out: dict = {}
     concurrent_out: "dict | None" = None
     endpoints_out: "dict | None" = None
+    abort_stress_out: "dict | None" = None
     any_failure = False
     warnings: "list[str]" = []
     gate_sides: "dict[str, dict] | None" = None
@@ -334,71 +366,72 @@ def cmd_run(ns: argparse.Namespace) -> int:
             print(f"endpoints python: {p_ok}/{len(python_entries)} ok")
             print(f"endpoints rust: {r_ok}/{len(rust_entries)} ok")
 
-        for model in models:
-            slug = _slug(model)
-            python_argv = procs.server_argv(
-                ns.python_server_cmd, python=sys.executable, model=model, port=ns.port
-            )
-            rust_argv = procs.server_argv(
-                ns.rust_server_cmd, python=sys.executable, model=model, port=ns.port
-            )
+        if "sequential" in parts:
+            for model in models:
+                slug = _slug(model)
+                python_argv = procs.server_argv(
+                    ns.python_server_cmd, python=sys.executable, model=model, port=ns.port
+                )
+                rust_argv = procs.server_argv(
+                    ns.rust_server_cmd, python=sys.executable, model=model, port=ns.port
+                )
 
-            try:
-                _require_port_free(ns.port)
-                python_session = sweep.run_session(
-                    f"seq-python-{slug}",
-                    argv=python_argv,
-                    port=ns.port,
-                    timeout_s=ns.timeout,
-                    work_dir=work_dir,
-                    workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
-                )
-                _require_port_free(ns.port)
-                rust_session = sweep.run_session(
-                    f"seq-rust-{slug}",
-                    argv=rust_argv,
-                    port=ns.port,
-                    timeout_s=ns.timeout,
-                    work_dir=work_dir,
-                    workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
-                )
-            except (procs.ServerExited, TimeoutError) as exc:
-                status, reason = _classify_session_failure(exc)
-                print(f"{model}: {reason}", file=sys.stderr)
-                sequential_out[model] = {
-                    "status": status,
-                    "reason": reason,
-                    "summary": None,
-                    "prompts": [],
-                }
-                if status == "unavailable":
-                    warnings.append(f"{model} unavailable: {reason}")
-                    if model == gate_model:
+                try:
+                    _require_port_free(ns.port)
+                    python_session = sweep.run_session(
+                        f"seq-python-{slug}",
+                        argv=python_argv,
+                        port=ns.port,
+                        timeout_s=ns.timeout,
+                        work_dir=work_dir,
+                        workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
+                    )
+                    _require_port_free(ns.port)
+                    rust_session = sweep.run_session(
+                        f"seq-rust-{slug}",
+                        argv=rust_argv,
+                        port=ns.port,
+                        timeout_s=ns.timeout,
+                        work_dir=work_dir,
+                        workload=lambda url, _model=model: sweep.send_sequential(url, _model, items, ns.timeout),
+                    )
+                except (procs.ServerExited, TimeoutError) as exc:
+                    status, reason = _classify_session_failure(exc)
+                    print(f"{model}: {reason}", file=sys.stderr)
+                    sequential_out[model] = {
+                        "status": status,
+                        "reason": reason,
+                        "summary": None,
+                        "prompts": [],
+                    }
+                    if status == "unavailable":
+                        warnings.append(f"{model} unavailable: {reason}")
+                        if model == gate_model:
+                            any_failure = True
+                    else:
                         any_failure = True
-                else:
+                    continue
+
+                python_side = sweep.join_sequential(items, python_session.value, python_session.tap)
+                rust_side = sweep.join_sequential(items, rust_session.value, rust_session.tap)
+
+                records = [
+                    compare.compare_prompt(item, python_side[item.id], rust_side[item.id]) for item in items
+                ]
+                summary = compare.summarize(records)
+                sequential_out[model] = {
+                    "status": "ok",
+                    "reason": None,
+                    "summary": summary,
+                    "prompts": records,
+                }
+
+                matched, n = summary["matched"], summary["n"]
+                print(f"sequential {model}: {matched}/{n} identical")
+                if model == gate_model and matched < n:
                     any_failure = True
-                continue
-
-            python_side = sweep.join_sequential(items, python_session.value, python_session.tap)
-            rust_side = sweep.join_sequential(items, rust_session.value, rust_session.tap)
-
-            records = [
-                compare.compare_prompt(item, python_side[item.id], rust_side[item.id]) for item in items
-            ]
-            summary = compare.summarize(records)
-            sequential_out[model] = {
-                "status": "ok",
-                "reason": None,
-                "summary": summary,
-                "prompts": records,
-            }
-
-            matched, n = summary["matched"], summary["n"]
-            print(f"sequential {model}: {matched}/{n} identical")
-            if model == gate_model and matched < n:
-                any_failure = True
-            if model == gate_model:
-                gate_sides = {"python": python_side, "rust": rust_side}
+                if model == gate_model:
+                    gate_sides = {"python": python_side, "rust": rust_side}
 
         if "concurrent" in parts:
             effective_concurrency = min(ns.concurrency, len(items)) if items else ns.concurrency
@@ -446,6 +479,31 @@ def cmd_run(ns: argparse.Namespace) -> int:
                     f"concurrent {gate_model} @{conc_block['concurrency']}: "
                     f"{s.get('matched')}/{s.get('n')} identical (informational)"
                 )
+
+        if "stress" in parts:
+            abort_stress_out = stress.run_stress_part(
+                model=gate_model,
+                stress_server_cmd=ns.stress_server_cmd,
+                stress_cmd=ns.stress_cmd,
+                abort_timings=abort_timings,
+                port=ns.port,
+                session_timeout_s=ns.timeout,
+                stress_timeout_s=ns.stress_timeout,
+                settle_s=ns.settle_s,
+                canary_timeout_s=ns.canary_timeout_s,
+                watch_interval_s=ns.watch_interval_s,
+                work_dir=work_dir,
+                python=sys.executable,
+            )
+            for run in abort_stress_out["runs"]:
+                analysis = run["analysis"]
+                print(
+                    f"stress {run['abort_timing']}: failure_mode={run['failure_mode']} "
+                    f"aborts={analysis['aborts_total']} double_free_uids={len(analysis['double_free_uids'])} "
+                    f"watcher={run['watch'].get('verdict')}"
+                )
+                if run["failure_mode"] == "setup_failed":
+                    any_failure = True
     except _PortInUse:
         return 2
 
@@ -464,7 +522,7 @@ def cmd_run(ns: argparse.Namespace) -> int:
         "endpoints": endpoints_out,
         "sequential": sequential_out,
         "concurrent": concurrent_out,
-        "abort_stress": None,
+        "abort_stress": abort_stress_out,
         "warnings": warnings,
     }
 

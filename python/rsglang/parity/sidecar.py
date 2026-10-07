@@ -77,6 +77,55 @@ _CONCURRENT_SUMMARY_EXTRA_KEYS = (
     "unmatched_tap",
 )
 
+_ABORT_TIMINGS = ("immediate", "deferred")
+_FAILURE_MODES = ("crash", "wedge", "corrupted_requests", "double_free", "none", "setup_failed")
+_WATCH_KEYS = (
+    "pid",
+    "samples",
+    "crashed",
+    "zombie",
+    "restarts",
+    "gpu_unlisted",
+    "nvsmi_errors",
+    "verdict",
+)
+_ABORT_ANALYSIS_KEYS = (
+    "requests_total",
+    "aborts_total",
+    "aborts_by_class",
+    "late_tokens_after_abort",
+    "frees_total",
+    "double_free_uids",
+    "double_free_in_prefill_window",
+    "dup_free_slot_events",
+    "collisions",
+    "collision_uids",
+)
+_STRESS_RUN_KEYS = (
+    "abort_timing",
+    "stress_rc",
+    "stress_timed_out",
+    "stress_output_tail",
+    "canary_ok",
+    "watch",
+    "integrity_error",
+    "analysis",
+    "failure_mode",
+)
+_PROBE_KEYS = (
+    "status",
+    "reason",
+    "delays_ms",
+    "repeats",
+    "trials",
+    "prompt_source",
+    "prefill_window_hits",
+    "double_free_total",
+    "collisions_total",
+    "by_delay",
+)
+_PROBE_STATUSES = ("ok", "skipped")
+
 
 class SidecarError(ValueError):
     """Raised by write_sidecar() when validate_sidecar() returns any problems."""
@@ -277,6 +326,79 @@ def _validate_endpoints_block(block: Any, path: str, errors: "list[str]") -> Non
             _validate_endpoint_entry(entry, f"{path}.{frontend_name}[{i}]", errors, set(expected))
 
 
+def _validate_watch(watch: Any, path: str, errors: "list[str]") -> None:
+    if not isinstance(watch, dict):
+        errors.append(f"{path}: must be an object")
+        return
+    for key in _WATCH_KEYS:
+        if key not in watch:
+            errors.append(f"{path}.{key}: missing")
+
+
+def _validate_abort_analysis(analysis: Any, path: str, errors: "list[str]") -> None:
+    if not isinstance(analysis, dict):
+        errors.append(f"{path}: must be an object")
+        return
+    for key in _ABORT_ANALYSIS_KEYS:
+        if key not in analysis:
+            errors.append(f"{path}.{key}: missing")
+
+
+def _validate_stress_run(run: Any, path: str, errors: "list[str]") -> None:
+    if not isinstance(run, dict):
+        errors.append(f"{path}: must be an object")
+        return
+    for key in _STRESS_RUN_KEYS:
+        if key not in run:
+            errors.append(f"{path}.{key}: missing")
+    if run.get("abort_timing") not in _ABORT_TIMINGS:
+        errors.append(f"{path}.abort_timing: must be one of {_ABORT_TIMINGS}, got {run.get('abort_timing')!r}")
+    if run.get("failure_mode") not in _FAILURE_MODES:
+        errors.append(f"{path}.failure_mode: must be one of {_FAILURE_MODES}, got {run.get('failure_mode')!r}")
+    if "watch" in run:
+        _validate_watch(run["watch"], f"{path}.watch", errors)
+    if "analysis" in run:
+        _validate_abort_analysis(run["analysis"], f"{path}.analysis", errors)
+
+
+def _validate_probe_block(block: Any, path: str, errors: "list[str]") -> None:
+    if block is None:
+        return
+    if not isinstance(block, dict):
+        errors.append(f"{path}: must be an object or null")
+        return
+    for key in _PROBE_KEYS:
+        if key not in block:
+            errors.append(f"{path}.{key}: missing")
+    if block.get("status") not in _PROBE_STATUSES:
+        errors.append(f"{path}.status: must be one of {_PROBE_STATUSES}, got {block.get('status')!r}")
+
+
+def _validate_abort_stress_block(block: Any, path: str, errors: "list[str]") -> None:
+    if block is None:
+        return
+    if not isinstance(block, dict):
+        errors.append(f"{path}: must be an object or null")
+        return
+    if "model" not in block:
+        errors.append(f"{path}.model: missing")
+
+    runs = block.get("runs")
+    if not isinstance(runs, list):
+        errors.append(f"{path}.runs: must be a list")
+        runs = []
+    else:
+        for i, run in enumerate(runs):
+            _validate_stress_run(run, f"{path}.runs[{i}]", errors)
+
+    _validate_probe_block(block.get("probe"), f"{path}.probe", errors)
+
+    if not isinstance(block.get("reproduced"), bool):
+        errors.append(f"{path}.reproduced: must be a bool")
+    if not isinstance(block.get("conclusive"), bool):
+        errors.append(f"{path}.conclusive: must be a bool")
+
+
 def validate_discover(doc: Any) -> "list[str]":
     """Validates a `discover` subcommand document: {schema_version,
     generated_by, meta (mode "discover"), frontend, endpoints, tap}."""
@@ -368,6 +490,10 @@ def validate_sidecar(doc: Any, *, require_gpu: bool = False) -> "list[str]":
         else:
             for model, block in concurrent.items():
                 _validate_concurrent_block(block, f"concurrent[{model!r}]", errors)
+
+    abort_stress = doc.get("abort_stress")
+    if abort_stress is not None:
+        _validate_abort_stress_block(abort_stress, "abort_stress", errors)
 
     if require_gpu:
         meta = doc.get("meta")

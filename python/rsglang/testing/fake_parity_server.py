@@ -3,11 +3,17 @@ the real `--frontend {python,rust}` server, driven by scripts/parity_check.py.
 
 Never used by production runs: the GPU box runs the real server behind
 either frontend. This module exists purely so the Mac tracer tests can prove
-the sweep/tap-join/compare/sidecar path end to end without GPU access.
+the sweep/tap-join/compare/sidecar path -- including the abort-stress part's
+watcher/tap-evidence path (06-05) -- end to end without GPU access.
 
 Run as:
     python -m rsglang.testing.fake_parity_server server --port P --model M \
-        [--diverge-when SUBSTR --diverge-output-at K]
+        [--diverge-when SUBSTR --diverge-output-at K] \
+        [--emit-scheduler-child --abort-timing V --double-free-on-abort]
+
+Or, as the fake 128-agent stress driver (06-05 Task 1):
+    python -m rsglang.testing.fake_parity_server stress --base-url URL \
+        --requests N --abort-fraction F --seed S
 """
 
 from __future__ import annotations
@@ -16,6 +22,8 @@ import argparse
 import http.server
 import json
 import os
+import random
+import subprocess
 import sys
 import threading
 import time
@@ -131,6 +139,7 @@ def _make_handler(
     diverge_output_at: "int | None",
     diverge_under_load: "int | None" = None,
     flavor: str = "python",
+    double_free_on_abort: bool = False,
 ):
     class Handler(http.server.BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -196,6 +205,15 @@ def _make_handler(
                 text = "".join(chr(0x61 + (i % 26)) for i in output_ids)
             return input_ids, output_ids, text
 
+        def _write_free(self, uid: int, *, dup: bool) -> None:
+            _tap_writer.write(tap.KIND_FREE, uid=uid, table_idx=uid % 16, dup_free_slots=dup)
+
+        def _write_abort_and_free(self, uid: int) -> None:
+            _tap_writer.write(tap.KIND_ABORT, uid=uid, in_pending=False, in_running=True, chunked=False)
+            self._write_free(uid, dup=False)
+            if double_free_on_abort:
+                self._write_free(uid, dup=True)
+
         def _handle_chat(self) -> None:
             payload = self._read_json_body()
             stream = bool(payload.get("stream", False))
@@ -218,57 +236,67 @@ def _make_handler(
 
                 delay = _token_delay_s()
                 if stream:
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/event-stream")
-                    self.end_headers()
-                    first = True
-                    for k, token in enumerate(output_ids):
-                        if delay:
-                            time.sleep(delay)
-                        finished = k == len(output_ids) - 1
-                        _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
-                        delta = {}
-                        if first:
-                            delta["role"] = "assistant"
-                            first = False
-                        delta["content"] = chr(0x61 + (token % 26))
-                        chunk = {
+                    try:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/event-stream")
+                        self.end_headers()
+                        first = True
+                        for k, token in enumerate(output_ids):
+                            if delay:
+                                time.sleep(delay)
+                            finished = k == len(output_ids) - 1
+                            _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
+                            delta = {}
+                            if first:
+                                delta["role"] = "assistant"
+                                first = False
+                            delta["content"] = chr(0x61 + (token % 26))
+                            chunk = {
+                                "id": f"chatcmpl-{uid}",
+                                "object": "chat.completion.chunk",
+                                "choices": [{"index": 0, "delta": delta, "finish_reason": None}],
+                            }
+                            self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
+                        end_chunk = {
                             "id": f"chatcmpl-{uid}",
                             "object": "chat.completion.chunk",
-                            "choices": [{"index": 0, "delta": delta, "finish_reason": None}],
+                            "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
                         }
-                        self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
-                    end_chunk = {
-                        "id": f"chatcmpl-{uid}",
-                        "object": "chat.completion.chunk",
-                        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-                    }
-                    self.wfile.write(f"data: {json.dumps(end_chunk)}\n\n".encode())
-                    self.wfile.write(b"data: [DONE]\n\n")
-                    self.close_connection = True
+                        self.wfile.write(f"data: {json.dumps(end_chunk)}\n\n".encode())
+                        self.wfile.write(b"data: [DONE]\n\n")
+                        self.close_connection = True
+                    except (BrokenPipeError, ConnectionResetError):
+                        self._write_abort_and_free(uid)
+                        return
+                    self._write_free(uid, dup=False)
                 else:
-                    for k, token in enumerate(output_ids):
-                        if delay:
-                            time.sleep(delay)
-                        finished = k == len(output_ids) - 1
-                        _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
-                    self._send_json(
-                        200,
-                        {
-                            "id": f"chatcmpl-{uid}",
-                            "object": "chat.completion",
-                            "created": int(time.time()),
-                            "model": model_id,
-                            "choices": [
-                                {
-                                    "index": 0,
-                                    "message": {"role": "assistant", "content": text},
-                                    "finish_reason": "stop",
-                                }
-                            ],
-                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                        },
-                    )
+                    try:
+                        for k, token in enumerate(output_ids):
+                            if delay:
+                                time.sleep(delay)
+                            finished = k == len(output_ids) - 1
+                            _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
+                        self._send_json(
+                            200,
+                            {
+                                "id": f"chatcmpl-{uid}",
+                                "object": "chat.completion",
+                                "created": int(time.time()),
+                                "model": model_id,
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "message": {"role": "assistant", "content": text},
+                                        "finish_reason": "stop",
+                                    }
+                                ],
+                                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                            },
+                        )
+                    except (BrokenPipeError, ConnectionResetError):
+                        self._write_abort_and_free(uid)
+                        return
+                    self._write_free(uid, dup=False)
             finally:
                 _exit_in_flight()
 
@@ -292,18 +320,23 @@ def _make_handler(
                 _tap_writer.write(tap.KIND_USER, uid=uid, input_ids=input_ids, sampling=sampling)
 
                 delay = _token_delay_s()
-                self.send_response(200)
-                self.send_header("Content-Type", "text/event-stream")
-                self.end_headers()
-                for k, token in enumerate(output_ids):
-                    if delay:
-                        time.sleep(delay)
-                    finished = k == len(output_ids) - 1
-                    _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
-                    incremental = chr(0x61 + (token % 26))
-                    self.wfile.write(f"data: {incremental}\n".encode())
-                self.wfile.write(b"data: [DONE]\n")
-                self.close_connection = True
+                try:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.end_headers()
+                    for k, token in enumerate(output_ids):
+                        if delay:
+                            time.sleep(delay)
+                        finished = k == len(output_ids) - 1
+                        _tap_writer.write(tap.KIND_DETOK, uid=uid, next_token=token, finished=finished)
+                        incremental = chr(0x61 + (token % 26))
+                        self.wfile.write(f"data: {incremental}\n".encode())
+                    self.wfile.write(b"data: [DONE]\n")
+                    self.close_connection = True
+                except (BrokenPipeError, ConnectionResetError):
+                    self._write_abort_and_free(uid)
+                    return
+                self._write_free(uid, dup=False)
             finally:
                 _exit_in_flight()
 
@@ -343,7 +376,27 @@ def _build_server_parser() -> argparse.ArgumentParser:
     parser.add_argument("--flavor", choices=("python", "rust"), default="python")
     parser.add_argument("--gated", action="store_true")
     parser.add_argument("--gated-models", default=None, metavar="LIST")
+    parser.add_argument("--emit-scheduler-child", action="store_true")
+    parser.add_argument("--abort-timing", default=None, metavar="TIMING")
+    parser.add_argument("--double-free-on-abort", action="store_true")
     return parser
+
+
+def _spawn_scheduler_child() -> "subprocess.Popen | None":
+    """Spawns a long-sleeping child process and prints the stress part's
+    scheduler-pid discovery line (stress._SCHEDULER_PID_RE) to this
+    process's own stderr -- so the stress part's watcher has a real pid to
+    watch without needing a real scheduler (06-05 Task 1)."""
+    child = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import time,sys; sys.argv[0]='fake-parity-scheduler'; time.sleep(3600)",
+            "fake-parity-scheduler",
+        ],
+    )
+    print(f"rsglang.launch: spawned scheduler rank=0 pid={child.pid}", file=sys.stderr, flush=True)
+    return child
 
 
 def _cmd_server(argv: Sequence[str]) -> int:
@@ -353,6 +406,11 @@ def _cmd_server(argv: Sequence[str]) -> int:
     if ns.gated or ns.model in gated_models:
         print(f"Cannot access gated repo for url https://huggingface.co/{ns.model}", file=sys.stderr)
         return 1
+
+    if ns.abort_timing:
+        print(f"abort_timing={ns.abort_timing}", file=sys.stderr, flush=True)
+
+    scheduler_child = _spawn_scheduler_child() if ns.emit_scheduler_child else None
 
     _tap_writer.write(
         tap.KIND_PATCHED,
@@ -365,7 +423,12 @@ def _cmd_server(argv: Sequence[str]) -> int:
     )
 
     handler_cls = _make_handler(
-        ns.model, ns.diverge_when, ns.diverge_output_at, ns.diverge_under_load, ns.flavor
+        ns.model,
+        ns.diverge_when,
+        ns.diverge_output_at,
+        ns.diverge_under_load,
+        ns.flavor,
+        ns.double_free_on_abort,
     )
     httpd = _Server(("127.0.0.1", ns.port), handler_cls)
     try:
@@ -375,17 +438,82 @@ def _cmd_server(argv: Sequence[str]) -> int:
     finally:
         httpd.shutdown()
         httpd.server_close()
+        if scheduler_child is not None:
+            try:
+                scheduler_child.kill()
+                scheduler_child.wait(timeout=5.0)
+            except Exception:
+                pass
     return 0
+
+
+def _build_stress_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="fake_parity_server stress", add_help=False)
+    parser.add_argument("--base-url", required=True)
+    parser.add_argument("--requests", type=int, required=True)
+    parser.add_argument("--abort-fraction", type=float, default=0.0)
+    parser.add_argument("--seed", type=int, default=0)
+    return parser
+
+
+async def _run_stress_driver(ns: argparse.Namespace) -> int:
+    import aiohttp
+
+    rng = random.Random(ns.seed)
+    abort_flags = [rng.random() < ns.abort_fraction for _ in range(ns.requests)]
+    aborted_count = 0
+
+    async def _one(session: "aiohttp.ClientSession", i: int) -> None:
+        nonlocal aborted_count
+        payload = {
+            "model": "fake/model",
+            "messages": [{"role": "user", "content": f"stress agent {i}"}],
+            "temperature": 0.0,
+            "max_tokens": 8,
+            "stream": True,
+        }
+        should_abort = abort_flags[i]
+        try:
+            async with session.post(f"{ns.base_url}/v1/chat/completions", json=payload) as resp:
+                if should_abort:
+                    async for raw_line in resp.content:
+                        if raw_line.strip():
+                            aborted_count += 1
+                            break
+                    resp.close()
+                else:
+                    async for _raw_line in resp.content:
+                        pass
+        except Exception:
+            pass
+
+    timeout = aiohttp.ClientTimeout(total=120.0)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        import asyncio
+
+        await asyncio.gather(*(_one(session, i) for i in range(ns.requests)))
+
+    print(f"fake stress: sent {ns.requests}, aborted {aborted_count}")
+    return 0
+
+
+def _cmd_stress(argv: Sequence[str]) -> int:
+    import asyncio
+
+    ns = _build_stress_parser().parse_args(argv)
+    return asyncio.run(_run_stress_driver(ns))
 
 
 def main(argv: "Sequence[str] | None" = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv:
-        print("usage: fake_parity_server {server} ...", file=sys.stderr)
+        print("usage: fake_parity_server {server|stress} ...", file=sys.stderr)
         return 2
     command, rest = argv[0], argv[1:]
     if command == "server":
         return _cmd_server(rest)
+    if command == "stress":
+        return _cmd_stress(rest)
     print(f"fake_parity_server: unknown command {command!r}", file=sys.stderr)
     return 2
 
