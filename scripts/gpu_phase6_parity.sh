@@ -168,10 +168,13 @@ if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
   return 0
 fi
 
-# A non-interactive SSH command never sources ~/.bashrc, so nvcc's own bin
-# dir may not reach PATH. Prepend it when present, mirroring the
-# gpu_phase2_profile.sh fix.
-[ -d /usr/local/cuda/bin ] && PATH="/usr/local/cuda/bin:$PATH"
+# A non-interactive SSH command never sources ~/.bashrc, so on WSL neither
+# nvidia-smi (/usr/lib/wsl/lib) nor a user-space CUDA toolchain (the cuda128
+# micromamba env, if present, for flashinfer's JIT) ever reach PATH. Prepend
+# them here when present, mirroring the gpu_phase2_profile.sh fix exactly.
+for extra_path in "$HOME/.local/micromamba/root/envs/cuda128/bin" "$ROOT/.venv/bin" /usr/lib/wsl/lib /usr/local/cuda/bin; do
+  [ -d "$extra_path" ] && PATH="$extra_path:$PATH"
+done
 export PATH
 
 # --- Preflight -----------------------------------------------------------------
