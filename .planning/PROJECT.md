@@ -14,6 +14,7 @@ Serving through the Rust frontend produces output identical to the Python fronte
 
 - ✓ Rust frontend talks to the backend over the existing ZMQ + MessagePack boundary; lock-free channels are used inside the Rust process — Phase 3 (WIRE-03: single ordered `tx-zmq` writer + per-uid `rx-zmq` broadcast dispatcher, both built on `tokio::sync` channels, proven under 64-case concurrent-ordering property test against a real subprocess)
 - ✓ One minimal mock backend so the Rust frontend is developed and tested on macOS without a GPU (no extra mocks beyond what tests need) — Phase 3 (MOCK-01: `mock-scheduler` binary with echo tokens, fixed delays, and the late-abort-token/drop-overlong/batched-reply misbehaviors the cancellation tests need)
+- ✓ Rust Hugging Face tokenization, chat-template rendering and incremental detokenization matching the Python frontend exactly — Phase 4 (Qwen3-0.6B and Llama-3.2-1B-Instruct; TOK-01 through TOK-04)
 
 ### Active
 
@@ -21,7 +22,6 @@ Serving through the Rust frontend produces output identical to the Python fronte
 - [ ] One launcher that starts the shared backend with either the frozen Python frontend or the Rust frontend
 - [ ] Rust concurrent ingress (HTTP/async) accepting requests, streaming responses, handling client disconnects as cancellations
 - [ ] Rust async request-lifecycle FSM (received, tokenizing, submitted, decoding, finished, cancelled, failed) supporting 128 concurrent agents with dynamic requests/cancellations
-- [ ] Rust Hugging Face tokenization, chat-template rendering and incremental detokenization matching the Python frontend exactly
 - [ ] End-to-end run on a remote GPU machine with output identical to the Python frontend
 - [ ] Reproducible benchmark harness comparing Python vs Rust frontend on the same backend for three scenarios: (1) 128 concurrent agents with dynamic requests/cancellations, P99 TTFT; (2) 32-token short-prompt saturation, RPS; (3) frontend cold start latency and frontend host RAM
 - [ ] Standard inference throughput does not regress versus the Python frontend (about parity)
@@ -68,6 +68,9 @@ Serving through the Rust frontend produces output identical to the Python fronte
 | Writer's ordering point is the submit's mpsc enqueue, not the later wire send; abort requires a `Submitted` ticket obtainable only after that enqueue completes | Makes "abort can never precede its own submit" structural rather than timing-dependent; a raw-uid abort would need the writer to buffer/guess about submits that might never come | ✓ Shipped — Phase 3, proven by a 64-case property test against a real mock subprocess |
 | Per-uid reply channel is `tokio::sync::broadcast::channel(16)`, fixed capacity, drop-oldest | A slow consumer on one request must never stall replies for others (WIRE-03 criterion 4); fixed capacity avoids a CLI/config knob surface | ✓ Shipped — Phase 3 |
 | mock-scheduler's readiness travels out-of-band on stdout (the Phase 1 handshake JSON line); misbehaviors and observation never become a 9th wire tag | Any new wire field crashes the real scheduler; the mock must prove it speaks only rsg-wire's existing types | ✓ Shipped — Phase 3 |
+| Promote model identity to a first-class `ModelSpec` parameter (slug, repo_id, gated) from the first tokenizer plan, rather than writing Qwen3-only code and bolting Llama on after | ROADMAP's pluralized phrasing ("Qwen3-0.6B and one Llama-3.x model") was ambiguous; CONTEXT.md D-10 already specified a parametrized shape for the Llama BOS/clean_up assertions, so building it in from the start avoided re-deriving the same shape later | ✓ Done — Phase 4 Plan 04-01. Every loader/encode/template/detokenize function takes a `ModelSpec`; both Rust and Python test/fixture code iterate one shared `MODELS` list |
+| `chrono` added as a new workspace dependency, approved via a blocking-human package-legitimacy checkpoint (not auto-approved) | Needed for `strftime_now` in Llama's chat template; not covered by RESEARCH.md's original 6-crate Package Legitimacy Audit, so treated as `[ASSUMED]` and gated on explicit human sign-off rather than silently added alongside the audited set | ✓ Approved — Phase 4 Plan 04-04 (crates.io verdict `OK`, v0.4.45, human confirmed) |
+| Canonical `meta-llama/Llama-3.2-1B-Instruct` tokenizer facts are authoritative over RESEARCH.md's third-party-mirror-sourced assumptions when they diverge | RESEARCH.md's Pitfalls 2/3/5 were sourced from `unsloth/Llama-3.2-1B-Instruct` (a mirror), not the canonical gated repo. Once gated access was obtained, the real repo was fetched and spot-checked directly | ✓ Measured — Phase 4 Plan 04-04/04-06: the canonical config has no `add_bos_token` key at all (mirror had set it `true`); the real BOS occurrence count in a rendered chat prompt is **2**, not the 1 the project had assumed. Both are now asserted directly against the live oracle, not papered over |
 
 ## Evolution
 
@@ -87,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-06 after Phase 3*
+*Last updated: 2026-10-06 after Phase 4*

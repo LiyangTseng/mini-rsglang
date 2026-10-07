@@ -19,10 +19,10 @@
 
 ### Tokenizer
 
-- [ ] **TOK-01**: Rust tokenization produces token ids identical to the Python frontend on a test corpus (Qwen3-0.6B)
-- [ ] **TOK-02**: Rust chat-template rendering produces a prompt string identical to the Python frontend
-- [ ] **TOK-03**: Rust incremental detokenization produces streamed text identical to the Python frontend, with no UTF-8 breakage on CJK or emoji
-- [ ] **TOK-04**: TOK-01 through TOK-03 also pass for one Llama-3.x model
+- [x] **TOK-01**: Rust tokenization produces token ids identical to the Python frontend on a test corpus (Qwen3-0.6B)
+- [x] **TOK-02**: Rust chat-template rendering produces a prompt string identical to the Python frontend
+- [x] **TOK-03**: Rust incremental detokenization produces streamed text identical to the Python frontend, with no UTF-8 breakage on CJK or emoji
+- [x] **TOK-04**: TOK-01 through TOK-03 also pass for one Llama-3.x model
 
 ### Request Lifecycle
 
@@ -99,10 +99,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BENCH-01 | Phase 2 | Complete |
 | WIRE-03 | Phase 3 | Complete |
 | MOCK-01 | Phase 3 | Complete |
-| TOK-01 | Phase 4 | Pending |
-| TOK-02 | Phase 4 | Pending |
-| TOK-03 | Phase 4 | Pending |
-| TOK-04 | Phase 4 | Pending |
+| TOK-01 | Phase 4 | Complete |
+| TOK-02 | Phase 4 | Complete |
+| TOK-03 | Phase 4 | Complete |
+| TOK-04 | Phase 4 | Complete |
 | LIFE-01 | Phase 5 | Pending |
 | LIFE-02 | Phase 5 | Pending |
 | LIFE-03 | Phase 5 | Pending |

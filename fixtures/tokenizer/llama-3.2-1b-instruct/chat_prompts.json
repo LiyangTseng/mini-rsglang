@@ -1,0 +1,173 @@
+{
+  "cases": [
+    {
+      "name": "single_turn_no_system",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello, how are you?"
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHello, how are you?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    {
+      "name": "system_plus_single_turn",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant."
+        },
+        {
+          "role": "user",
+          "content": "What is 2+2?"
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\nYou are a helpful assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nWhat is 2+2?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    {
+      "name": "multi_turn",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant."
+        },
+        {
+          "role": "user",
+          "content": "Hi"
+        },
+        {
+          "role": "assistant",
+          "content": "Hello! How can I help you today?"
+        },
+        {
+          "role": "user",
+          "content": "Tell me a joke."
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\nYou are a helpful assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nHi<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\nHello! How can I help you today?<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nTell me a joke.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    {
+      "name": "system_empty_string",
+      "messages": [
+        {
+          "role": "system",
+          "content": ""
+        },
+        {
+          "role": "user",
+          "content": "Can you help me plan a trip to Tokyo?"
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nCan you help me plan a trip to Tokyo?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    {
+      "name": "system_missing_key",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Can you help me plan a trip to Tokyo?"
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nCan you help me plan a trip to Tokyo?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    {
+      "name": "consecutive_same_role",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What's the capital of France?"
+        },
+        {
+          "role": "user",
+          "content": "And what about Germany?"
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nWhat's the capital of France?<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nAnd what about Germany?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    {
+      "name": "non_ascii_content",
+      "messages": [
+        {
+          "role": "user",
+          "content": "\u4eca\u5929\u5929\u6c14\u771f\u597d \ud83d\ude0a Let's go to \u516c\u56ed for a walk! \ud83c\udf33\ud83d\udeb6"
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n\u4eca\u5929\u5929\u6c14\u771f\u597d \ud83d\ude0a Let's go to \u516c\u56ed for a walk! \ud83c\udf33\ud83d\udeb6<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    {
+      "name": "long_multi_turn",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a helpful assistant."
+        },
+        {
+          "role": "user",
+          "content": "User turn 1: what about topic 1?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 1 about topic 1."
+        },
+        {
+          "role": "user",
+          "content": "User turn 2: what about topic 2?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 2 about topic 2."
+        },
+        {
+          "role": "user",
+          "content": "User turn 3: what about topic 3?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 3 about topic 3."
+        },
+        {
+          "role": "user",
+          "content": "User turn 4: what about topic 4?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 4 about topic 4."
+        },
+        {
+          "role": "user",
+          "content": "User turn 5: what about topic 5?"
+        },
+        {
+          "role": "assistant",
+          "content": "Assistant reply 5 about topic 5."
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\nYou are a helpful assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nUser turn 1: what about topic 1?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\nAssistant reply 1 about topic 1.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nUser turn 2: what about topic 2?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\nAssistant reply 2 about topic 2.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nUser turn 3: what about topic 3?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\nAssistant reply 3 about topic 3.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nUser turn 4: what about topic 4?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\nAssistant reply 4 about topic 4.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nUser turn 5: what about topic 5?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\nAssistant reply 5 about topic 5.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    },
+    {
+      "name": "tool_calling",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What's the weather in Paris?"
+        },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "function": {
+                "name": "get_weather",
+                "arguments": {
+                  "location": "Paris",
+                  "unit": "celsius"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "prompt": "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nCutting Knowledge Date: December 2023\nToday Date: 06 Oct 2026\n\n<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nWhat's the weather in Paris?<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n{\"name\": \"get_weather\", \"parameters\": {\"location\": \"Paris\", \"unit\": \"celsius\"}}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+    }
+  ]
+}

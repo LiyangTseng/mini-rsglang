@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 4
-current_phase_name: Tokenizer & Detokenizer Parity
+current_phase: 5
+current_phase_name: Request Lifecycle & HTTP API
 status: planning
-stopped_at: Phase 03 complete, ready to plan Phase 4
-last_updated: "2026-10-06T18:21:05.000Z"
+stopped_at: Phase 04 complete, ready to plan Phase 5
+last_updated: "2026-10-07T02:00:00.000Z"
 last_activity: 2026-10-06
-last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: f833bc0
+last_activity_desc: Phase 03 and Phase 04 complete, transitioned to Phase 5
+state_head: 1431f5e
 progress:
   total_phases: 7
-  completed_phases: 3
-  total_plans: 28
-  completed_plans: 28
-  percent: 43
+  completed_phases: 4
+  total_plans: 34
+  completed_plans: 34
+  percent: 57
 ---
 
 # Project State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-06)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 4 — Tokenizer & Detokenizer Parity
+**Current focus:** Phase 5 — Request Lifecycle & HTTP API
 
 ## Current Position
 
-Phase: 4 — Tokenizer & Detokenizer Parity
+Phase: 5 — Request Lifecycle & HTTP API
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-06 — Phase 03 complete, transitioned to Phase 4
+Last activity: 2026-10-06 — Phase 03 and Phase 04 complete, transitioned to Phase 5
 
-Progress: [████░░░░░░] 43%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
+- Total plans completed: 34
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -48,6 +48,7 @@ Progress: [████░░░░░░] 43%
 | 01 | 13 | - | - |
 | 02 | 9 | - | - |
 | 03 | 6 | - | - |
+| 04 | 6 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -72,6 +73,12 @@ Progress: [████░░░░░░] 43%
 | Phase 03 P04 | 50min | 3 tasks | 2 files |
 | Phase 03 P05 | 40min | 2 tasks | 2 files |
 | Phase 03 P06 | 45min | 2 tasks | 1 files |
+| Phase 04 P01 | 50min | 2 tasks | 17 files |
+| Phase 04 P02 | 20min | 2 tasks | 5 files |
+| Phase 04 P03 | 25min | 2 tasks | 4 files |
+| Phase 04 P04 | 20min | 2 tasks | 7 files |
+| Phase 04 P05 | 30min | 2 tasks | 5 files |
+| Phase 04 P06 | 25min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -113,6 +120,18 @@ Recent decisions affecting current work:
 - [Phase 01]: check_upstream.py adds UPSTREAM_SHA_INVALID, OFFLINE_UNSUPPORTED and TREE_HASH_MISMATCH categories; a parse error or invalid SHA stops the check before any fetch
 - [Phase 01]: test_wire_decode.py skips without DUMP_DIR inside the full suite; check_wire_decode.sh sets RSGLANG_REQUIRE_DUMP=1 so the gate cannot pass by skipping
 - [Phase 01]: scripts/check_all.sh [--offline] is the Phase 1 Mac gate: cargo tests, pytest, fixture freshness, WIRE-02 decode, check_upstream.py
+- [Phase 04]: hf-hub 1.0.0 blocking API confirmed via docs.rs: HFClientSync::new()?.model(owner,name).download_file().filename(name).send()? -> PathBuf; blocking feature maps to tokio/rt only
+- [Phase 04]: tokenizers 0.22.2 has no dedicated Error type (Result<T, Box<dyn Error+Send+Sync>>, confirmed via docs.rs); special_tokens_map.json is fetched best-effort since Qwen3-0.6B's repo has none (404), matching AutoTokenizer.from_pretrained's own tolerance
+- [Phase 04]: minijinja's tojson filter overridden to match transformers' json.dumps separator spacing (Python's default ', '/': ' separators), since minijinja's built-in tojson is fully compact and diverges from the real oracle on every tool-call/arguments rendering
+- [Phase 04]: eos_token_id is derived via tokenizer.token_to_id(eos_token) rather than a new ModelSpec field
+- [Phase 04]: clean_up_tokenization applies to read_str/surr_str independently before the char-safe slice, matching Python's batch_decode internal behavior (unexercised by Qwen3, wired for Llama in 04-06)
+- [Phase 04]: no-panic proptest uses TestRunner directly (not the proptest! macro) to fetch the real tokenizer once and clone it per case instead of 100x
+- [Phase 04]: chrono approved via blocking-human package-legitimacy checkpoint before being added to the workspace (not in RESEARCH.md's audited six)
+- [Phase 04]: Live canonical Llama-3.2-1B-Instruct spot-check found add_bos_token absent from tokenizer_config.json (diverging from RESEARCH.md mirror assumption); double-BOS risk confirmed real anyway via tokenizer.json's post-processor
+- [Phase 04]: Llama chat-prompt fixture frozen-clock detection is template-content-based (strftime_now substring in chat_template), never model-identity-based, so Qwen3 is unaffected by construction
+- [Phase 04]: GatedAccessError is raised only when a gated model's load failure cause-chain contains huggingface_hub's GatedRepoError/RepositoryNotFoundError, confirmed against real hf-hub/transformers source, not a bare except Exception
+- [Phase 04]: Real Llama BOS count is 2 (not D-10's assumed 1), confirmed empirically against the canonical gated tokenizer -- the Rust test asserts 2, documenting the discrepancy rather than normalizing it
+- [Phase 04]: cargo test -p rsg-tokenizer requires --test-threads=1 to be deterministic (pre-existing env-var/cache-lock races, unrelated to TOK-04); logged to deferred-items.md, not fixed in this plan's scope
 
 ### Pending Todos
 
@@ -121,7 +140,6 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 1]: Phase 1 needs GPU machine access, because launcher criterion 2 runs the real backend. `zmq` vs `zeromq` interop with pyzmq and the bind/connect topology are not yet decided. It is also unverified whether `minisgl.message` imports on macOS for golden-fixture export.
-- [Phase 4]: minijinja must cover the Qwen3 and Llama-3 templates. Two open choices: export the effective tokenizer from Python or load the raw `tokenizer.json`, and how Llama-3.x sets `clean_up_tokenization_spaces`. Access to the gated Llama-3.x repo is needed.
 - [Phase 5]: It is not yet known how quickly hyper/axum detects a client disconnect while a request is queued.
 - [Phase 6]: The upstream abort-during-prefill double free comes from code reading only. If it reproduces, the abort-timing setting (LIFE-05) must apply equally to the baseline.
 
@@ -141,6 +159,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T18:21:05.000Z
-Stopped at: Phase 03 complete, ready to plan Phase 4
+Last session: 2026-10-07T01:12:12.826Z
+Stopped at: Phase 04 complete, ready to plan Phase 5
 Resume file: None
