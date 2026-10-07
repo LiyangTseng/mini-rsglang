@@ -6,14 +6,22 @@
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use sysinfo::{Pid as SysPid, ProcessesToUpdate, System};
 
-static COUNTER: AtomicUsize = AtomicUsize::new(0);
+/// `rsg-server`'s own [`rsg_server::hf_codec::HfCodec::load`] validates
+/// `--model` as a real `org/repo` id and loads its tokenizer from the
+/// local Hugging Face cache (Phase 5) -- an arbitrary synthetic string
+/// like `mock-stack-test-0` (this test's model id before Phase 5 landed in
+/// this checkout) now panics in `rsg_tokenizer::loader` with "has no '/'"
+/// before any handshake work happens. Both tests in this file only need
+/// *some* model that loads successfully; reusing the already-cached
+/// Qwen3-0.6B model Phase 4/5's own tests use keeps this file independent
+/// of network access.
+const TEST_MODEL: &str = "Qwen/Qwen3-0.6B";
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -85,7 +93,6 @@ impl Stack {
     fn spawn() -> Stack {
         let rsg_server_bin = require_bin("rsg-server");
         let mock_scheduler_bin = require_bin("mock-scheduler");
-        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
         let port = free_port().to_string();
 
         let mut child = Command::new(env!("CARGO_BIN_EXE_rsg-mock-stack"))
@@ -97,7 +104,7 @@ impl Stack {
                 "--mock-scheduler-bin",
                 mock_scheduler_bin.to_str().expect("utf8 path"),
                 "--model",
-                &format!("mock-stack-test-{n}"),
+                TEST_MODEL,
             ])
             .env("RUST_LOG", "info")
             .stdin(Stdio::null())

@@ -159,7 +159,7 @@ async fn run(cli: Cli) -> i32 {
             "--max-seq-len",
             &cli.max_seq_len.to_string(),
         ])
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -171,6 +171,13 @@ async fn run(cli: Cli) -> i32 {
         }
     };
 
+    // mock-scheduler treats a closed/EOF stdin as "my parent went away"
+    // and exits immediately (EXIT_STDIN_EOF), before ever printing its
+    // handshake line -- it expects its stdin piped and held open for its
+    // whole lifetime, exactly like rsg-server's own stdin below. Nothing
+    // is ever written to it; only keeping the write end open matters.
+    // Dropped only right before teardown, mirroring `rsg_stdin` below.
+    let mock_stdin = mock.stdin.take().expect("mock-scheduler stdin piped");
     let mock_pid = mock.id().unwrap_or(0);
     let mock_stderr = mock.stderr.take().expect("mock-scheduler stderr piped");
     spawn_stderr_forwarder(mock_stderr, "mock-scheduler");
@@ -180,6 +187,7 @@ async fn run(cli: Cli) -> i32 {
     match tokio::time::timeout(HANDSHAKE_TIMEOUT, mock_stdout.read_line(&mut handshake_line)).await {
         Ok(Ok(0)) => {
             eprintln!("rsg-mock-stack: mock-scheduler closed stdout before sending its handshake line");
+            drop(mock_stdin);
             let _ = mock.start_kill();
             let _ = mock.wait().await;
             remove_ipc_socket(&backend_addr);
@@ -189,6 +197,7 @@ async fn run(cli: Cli) -> i32 {
         Ok(Ok(_)) => {}
         Ok(Err(e)) => {
             eprintln!("rsg-mock-stack: failed to read mock-scheduler's handshake line: {e}");
+            drop(mock_stdin);
             let _ = mock.start_kill();
             let _ = mock.wait().await;
             remove_ipc_socket(&backend_addr);
@@ -200,6 +209,7 @@ async fn run(cli: Cli) -> i32 {
                 "rsg-mock-stack: timed out after {:?} waiting for mock-scheduler's handshake line",
                 HANDSHAKE_TIMEOUT
             );
+            drop(mock_stdin);
             let _ = mock.start_kill();
             let _ = mock.wait().await;
             remove_ipc_socket(&backend_addr);
@@ -237,6 +247,7 @@ async fn run(cli: Cli) -> i32 {
         Ok(c) => c,
         Err(e) => {
             eprintln!("rsg-mock-stack: failed to spawn rsg-server ({}): {e}", cli.rsg_server_bin);
+            drop(mock_stdin);
             let _ = mock.start_kill();
             let _ = mock.wait().await;
             remove_ipc_socket(&backend_addr);
@@ -254,6 +265,7 @@ async fn run(cli: Cli) -> i32 {
     let mut rsg_stdin = rsg.stdin.take().expect("rsg-server stdin piped");
     if let Err(e) = rsg_stdin.write_all(handshake_line.as_bytes()).await {
         eprintln!("rsg-mock-stack: failed to write handshake to rsg-server stdin: {e}");
+        drop(mock_stdin);
         stop_children(&mut mock, &mut rsg).await;
         remove_ipc_socket(&backend_addr);
         remove_ipc_socket(&detok_addr);
@@ -261,14 +273,16 @@ async fn run(cli: Cli) -> i32 {
     }
     if let Err(e) = rsg_stdin.flush().await {
         eprintln!("rsg-mock-stack: failed to flush handshake to rsg-server stdin: {e}");
+        drop(mock_stdin);
         stop_children(&mut mock, &mut rsg).await;
         remove_ipc_socket(&backend_addr);
         remove_ipc_socket(&detok_addr);
         return EXIT_FAILED;
     }
-    // Keep rsg_stdin open past this point: dropping it would close
-    // rsg-server's stdin, which rsg-server treats as "the launcher went
-    // away" (EXIT_STDIN_EOF). It is dropped only right before teardown below.
+    // Keep rsg_stdin and mock_stdin open past this point: dropping either
+    // would close that child's stdin, which both rsg-server and
+    // mock-scheduler treat as "the launcher went away" (EXIT_STDIN_EOF).
+    // Both are dropped only right before teardown below.
 
     eprintln!("rsg-mock-stack: backend ready; handshake sent to rsg-server");
 
@@ -277,6 +291,7 @@ async fn run(cli: Cli) -> i32 {
         Err(e) => {
             eprintln!("rsg-mock-stack: failed to install SIGINT handler: {e}");
             drop(rsg_stdin);
+            drop(mock_stdin);
             stop_children(&mut mock, &mut rsg).await;
             remove_ipc_socket(&backend_addr);
             remove_ipc_socket(&detok_addr);
@@ -288,6 +303,7 @@ async fn run(cli: Cli) -> i32 {
         Err(e) => {
             eprintln!("rsg-mock-stack: failed to install SIGTERM handler: {e}");
             drop(rsg_stdin);
+            drop(mock_stdin);
             stop_children(&mut mock, &mut rsg).await;
             remove_ipc_socket(&backend_addr);
             remove_ipc_socket(&detok_addr);
@@ -315,6 +331,7 @@ async fn run(cli: Cli) -> i32 {
     };
 
     drop(rsg_stdin);
+    drop(mock_stdin);
     stop_children(&mut mock, &mut rsg).await;
     remove_ipc_socket(&backend_addr);
     remove_ipc_socket(&detok_addr);
