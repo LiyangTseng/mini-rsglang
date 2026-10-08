@@ -13,7 +13,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
-use sysinfo::{Pid as SysPid, ProcessesToUpdate, System};
+use sysinfo::{Pid as SysPid, ProcessesToUpdate, System, ThreadKind};
 
 use crate::roles::{Group, RoleMap, group_of};
 
@@ -106,6 +106,15 @@ pub fn sample_tree(sys: &mut System, root_pid: i32) -> TreeSample {
             for (sys_pid, proc) in sys.processes() {
                 let candidate = sys_pid.as_u32() as i32;
                 if seen.contains(&candidate) {
+                    continue;
+                }
+                // On Linux, sysinfo surfaces each userland OS thread of a
+                // multi-threaded process (e.g. tokio worker threads) as its
+                // own pid-like entry with `parent()` pointing at the real
+                // process. Skip them, or a tokio multi-threaded binary's
+                // thread count inflates both the tree and the summed RSS
+                // (every thread reports the whole process's RSS again).
+                if matches!(proc.thread_kind(), Some(ThreadKind::Userland)) {
                     continue;
                 }
                 if proc.parent().map(|p| p.as_u32() as i32) == Some(pid) {
