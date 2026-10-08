@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 6
-current_phase_name: GPU End-to-End Parity
+current_phase: 07
+current_phase_name: Frontend Benchmarks
 status: planning
-stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-10-07T04:07:45.357Z"
+stopped_at: "Phase 6 (GPU End-to-End Parity) complete and human-check approved: D-09 branch C, PAR-01 harness-bug correction, final 128/128 parity report on both models, zero divergence. Next: plan Phase 7."
+last_updated: "2026-10-07T23:59:00.000Z"
 last_activity: 2026-10-07
-last_activity_desc: Phase 05 complete, transitioned to Phase 6
-state_head: efe8a98191e342948a3c4734511d9720ec89c5f1
+last_activity_desc: Phase 06 finalized and approved; all 8 plans complete
+state_head: 667ba09d451f0c10f50b5f52538f68ddf42fe501
 progress:
   total_phases: 7
-  completed_phases: 5
-  total_plans: 43
-  completed_plans: 43
-  percent: 71
+  completed_phases: 6
+  total_plans: 51
+  completed_plans: 51
+  percent: 86
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-07)
 
 **Core value:** Serving through the Rust frontend produces output identical to the Python frontend on the same backend. A reproducible benchmark harness measures how much the Rust frontend improves each of the three host-overhead-bound scenarios.
-**Current focus:** Phase 6 — GPU End-to-End Parity
+**Current focus:** Phase 06 — GPU End-to-End Parity
 
 ## Current Position
 
-Phase: 6 — GPU End-to-End Parity
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-07 — Phase 05 complete, transitioned to Phase 6
+Phase: 06 (GPU End-to-End Parity) — COMPLETE
+Plan: 8 of 8
+Status: Phase complete and human-check approved; PAR-01/PAR-02 genuinely pass (128/128, zero divergence); D-09 abort-timing default = deferred. Next phase: 07 (Frontend Benchmarks) — not yet planned.
+Last activity: 2026-10-07 — Phase 06 finalized, corrected, and approved
 
-Progress: [███████░░░] 71%
+Progress: [████████▌░] 86%
 
 ## Performance Metrics
 
@@ -89,6 +89,15 @@ Progress: [███████░░░] 71%
 | Phase 05 P07 | 50min | 3 tasks | 3 files |
 | Phase 05 P08 | 90min | 2 tasks | 13 files |
 | Phase 05 P09 | 70min | 2 tasks | 3 files |
+| Phase 06 P01 | 55min | 2 tasks | 10 files |
+| Phase 06 P02 | 20min | 2 tasks | 2 files |
+| Phase 06 P03 | 50min | 2 tasks | 5 files |
+| Phase 06 P04 | 75min | 3 tasks | 5 files |
+| Phase 06 P05 | 20min | 3 tasks | 8 files |
+| Phase 06 P06 | 75 min | 1 tasks | 3 files |
+| Phase 06 P06 | 90min | 1 tasks | 10 files |
+| Phase 06 P07 | ~50 min | 1 tasks | 3 files |
+| Phase 06 P08 | ~2h55m | 4 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -142,6 +151,13 @@ Recent decisions affecting current work:
 - [Phase 04]: GatedAccessError is raised only when a gated model's load failure cause-chain contains huggingface_hub's GatedRepoError/RepositoryNotFoundError, confirmed against real hf-hub/transformers source, not a bare except Exception
 - [Phase 04]: Real Llama BOS count is 2 (not D-10's assumed 1), confirmed empirically against the canonical gated tokenizer -- the Rust test asserts 2, documenting the discrepancy rather than normalizing it
 - [Phase 04]: cargo test -p rsg-tokenizer requires --test-threads=1 to be deterministic (pre-existing env-var/cache-lock races, unrelated to TOK-04); logged to deferred-items.md, not fixed in this plan's scope
+- [Phase 06]: Phase 06: one tap (generated sitecustomize shim outside vendor/) and aiohttp instead of RESEARCH's two taps / openai SDK; tdd-red-evidence skipped for pytest (Node-TAP-format-only tool, workflow.tdd_mode disabled), RED verified manually
+- [Phase 06]: D-12 process-health watcher (scripts/gpu_phase6_watch.sh): new standalone script copying gpu_phase1_check.sh's alive/gpu_pids/on_gpu helper semantics rather than sourcing it (preserves Phase 1's signed-off artifact); Task 2's zombie/restart/nvsmi-failure/usage tests passed against Task 1's implementation unmodified since Task 1 already specified the full counter set.
+- [Phase 06]: 06-03: 128-item parity corpus built with 16 items reused from Phase 4's tokenizer corpus (marked phase4:<path>#<id>), 112 original (phase6); corpus.py's validate_canonical enforces exact per-category counts/properties, wired into load_corpus only for the canonical path
+- [Phase 06]: 06-03: compare.py's full D-05 precedence (request_error > tokenization > sampling_params > backend > incomplete > detokenization_or_api) and annotate_sequence's radix-cache note are implemented; wiring annotate_sequence into parity_check.py run is deferred to plan 06-05 per the plan's key_links contract
+- [Phase 06]: 06-04: concurrent sweep (PAR-02), endpoint check (criterion 1), multi-model gated handling and GPU-only require_gpu validation; fixed two real bugs found while proving the plan's own tests -- ThreadingHTTPServer's default request_queue_size (5) silently dropped connections under concurrency 8, and sidecar.build_meta never set meta.gpu so require_gpu could never pass even on a real GPU box
+- [Phase 06]: 06-05: backend window probe (uids >= 2**40, upstream's own wire encoder) sends UserMsg/AbortBackendMsg directly to the scheduler's backend socket to exercise the abort-during-prefill window independently of frontend disconnect-detection latency; reproduced/conclusive fold in both the stress run's tap evidence and the probe's findings
+- [Phase 06]: 06-05: failure_mode precedence (crash > wedge > corrupted_requests > double_free > none) reduces a stress run's watcher+tap evidence to one evidence-backed outcome, so a false-PASS from liveness alone (RESEARCH Pitfall 2) cannot happen
 - [Phase 05]: Engine::new takes (writer, dispatch, codec, registry, config); the driver reports Received/Tokenizing/Submitted/Decoding/one-terminal through a single finish helper so LIFE-01's exactly-one-terminal invariant is structural
 - [Phase 05]: Registry actor removes a uid's entry the instant it reaches a terminal state; active is simply the map length at snapshot time, so a leaked or double-terminated request is directly visible
 - [Phase 05]: http_client::send() test helper writes and reads concurrently via tokio::join! on split TcpStream halves kept alive until the response is fully read, since OwnedWriteHalf shuts down the write direction on drop and an early half-close was read by the server as a client disconnect
@@ -168,6 +184,16 @@ Recent decisions affecting current work:
 - [Phase 05]: test_rust_mode_handshake_reaches_rsg_server's D-10 ordering check now compares against rsg-server's first log line (rsg-server starting) instead of awaiting handshake on stdin, since 05-08 moved the latter after the tokenizer load
 - [Phase 05]: engine.rs builds the per-request IncrementalDecoder (clones the real tokenizer) before register/submit, not after -- doing it after let a zero-decode-delay backend overflow the per-uid broadcast buffer (capacity 16, drop-oldest) before the decode loop's first recv(), deterministically dropping tokens on any response over 16 tokens
 - [Phase 05]: crates/rsg-server/tests/api_parity.rs replays all 18 fixtures/api cases against the real rsg-server binary on mock-scheduler, byte-diffing status/content-type/body (created normalized) -- API-01 is now proven end to end on the Mac; scripts/check_all.sh gained a 7th step (API fixture freshness) keeping the gate honest about both frontends
+- [Phase 06]: 06-06: Task 1 (GPU wrapper tracer) complete and committed; Task 2 halted -- Phase 5's stress_128.rs has no way to target an already-running server, and D-11 forbids changing it in this phase. Plan marked status: halted, blocking 06-07/06-08 until a human/re-plan decision resolves the gap.
+- [Phase 06]: 06-06 Task 2 checkpoint resolved: built a new, purpose-built external-target stress driver (rsglang.parity.stress_client) instead of reusing/modifying stress_128.rs, which has no external-target mode and D-11 forbids changing
+- [Phase 06]: 06-06: rsglang.launch gains its own --abort-timing flag, forwarded to rsg-server via sockets.rust_cli_args -- 05-08-SUMMARY.md left this forwarding deliberately for Phase 6 to decide
+- [Phase 06]: 06-06: rsglang.testing.rust_frontend (new, Mac-only) wires a real rsg-server binary to a real mock-scheduler subprocess, forwarding the handshake stdout->stdin; the existing RSGLANG_SCHEDULER_FACTORY=FakeScheduler harness cannot drive real generations (its run_forever never answers UserMsg)
+- [Phase 06]: Reported Criterion 2 as a genuine FAIL (Qwen3-0.6B 127/128) rather than softening it; both mismatches bisected to prompt edge-08 with per-model hypotheses (max_tokens-cap off-by-one vs end-of-turn-token off-by-one) — **superseded, see the next two entries**
+- [Phase 06]: Investigated both edge-08 one-token-short mismatches with a deterministic Mac-side reproduction (`crates/rsg-server/tests/backend_finish_boundary.rs`) before accepting the FAIL at face value; found the Rust frontend's engine/dispatch pair has no independent stopping logic of any kind and never second-guesses the backend's own `finished` flag — this finding stands unchanged by the correction below. The *explanation* for the mismatch (GPU backend run-to-run nondeterminism, recorded in the original 06-08-PLAN.md Task 0 and parity-report.md) was wrong; see the next entry.
+- [Phase 06]: The true cause of the apparent 127/128 PAR-01 mismatch (both models, prompt edge-08) was a bug in the parity test harness itself, not GPU nondeterminism and not a frontend defect: `python/rsglang/parity/sweep.py`'s `join_sequential`/`join_concurrent` counted a post-finish straggler `detok` record (emitted by the scheduler's pipelined execution after it already sent `finished=true`, raced against session teardown) as an extra output token on the Python side only — even though the real HTTP response text both frontends sent was already byte-identical. Fixed by `_bounded_detoks()` (commit `ae8feec`), which truncates a uid's detok records at the first `finished=true` record, with two regression tests in `python/tests/test_parity_check.py`. A full GPU re-run with the fix in place (on top of the D-09 branch-C `deferred` default below) shows **128/128 for both models, zero divergence anywhere** — PAR-01's hard gate genuinely passes; no `## PAR-01 disposition (D-05)` was needed since the gate did not fail. See `docs/benchmarks/parity-report.md`'s corrected "PAR-01 off-by-one investigation" section for the full account.
+- [Phase 06]: abort-timing default for Phase 7 = deferred (D-09 branch C; reproduced=yes, conclusive=yes, immediate=crash, deferred=none, probe double frees=0; evidence docs/benchmarks/parity-report.md)
+- [Phase 06]: D-09 branch C chosen: --abort-timing default changed to deferred (project-wide); the vendored scheduler stays pristine. See STATE.md Decisions and docs/benchmarks/parity-report.md's Abort-timing decision (D-09) section.
+- [Phase 06]: The apparent Criterion 2 (PAR-01) FAIL reported by 06-07 was a parity test harness bug (sweep.py double-counted a post-finish straggler detok record), not GPU nondeterminism and not a frontend defect; fixed in commit ae8feec. Final GPU re-run: 128/128 for both models, zero divergence. PAR-01/PAR-02 genuinely pass; no disposition was needed.
 
 ### Pending Todos
 
@@ -175,7 +201,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 6]: The upstream abort-during-prefill double free comes from code reading only. If it reproduces, the abort-timing setting (LIFE-05) must apply equally to the baseline.
+- [Phase 6]: The abort-during-prefill double free was reproduced empirically as a scheduler process crash (watcher verdict `unhealthy`: 1 zombie sample, 1 GPU-unlisted sample out of 9) under `--abort-timing immediate`, with `failure_mode: none` under `deferred`; zero double-free/collision evidence in either run or the 72-trial window probe (1 `prefill_window` hit, at `delay_ms=1`). D-09 branch C: the project-wide default is changed to `deferred` (`crates/rsg-server/src/main.rs`); the vendored scheduler stays pristine. See `docs/benchmarks/parity-report.md`'s "Abort-timing decision (D-09)" section and `UPSTREAM.md`'s "Known upstream issues" entry.
+- [Phase 6]: the frozen Python frontend has no abort-timing switch (it aborts only after a chunk plus 0.1 s); Phase 7 must state how the A/B comparison stays fair under the chosen `deferred` default.
 - [Phase 4, pre-existing tech debt]: `cargo test -p rsg-tokenizer`'s `loader::tests::gated_access_unavailable_*` tests race under default parallel test threads (global env-var mutation between concurrently-run tests in that crate); deterministic on this machine. `scripts/check_all.sh --offline` does not pin `--test-threads=1` internally, so it can fail on this specific crate even when nothing in the phase under test is actually broken — confirm with `cargo test -p rsg-tokenizer --lib -- --test-threads=1` before trusting a `check_all.sh` red on this crate. Logged to `.planning/phases/04-tokenizer-detokenizer-parity/deferred-items.md`; not yet fixed.
 - [Phase 5, code review WR-01, open]: `drive_request`'s `IncrementalDecoder` construction (full tokenizer vocab/merge clone) runs synchronously on the async driver task with no `.await` — can starve other concurrent requests' token streams under load. Worth a look before Phase 7's benchmark numbers are trusted at high concurrency; see `05-REVIEW.md`/`05-REVIEW-DISPOSITION.md`.
 
@@ -195,6 +222,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T03:42:23.788Z
-Stopped at: Phase 05 complete, ready to plan Phase 6
+Last session: 2026-10-07T23:47:55.056Z
+Stopped at: Phase 6 fully complete and approved (D-09 branch C, PAR-01 harness-bug correction, final 128/128 parity report, human-check approved). Ready to plan Phase 7 (Frontend Benchmarks).
 Resume file: None

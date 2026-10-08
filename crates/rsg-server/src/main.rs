@@ -63,11 +63,16 @@ struct Cli {
     port: u16,
     /// Server-wide abort-timing mode (LIFE-05, CONTEXT D-01): `immediate`
     /// aborts a cancelled request as soon as it is observed; `deferred`
-    /// waits for the first token first. Exists because of the suspected
-    /// abort-during-prefill double-free bug named in STATE.md's Phase 6
-    /// blocker -- Phase 6/7 must run both frontends under the same setting
-    /// for a fair comparison.
-    #[arg(long, value_enum, default_value_t = AbortTiming::Immediate)]
+    /// waits for the first token first. Default changed to `deferred` by
+    /// Phase 6 D-09: the GPU abort-stress run reproduced a scheduler crash
+    /// under `immediate` timing (watcher verdict unhealthy) that did not
+    /// occur under `deferred`, with no double-free/collision evidence
+    /// localizing a small scheduler.py fix (branch C -- routed around,
+    /// not patched; see docs/benchmarks/parity-report.md's "Abort-timing
+    /// decision (D-09)" and UPSTREAM.md's "Known upstream issues"). Phase
+    /// 6/7 must run both frontends under the same setting for a fair
+    /// comparison.
+    #[arg(long, value_enum, default_value_t = AbortTiming::Deferred)]
     abort_timing: AbortTiming,
     /// Backend-inactivity timeout (LIFE-04), in milliseconds: a request
     /// whose backend has gone silent for this long ends in error instead

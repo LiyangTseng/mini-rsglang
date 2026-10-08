@@ -34,13 +34,14 @@ use crate::writer::{Submitted, WriterClosed, WriterHandle};
 pub const DEFAULT_BACKEND_TIMEOUT_MS: u64 = 60_000;
 
 /// Server-wide abort-timing mode (LIFE-05, CONTEXT D-01): `Immediate`
-/// (default) aborts as soon as a disconnect is noticed; `Deferred` waits
-/// for the first token. A later task in this plan wires this into the
-/// driver; this plan's first task always behaves as `Immediate`.
+/// aborts as soon as a disconnect is noticed; `Deferred` (default since
+/// Phase 6 D-09 -- see `main.rs`'s `--abort-timing` doc comment and
+/// `docs/benchmarks/parity-report.md`'s "Abort-timing decision (D-09)")
+/// waits for the first token.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
 pub enum AbortTiming {
-    #[default]
     Immediate,
+    #[default]
     Deferred,
 }
 

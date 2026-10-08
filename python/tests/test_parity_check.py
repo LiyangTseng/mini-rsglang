@@ -1,0 +1,831 @@
+"""Mac-side tests for scripts/parity_check.py (PAR-01/PAR-02). Task 1's
+tracer (test_tracer_sequential_identical, test_tracer_divergence_exits_1,
+test_validate_cli) proves the whole sweep/tap-join/compare/sidecar path end
+to end against the fake parity server; nothing else in the phase depends on
+this path until these are green.
+"""
+
+from __future__ import annotations
+
+import json
+import socket
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from rsglang.parity import sidecar
+from rsglang.parity.compare import LAYERS
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def _write_corpus(path: Path) -> None:
+    doc = {
+        "schema_version": 1,
+        "items": [
+            {
+                "id": "chat-1",
+                "category": "short",
+                "kind": "chat",
+                "messages": [
+                    {"role": "system", "content": "You are helpful."},
+                    {"role": "user", "content": "Hello there"},
+                ],
+                "max_tokens": 8,
+                "source": "test",
+            },
+            {
+                "id": "raw-1",
+                "category": "raw",
+                "kind": "raw",
+                "prompt": "Once upon a time, this has a unique raw prompt marker",
+                "max_tokens": 8,
+                "source": "test",
+            },
+        ],
+    }
+    path.write_text(json.dumps(doc), encoding="utf-8")
+
+
+def _write_concurrent_corpus(path: Path, n: int = 8) -> None:
+    items = []
+    for i in range(n):
+        items.append(
+            {
+                "id": f"item-{i}",
+                "category": "short",
+                "kind": "raw",
+                "prompt": f"distinct concurrent prompt marker number {i}",
+                "max_tokens": 4,
+                "source": "test",
+            }
+        )
+    path.write_text(json.dumps({"schema_version": 1, "items": items}), encoding="utf-8")
+
+
+def _run_parity_check(args: list, timeout: int = 120) -> "subprocess.CompletedProcess[str]":
+    return subprocess.run(
+        [sys.executable, "scripts/parity_check.py", *args],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+
+
+@pytest.mark.slow
+def test_tracer_sequential_identical(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert "sequential fake/model: 2/2 identical" in result.stdout
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_sidecar(doc) == []
+
+    block = doc["sequential"]["fake/model"]
+    assert block["summary"]["n"] == 2
+    assert block["summary"]["matched"] == 2
+
+    for record in block["prompts"]:
+        assert record["python"]["output_ids"] == record["rust"]["output_ids"]
+        assert record["python"]["output_ids"]
+        assert record["python"]["input_ids"]
+
+
+@pytest.mark.slow
+def test_tracer_divergence_exits_1(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    python_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+    rust_cmd = (
+        "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model} "
+        "--diverge-when 'unique raw prompt marker' --diverge-output-at 3"
+    )
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", python_cmd,
+            "--rust-server-cmd", rust_cmd,
+        ]
+    )
+    assert result.returncode == 1, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_sidecar(doc) == []
+
+    prompts = {r["prompt_id"]: r for r in doc["sequential"]["fake/model"]["prompts"]}
+    assert prompts["raw-1"]["match"] is False
+    assert prompts["raw-1"]["divergence"]["layer"] == "backend"
+    assert prompts["raw-1"]["divergence"]["first_index"] == 3
+    assert prompts["chat-1"]["match"] is True
+
+
+def test_validate_cli(tmp_path):
+    doc = {
+        "schema_version": sidecar.SCHEMA_VERSION,
+        "generated_by": sidecar.GENERATED_BY,
+        "meta": {},
+        "endpoints": None,
+        "sequential": {
+            "fake/model": {
+                "status": "ok",
+                "reason": None,
+                "summary": {
+                    "n": 1,
+                    "matched": 1,
+                    "ids_matched": 1,
+                    "text_matched": 1,
+                    "by_layer": {layer: 0 for layer in LAYERS},
+                    "by_category": {},
+                },
+                "prompts": [
+                    {
+                        "prompt_id": "p1",
+                        "category": "x",
+                        "kind": "raw",
+                        "python": {
+                            "status": "ok",
+                            "error": None,
+                            "uid": 0,
+                            "input_ids": [1],
+                            "sampling": {},
+                            "output_ids": [1],
+                            "finished": True,
+                            "text": "a",
+                        },
+                        "rust": {
+                            "status": "ok",
+                            "error": None,
+                            "uid": 0,
+                            "input_ids": [1],
+                            "sampling": {},
+                            "output_ids": [1],
+                            "finished": True,
+                            "text": "a",
+                        },
+                        "ids_match": True,
+                        "text_match": True,
+                        "match": True,
+                        "divergence": None,
+                    }
+                ],
+            }
+        },
+        "concurrent": None,
+        "abort_stress": None,
+        "warnings": [],
+    }
+    good_path = tmp_path / "good.json"
+    good_path.write_text(json.dumps(doc), encoding="utf-8")
+
+    result = _run_parity_check(["validate", str(good_path)])
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert "valid" in result.stdout
+
+    bad_doc = json.loads(json.dumps(doc))
+    bad_doc["sequential"]["fake/model"]["summary"]["matched"] = 0
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text(json.dumps(bad_doc), encoding="utf-8")
+
+    result = _run_parity_check(["validate", str(bad_path)])
+    assert result.returncode == 1
+
+
+@pytest.mark.slow
+def test_concurrent_tracer(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_concurrent_corpus(corpus_path, n=8)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential,concurrent",
+            "--concurrency", "8",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+    assert "(informational)" in result.stdout
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_sidecar(doc) == []
+
+    block = doc["concurrent"]["fake/model"]
+    assert block["status"] == "ok"
+    assert block["concurrency"] == 8
+    summary = block["summary"]
+    assert summary["n"] == 8
+    assert summary["matched"] == 8
+    assert summary["python_vs_sequential_matched"] == 8
+    assert summary["rust_vs_sequential_matched"] == 8
+    assert summary["unmatched_tap"] == 0
+
+    # Same corpus/concurrency, but --diverge-under-load 4 on the Rust cmd only.
+    python_cmd = server_cmd
+    rust_cmd = server_cmd + " --diverge-under-load 4"
+    out_path2 = tmp_path / "out2.json"
+    work_dir2 = tmp_path / "w2"
+    port2 = _free_port()
+
+    result2 = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential,concurrent",
+            "--concurrency", "8",
+            "--port", str(port2),
+            "--out", str(out_path2),
+            "--work-dir", str(work_dir2),
+            "--python-server-cmd", python_cmd,
+            "--rust-server-cmd", rust_cmd,
+        ]
+    )
+    assert result2.returncode == 0, f"stdout={result2.stdout!r} stderr={result2.stderr!r}"
+    assert "(informational)" in result2.stdout
+
+    doc2 = json.loads(out_path2.read_text())
+    assert sidecar.validate_sidecar(doc2) == []
+
+    seq_block2 = doc2["sequential"]["fake/model"]
+    assert seq_block2["summary"]["matched"] == 8
+
+    conc_block2 = doc2["concurrent"]["fake/model"]
+    summary2 = conc_block2["summary"]
+    assert summary2["matched"] < 8
+    assert summary2["rust_vs_sequential_matched"] < 8
+    assert summary2["python_vs_sequential_matched"] == 8
+
+
+def test_concurrent_requires_sequential(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_concurrent_corpus(corpus_path, n=8)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "concurrent",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 2
+    assert "concurrent needs sequential" in result.stderr
+
+
+@pytest.mark.slow
+def test_concurrency_bounds(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_concurrent_corpus(corpus_path, n=8)
+    port = _free_port()
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    zero_result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential,concurrent",
+            "--concurrency", "0",
+            "--port", str(port),
+            "--out", str(work_dir / "zero.json"),
+            "--work-dir", str(work_dir / "zero"),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert zero_result.returncode == 2
+
+    out_path = work_dir / "clamped.json"
+    clamp_result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential,concurrent",
+            "--concurrency", "50",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir / "clamp"),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert clamp_result.returncode == 0, f"stdout={clamp_result.stdout!r} stderr={clamp_result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert doc["concurrent"]["fake/model"]["concurrency"] == 8
+    assert any("clamped" in w for w in doc["warnings"])
+
+
+@pytest.mark.slow
+def test_discover_rust_endpoints(tmp_path):
+    port = _free_port()
+    out_path = tmp_path / "discover.json"
+    work_dir = tmp_path / "w"
+    server_cmd = (
+        "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model} "
+        "--flavor rust"
+    )
+
+    result = _run_parity_check(
+        [
+            "discover",
+            "--frontend", "rust",
+            "--model", "fake/model",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_discover(doc) == []
+    assert len(doc["endpoints"]) == 8
+    assert all(e["ok"] for e in doc["endpoints"])
+    assert doc["tap"]["patched"] is True
+
+
+@pytest.mark.slow
+def test_discover_python_endpoints(tmp_path):
+    port = _free_port()
+    out_path = tmp_path / "discover.json"
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "discover",
+            "--frontend", "python",
+            "--model", "fake/model",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert sidecar.validate_discover(doc) == []
+    assert len(doc["endpoints"]) == 5
+
+
+@pytest.mark.slow
+def test_discover_missing_endpoint_fails(tmp_path):
+    port = _free_port()
+    out_path = tmp_path / "discover.json"
+    work_dir = tmp_path / "w"
+    # Python-flavor fake server, but we ask discover to check Rust's endpoints.
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "discover",
+            "--frontend", "rust",
+            "--model", "fake/model",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 1
+
+    doc = json.loads(out_path.read_text())
+    by_name = {e["name"]: e for e in doc["endpoints"]}
+    assert by_name["GET /health"]["ok"] is False
+
+
+@pytest.mark.slow
+def test_run_endpoints_part_and_verdict_c1(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+    server_cmd = (
+        "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model} "
+        "--flavor rust"
+    )
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "endpoints",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    assert len(doc["endpoints"]["python"]) == 5
+    assert len(doc["endpoints"]["rust"]) == 8
+
+    verdict_result = _run_parity_check(["verdict", str(out_path), "--criterion", "1"])
+    assert verdict_result.returncode == 0, f"stdout={verdict_result.stdout!r}"
+    assert "criterion 1: PASS" in verdict_result.stdout
+
+    bad_doc = json.loads(json.dumps(doc))
+    for entry in bad_doc["endpoints"]["rust"]:
+        if entry["name"] == "GET /health":
+            entry["ok"] = False
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text(json.dumps(bad_doc), encoding="utf-8")
+
+    bad_verdict_result = _run_parity_check(["verdict", str(bad_path), "--criterion", "1"])
+    assert bad_verdict_result.returncode == 1
+    assert "criterion 1: FAIL" in bad_verdict_result.stdout
+
+
+def test_port_in_use_exits_2(tmp_path):
+    port = _free_port()
+    out_path = tmp_path / "discover.json"
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as blocker:
+        blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        blocker.bind(("127.0.0.1", port))
+        blocker.listen(1)
+
+        result = _run_parity_check(
+            [
+                "discover",
+                "--frontend", "python",
+                "--model", "fake/model",
+                "--port", str(port),
+                "--out", str(out_path),
+                "--work-dir", str(work_dir),
+                "--server-cmd", server_cmd,
+            ]
+        )
+        assert result.returncode == 2
+        assert "in use" in result.stderr
+
+
+@pytest.mark.slow
+def test_report_model_unavailable(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+    server_cmd = (
+        "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model} "
+        "--gated-models fake/gated"
+    )
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model,fake/gated",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    doc = json.loads(out_path.read_text())
+    gated_block = doc["sequential"]["fake/gated"]
+    assert gated_block["status"] == "unavailable"
+    assert "gated" in gated_block["reason"].lower()
+    gate_block = doc["sequential"]["fake/model"]
+    assert gate_block["status"] == "ok"
+    assert gate_block["summary"]["matched"] == gate_block["summary"]["n"]
+
+    verdict_result = _run_parity_check(["verdict", str(out_path), "--criterion", "2"])
+    assert verdict_result.returncode == 1
+    assert "unavailable" in verdict_result.stdout
+
+
+def test_canonical_out_refused_off_gpu(tmp_path):
+    # docs/benchmarks/parity-report.json is now the real, committed GPU
+    # sidecar (06-07) -- it legitimately exists on every checkout past that
+    # commit, so this test cannot assert its absence as a precondition. The
+    # guard under test (scripts/parity_check.py) is purely path-based (it
+    # compares --out's resolved path against the canonical path and checks
+    # sys.platform/gpu_name, never file existence), so the correct
+    # assertion is that the refusal leaves whatever is already at that path
+    # byte-for-byte untouched, not that the path stays empty.
+    canonical_out = REPO_ROOT / "docs" / "benchmarks" / "parity-report.json"
+    before = canonical_out.read_bytes() if canonical_out.exists() else None
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--out", "docs/benchmarks/parity-report.json",
+            "--parts", "sequential",
+        ],
+        timeout=30,
+    )
+    assert result.returncode == 2
+    assert "refusing to write" in result.stderr
+    after = canonical_out.read_bytes() if canonical_out.exists() else None
+    assert before == after, "a refused run must not modify the canonical parity report"
+
+
+@pytest.mark.slow
+def test_validate_require_gpu_rejects_mac_doc(tmp_path):
+    corpus_path = tmp_path / "corpus.json"
+    _write_corpus(corpus_path)
+    port = _free_port()
+    out_path = tmp_path / "out.json"
+    work_dir = tmp_path / "w"
+    server_cmd = "{python} -m rsglang.testing.fake_parity_server server --port {port} --model {model}"
+
+    result = _run_parity_check(
+        [
+            "run",
+            "--models", "fake/model",
+            "--corpus", str(corpus_path),
+            "--parts", "sequential",
+            "--port", str(port),
+            "--out", str(out_path),
+            "--work-dir", str(work_dir),
+            "--python-server-cmd", server_cmd,
+            "--rust-server-cmd", server_cmd,
+        ]
+    )
+    assert result.returncode == 0, f"stdout={result.stdout!r} stderr={result.stderr!r}"
+
+    plain_result = _run_parity_check(["validate", str(out_path)])
+    assert plain_result.returncode == 0
+
+    gpu_result = _run_parity_check(["validate", str(out_path), "--require-gpu"])
+    assert gpu_result.returncode == 1
+    assert "platform" in gpu_result.stderr
+
+
+def _synthetic_prompt_record(prompt_id: str, match: bool = True) -> dict:
+    return {
+        "prompt_id": prompt_id,
+        "category": "x",
+        "kind": "raw",
+        "python": {
+            "status": "ok", "error": None, "uid": 0, "input_ids": [1],
+            "sampling": {}, "output_ids": [1], "finished": True, "text": "a",
+        },
+        "rust": {
+            "status": "ok", "error": None, "uid": 0, "input_ids": [1],
+            "sampling": {}, "output_ids": [1] if match else [2],
+            "finished": True, "text": "a" if match else "b",
+        },
+        "ids_match": match,
+        "text_match": match,
+        "match": match,
+        "divergence": None if match else {
+            "layer": "backend", "first_index": 0, "python_window": [1],
+            "rust_window": [2], "text_offset": None, "note": None,
+        },
+    }
+
+
+def _synthetic_doc(n: int, *, matched: "int | None" = None) -> dict:
+    matched = n if matched is None else matched
+    seq_prompts = [_synthetic_prompt_record(f"p{i}", match=(i < matched)) for i in range(n)]
+    conc_prompts = []
+    for i, r in enumerate(seq_prompts):
+        cr = json.loads(json.dumps(r))
+        cr["python_vs_sequential"] = True
+        cr["rust_vs_sequential"] = True
+        conc_prompts.append(cr)
+
+    return {
+        "schema_version": sidecar.SCHEMA_VERSION,
+        "generated_by": sidecar.GENERATED_BY,
+        "meta": {
+            "models": ["fake/gate"],
+            "gate_model": "fake/gate",
+            "concurrency": 8,
+            "corpus": {"path": "x", "sha256": "x", "n": n},
+        },
+        "endpoints": None,
+        "sequential": {
+            "fake/gate": {
+                "status": "ok",
+                "reason": None,
+                "summary": {
+                    "n": n,
+                    "matched": matched,
+                    "ids_matched": matched,
+                    "text_matched": matched,
+                    "by_layer": {layer: 0 for layer in LAYERS},
+                    "by_category": {},
+                },
+                "prompts": seq_prompts,
+            }
+        },
+        "concurrent": {
+            "fake/gate": {
+                "status": "ok",
+                "reason": None,
+                "concurrency": 8,
+                "summary": {
+                    "n": n,
+                    "matched": sum(1 for r in conc_prompts if r["match"]),
+                    "ids_matched": sum(1 for r in conc_prompts if r["ids_match"]),
+                    "text_matched": sum(1 for r in conc_prompts if r["text_match"]),
+                    "by_layer": {layer: 0 for layer in LAYERS},
+                    "by_category": {},
+                    "python_vs_sequential_matched": n,
+                    "rust_vs_sequential_matched": n,
+                    "unmatched_tap": 0,
+                },
+                "prompts": conc_prompts,
+            }
+        },
+        "abort_stress": None,
+        "warnings": [],
+    }
+
+
+def test_verdict_c2_c3_synthetic(tmp_path):
+    doc = _synthetic_doc(100)
+    path = tmp_path / "doc.json"
+    path.write_text(json.dumps(doc), encoding="utf-8")
+
+    r2 = _run_parity_check(["verdict", str(path), "--criterion", "2"])
+    assert r2.returncode == 0, f"stdout={r2.stdout!r} stderr={r2.stderr!r}"
+    assert "criterion 2: PASS" in r2.stdout
+
+    r3 = _run_parity_check(["verdict", str(path), "--criterion", "3"])
+    assert r3.returncode == 0, f"stdout={r3.stdout!r} stderr={r3.stderr!r}"
+    assert "criterion 3: PASS" in r3.stdout
+
+    # One prompt's match flipped false, matched 99 -> criterion 2 FAILs.
+    bad_doc = _synthetic_doc(100, matched=99)
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text(json.dumps(bad_doc), encoding="utf-8")
+    r2_bad = _run_parity_check(["verdict", str(bad_path), "--criterion", "2"])
+    assert r2_bad.returncode == 1
+    assert "criterion 2: FAIL" in r2_bad.stdout
+
+    # 99 prompts total -> criterion 2 FAILs mentioning the n>=100 requirement.
+    small_doc = _synthetic_doc(99)
+    small_path = tmp_path / "small.json"
+    small_path.write_text(json.dumps(small_doc), encoding="utf-8")
+    r2_small = _run_parity_check(["verdict", str(small_path), "--criterion", "2"])
+    assert r2_small.returncode == 1
+    assert "100" in r2_small.stdout
+
+    # A report model with status "failed" -> criterion 2 FAILs.
+    failed_doc = _synthetic_doc(100)
+    failed_doc["meta"]["models"] = ["fake/gate", "fake/other"]
+    failed_doc["sequential"]["fake/other"] = {
+        "status": "failed", "reason": "boom", "summary": None, "prompts": [],
+    }
+    failed_path = tmp_path / "failed.json"
+    failed_path.write_text(json.dumps(failed_doc), encoding="utf-8")
+    r2_failed = _run_parity_check(["verdict", str(failed_path), "--criterion", "2"])
+    assert r2_failed.returncode == 1
+    assert "criterion 2: FAIL" in r2_failed.stdout
+
+
+# --- Regression: scheduler straggler detok after finished=True (Phase 6 06-08 scope) ---
+
+
+def test_bounded_detoks_discards_straggler_after_finished():
+    """The scheduler's pipelined/overlapped execution can emit a straggler
+    detok record for a uid *after* it already sent finished=True -- a real
+    GPU run hit this for the very last request in a sequential session
+    (raced against that session's own teardown SIGINT). That straggler never
+    reaches any real HTTP client, since the frontend already closed the
+    response out on the first finished=True. _bounded_detoks must discard
+    it, matching what a real client actually received."""
+    from rsglang.parity.sweep import _bounded_detoks
+
+    recs = [
+        {"uid": 127, "seq": 1, "next_token": 10, "finished": False},
+        {"uid": 127, "seq": 2, "next_token": 20, "finished": False},
+        {"uid": 127, "seq": 3, "next_token": 30, "finished": True},
+        {"uid": 127, "seq": 4, "next_token": 99999, "finished": True},  # straggler
+    ]
+    bounded = _bounded_detoks(recs)
+    assert [r["next_token"] for r in bounded] == [10, 20, 30]
+
+    # No finished=True at all: nothing to bound, every record is kept.
+    no_finish = [
+        {"uid": 5, "seq": 1, "next_token": 1, "finished": False},
+        {"uid": 5, "seq": 2, "next_token": 2, "finished": False},
+    ]
+    assert _bounded_detoks(no_finish) == no_finish
+
+    # finished=True on the very first record: bounded to just that one.
+    immediate = [
+        {"uid": 9, "seq": 1, "next_token": 1, "finished": True},
+        {"uid": 9, "seq": 2, "next_token": 2, "finished": False},
+    ]
+    assert len(_bounded_detoks(immediate)) == 1
+
+
+def test_join_sequential_discards_straggler_detok_for_par01(tmp_path):
+    """End-to-end regression: join_sequential's output_ids must not be
+    inflated by a straggler detok record past finished=True. Reproduces the
+    exact shape found on real GPU hardware (Phase 6 06-08): Python's session
+    tap recorded one extra finished=True detok record after the first one
+    for the corpus's last uid; Rust's session tap did not. Before the fix,
+    this made ids_match False (127 vs 128) even though the real HTTP
+    response text -- which is unaffected by this bug, since it comes from
+    the actual response, not the tap -- was already byte-identical."""
+    from rsglang.parity.sweep import HttpResult, join_sequential
+    from rsglang.parity.tap import KIND_DETOK, KIND_USER, TapRecords
+
+    class _Item:
+        def __init__(self, item_id):
+            self.id = item_id
+
+    items = [_Item("edge-08")]
+    user_record = {
+        "kind": KIND_USER,
+        "pid": 111,
+        "seq": 1,
+        "uid": 127,
+        "input_ids": [1, 2, 3],
+        "sampling": {"max_tokens": 128},
+    }
+    detok_records = [
+        {"kind": KIND_DETOK, "pid": 111, "seq": 2, "uid": 127, "next_token": 387, "finished": True},
+        # Straggler: a second finished=True for the same uid, never sent to any real client.
+        {"kind": KIND_DETOK, "pid": 111, "seq": 3, "uid": 127, "next_token": 11285, "finished": True},
+    ]
+    tap_records = TapRecords(records=[user_record] + detok_records)
+    http_results = [HttpResult(prompt_id="edge-08", status=200, error=None, text="some reply")]
+
+    result = join_sequential(items, http_results, tap_records)
+    assert result["edge-08"]["output_ids"] == [387]
+    assert result["edge-08"]["status"] == "ok"

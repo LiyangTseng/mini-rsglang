@@ -208,7 +208,7 @@ def identify_roles(top_pid: int, dumps: Mapping[int, str]) -> dict:
     }
 
 
-def _pid_alive(pid: int) -> bool:
+def pid_alive(pid: int) -> bool:
     if not psutil.pid_exists(pid):
         return False
     try:
@@ -232,7 +232,7 @@ def teardown(handle: ServerHandle, *, extra_pids: Iterable[int] = (), grace_s: f
     except subprocess.TimeoutExpired:
         pass
     for pid in extra_pids:
-        while time.monotonic() < deadline and _pid_alive(pid):
+        while time.monotonic() < deadline and pid_alive(pid):
             time.sleep(0.2)
 
     try:
@@ -246,7 +246,7 @@ def teardown(handle: ServerHandle, *, extra_pids: Iterable[int] = (), grace_s: f
     except subprocess.TimeoutExpired:
         pass
     for pid in extra_pids:
-        while time.monotonic() < kill_deadline and _pid_alive(pid):
+        while time.monotonic() < kill_deadline and pid_alive(pid):
             time.sleep(0.2)
 
     for i in _MINISGL_IPC_INDICES:
@@ -255,7 +255,7 @@ def teardown(handle: ServerHandle, *, extra_pids: Iterable[int] = (), grace_s: f
         except OSError:
             pass
 
-    return [pid for pid in (handle.proc.pid, *extra_pids) if _pid_alive(pid)]
+    return [pid for pid in (handle.proc.pid, *extra_pids) if pid_alive(pid)]
 
 
 def tree_memory(top_pid: int) -> dict:

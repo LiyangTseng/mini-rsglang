@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: ZMQ Transport & Mock Scheduler** - Ordered ZMQ transport plus one minimal Rust mock scheduler for GPU-free development (completed 2026-10-06)
 - [x] **Phase 4: Tokenizer & Detokenizer Parity** - Token ids, chat templates and streamed text identical to Python for Qwen3-0.6B and one Llama-3.x model (completed 2026-10-06)
 - [x] **Phase 5: Request Lifecycle & HTTP API** - First full request on the Mac: lifecycle FSM, cancellation, and endpoints that match the Python frontend (completed 2026-10-06)
-- [ ] **Phase 6: GPU End-to-End Parity** - Rust and Python frontends produce identical output on the real backend
+- [x] **Phase 6: GPU End-to-End Parity** - Rust and Python frontends produce identical output on the real backend (completed 2026-10-07)
 - [ ] **Phase 7: Frontend Benchmarks** - Reproducible Python-vs-Rust comparison across the three scenarios, plus a throughput regression check
 
 ## Phase Details
@@ -217,7 +217,29 @@ Plans:
   3. Under concurrent load, the Rust-vs-Python output match rate is measured and reported. It is informational only, because GPU batch composition affects the results.
   4. The 128-request cancellation stress test also completes against the real backend without crashing or wedging the scheduler. The run records whether the suspected abort-during-prefill bug reproduces, which settles the abort-timing setting used in the benchmarks.
 
-**Plans**: TBD
+**Plans:** 8/8 plans executed — Complete (2026-10-07): PAR-01/PAR-02 both genuinely pass (128/128, zero divergence); D-09 abort-timing default set to `deferred`; final human-check on `docs/benchmarks/parity-report.md` approved (see `06-08-SUMMARY.md` coverage item D5)
+
+Plans:
+
+**Wave 1**
+- [x] 06-01-PLAN.md — Tracer: parity sweep end to end on the Mac (fresh session per frontend, one request at a time, backend-tap token ids first, validated sidecar) plus the env-gated sitecustomize scheduler tap on the real vendored Scheduler (wave 1)
+- [x] 06-02-PLAN.md — D-12 process-health watcher `scripts/gpu_phase6_watch.sh` (crash/zombie/restart, nvidia-smi quirks) with Mac stub tests (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 06-03-PLAN.md — Curated 128-prompt corpus shared by both models (D-01/D-03) and full D-05 localization (layer precedence, first diverging token, explain CLI) (wave 2)
+- [x] 06-04-PLAN.md — PAR-02 single-point concurrent match rate at 128, endpoint check for criterion 1, multi-model runs with gated-checkpoint handling, GPU-only validation, verdicts 1-3 (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 06-05-PLAN.md — Stress part: Phase 5's tool unchanged under the watcher for both abort timings, tap-based double-free/collision analysis, backend window probe, verdict 4 (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 06-06-PLAN.md — Human-run GPU wrapper `scripts/gpu_phase6_parity.sh` proven by a Mac dry run; defaults bound to Phase 5's delivered commands and checked against rsg-server + mock-scheduler (wave 4) — **HALTED: Task 2 blocked on an unmet precondition (Phase 5's stress tool has no way to target an already-running server); see 06-06-SUMMARY.md**
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 06-07-PLAN.md — GPU run (human) and the hand-written `docs/benchmarks/parity-report.md` tied to the JSON, with D-05 bisection and D-08 findings (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 06-08-PLAN.md — D-09 triage by fix scope (shared fix with GPU re-run, or route around with deferred), abort-timing default for Phase 7 and PAR-01 disposition recorded (wave 6)
 
 ### Phase 7: Frontend Benchmarks
 
@@ -250,5 +272,5 @@ Plans:
 | 3. ZMQ Transport & Mock Scheduler | 6/6 | Complete    | 2026-10-06 |
 | 4. Tokenizer & Detokenizer Parity | 6/6 | Complete    | 2026-10-06 |
 | 5. Request Lifecycle & HTTP API | 9/9 | Complete    | 2026-10-06 |
-| 6. GPU End-to-End Parity | 0/TBD | Not started | - |
+| 6. GPU End-to-End Parity | 8/8 | Complete    | 2026-10-07 |
 | 7. Frontend Benchmarks | 0/TBD | Not started | - |

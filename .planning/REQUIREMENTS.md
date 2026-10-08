@@ -30,7 +30,7 @@
 - [x] **LIFE-02**: On client disconnect (streaming or non-streaming), Rust sends an abort to the backend immediately; tokens that arrive after the abort are dropped and counted
 - [x] **LIFE-03**: A stress test with 128 concurrent requests and random cancellations ends with no leaked requests and no stuck connections
 - [x] **LIFE-04**: Overlong prompts get an immediate 400 (upstream drops them silently and the request hangs), and a request whose backend stops responding times out with an error
-- [x] **LIFE-05**: Abort timing is configurable (immediate or deferred until first token) to work around the suspected upstream abort-during-prefill bug; default is immediate
+- [x] **LIFE-05**: Abort timing is configurable (immediate or deferred until first token) to work around the suspected upstream abort-during-prefill bug; default is immediate (default changed to deferred by Phase 6 D-09; see STATE.md)
 
 ### HTTP API
 
@@ -43,8 +43,8 @@
 
 ### End-to-End Parity
 
-- [ ] **PAR-01**: On the GPU machine, with greedy decoding (temperature 0) sent one request at a time, the Rust and Python frontends produce identical output on at least 100 prompts
-- [ ] **PAR-02**: Under concurrent load, the output match rate is reported (not a hard gate, because GPU batch composition affects results)
+- [x] **PAR-01**: On the GPU machine, with greedy decoding (temperature 0) sent one request at a time, the Rust and Python frontends produce identical output on at least 100 prompts
+- [x] **PAR-02**: Under concurrent load, the output match rate is reported (not a hard gate, because GPU batch composition affects results)
 
 ### Benchmarks
 
@@ -110,8 +110,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIFE-05 | Phase 5 | Complete |
 | API-01 | Phase 5 | Complete |
 | API-02 | Phase 5 | Complete |
-| PAR-01 | Phase 6 | Pending |
-| PAR-02 | Phase 6 | Pending |
+| PAR-01 | Phase 6 | Complete |
+| PAR-02 | Phase 6 | Complete |
 | BENCH-02 | Phase 7 | Pending |
 | BENCH-03 | Phase 7 | Pending |
 | BENCH-04 | Phase 7 | Pending |
