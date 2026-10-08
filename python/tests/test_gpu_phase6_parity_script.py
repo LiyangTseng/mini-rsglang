@@ -5,9 +5,14 @@ test_tracer_mac_dry_run drives the whole pipeline -- cargo build, both
 discover calls, the full run (endpoints/sequential/concurrent/stress), the
 validate --require-gpu check, all 4 verdicts and check_upstream.py -- against
 stub `nvidia-smi`/`cargo` and the Mac-only fake_parity_server stand-ins, so
-the wrapper's wiring is proven before any GPU time is spent. Every step
-passes except step 5 (validate --require-gpu), which fails only because the
-run is not on Linux (platform check in sidecar.validate_sidecar).
+the wrapper's wiring is proven before any GPU time is spent.
+validate_sidecar's require_gpu check (sidecar.py) only requires
+meta.platform to start with "linux" and meta.gpu to be non-empty; the stub
+nvidia-smi always supplies a non-empty GPU name, so step 5 passes whenever
+this test itself runs on Linux (e.g. the ubuntu-latest CI runner) and fails
+only on a non-Linux dev machine (e.g. the author's Mac) -- there is no way
+to fake "real GPU hardware" independently of the platform string. The
+expected per-step outcome below is therefore branched on sys.platform.
 """
 
 from __future__ import annotations
@@ -177,15 +182,20 @@ def test_tracer_mac_dry_run(tmp_path):
         env=env,
     )
 
-    assert result.returncode == 1, f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
-    assert "SOME STEPS FAILED" in result.stdout, result.stdout
+    on_linux = sys.platform.startswith("linux")
+    if on_linux:
+        assert result.returncode == 0, f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+        assert "ALL PASS" in result.stdout, result.stdout
+    else:
+        assert result.returncode == 1, f"stdout={result.stdout!r}\nstderr={result.stderr!r}"
+        assert "SOME STEPS FAILED" in result.stdout, result.stdout
 
     expected = {
         1: "PASS",
         2: "PASS",
         3: "PASS",
         4: "PASS",
-        5: "FAIL",
+        5: "PASS" if on_linux else "FAIL",
         6: "PASS",
         7: "PASS",
         8: "PASS",

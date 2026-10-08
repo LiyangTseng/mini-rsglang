@@ -125,7 +125,9 @@ async fn finished_flag_alone_ends_the_request_never_an_id_comparison() {
 
     let first = active.next_event().await.expect("first event");
     match first {
-        RequestEvent::Token { finished, .. } => assert!(!finished, "first token must not be finished"),
+        RequestEvent::Token { finished, .. } => {
+            assert!(!finished, "first token must not be finished")
+        }
         other => panic!("expected a Token event, got {other:?}"),
     }
 
@@ -165,7 +167,9 @@ async fn finished_on_the_first_token_ends_immediately() {
 
     let first = active.next_event().await.expect("first event");
     match first {
-        RequestEvent::Token { finished, .. } => assert!(finished, "the single token must be finished"),
+        RequestEvent::Token { finished, .. } => {
+            assert!(finished, "the single token must be finished")
+        }
         other => panic!("expected a Token event, got {other:?}"),
     }
 
