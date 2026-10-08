@@ -144,20 +144,10 @@ fn coldstart_once_then_stop_with_stub() {
     let group: serde_json::Value = serde_json::from_str(&pgid_text).expect("parse pgid file");
     let pgid = group["pgid"].as_i64().expect("pgid field") as i32;
     let members = procs::group_members_alive(pgid);
-    // Tolerate extra members beyond our own leader + spawned child: `group_members_alive`
-    // scans every process on the system and matches by raw `getpgid()` equality (by
-    // design -- `teardown`'s killpg needs that same broad scan to signal a group it did
-    // not enumerate itself). A busier CI runner's higher subprocess churn across the
-    // whole `cargo test --workspace` run makes it occasionally reuse this leader's pid as
-    // a stale, already-orphaned process group's pgid elsewhere in the system (seen: 10
-    // members instead of 2 on GitHub Actions, 2 locally) -- a PID-recycling race, not a
-    // defect in `launch`'s own process-group creation. The real assertion that matters is
-    // that OUR leader is actually in its own group and brought at least the one child it
-    // spawned; extra, unrelated survivors are an environmental coincidence `teardown`'s
-    // own killpg will also reap (see the post-stop `is_empty()` assertion below).
-    assert!(
-        members.contains(&pgid) && members.len() >= 2,
-        "expected the leader ({pgid}) plus at least its spawned child in the group; got: {members:?}"
+    assert_eq!(
+        members.len(),
+        2,
+        "expected the leader ({pgid}) plus its spawned child in the group; got: {members:?}"
     );
 
     let out = run_rsg_bench(&stop_args(&pgid_file, &record_file));

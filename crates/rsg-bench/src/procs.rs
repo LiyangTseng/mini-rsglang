@@ -16,7 +16,7 @@ use anyhow::Context;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 use serde::{Deserialize, Serialize};
-use sysinfo::{Pid as SysPid, ProcessStatus, ProcessesToUpdate, System};
+use sysinfo::{Pid as SysPid, ProcessStatus, ProcessesToUpdate, System, ThreadKind};
 
 /// What to launch and how, before any process-group-specific wiring is
 /// applied.
@@ -187,6 +187,15 @@ pub fn group_members_alive(pgid: i32) -> Vec<i32> {
             let pid = sys_pid.as_u32() as i32;
             let proc = sys.process(sys_pid)?;
             if proc.status() == ProcessStatus::Zombie {
+                return None;
+            }
+            // On Linux, sysinfo surfaces each userland OS thread of a
+            // multi-threaded process (e.g. tokio worker threads) as its own
+            // pid-like entry; such a thread shares its process's pgid, so
+            // without this filter every thread of any tokio multi-threaded
+            // binary in the group would be double-counted as a distinct
+            // member.
+            if matches!(proc.thread_kind(), Some(ThreadKind::Userland)) {
                 return None;
             }
             let got_pgid = nix::unistd::getpgid(Some(Pid::from_raw(pid)))
