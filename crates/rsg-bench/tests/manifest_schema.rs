@@ -29,7 +29,7 @@ fn manifest_meta_has_d07_fields() {
     assert_eq!(meta.created_utc.as_bytes()[4], b'-');
     assert_eq!(meta.created_utc.as_bytes()[10], b'T');
 
-    assert_eq!(meta.platform, "macos");
+    assert_eq!(meta.platform, std::env::consts::OS);
 
     let git_commit = meta
         .git_commit
