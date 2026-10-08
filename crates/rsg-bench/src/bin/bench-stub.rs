@@ -21,8 +21,8 @@
 
 use std::collections::HashMap;
 use std::io;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use clap::Parser;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
@@ -251,7 +251,13 @@ async fn handle_chat_completion(
         && n > 0
         && (id + 1).is_multiple_of(n)
     {
-        write_response(&mut stream, "500 Internal Server Error", "text/plain", b"error").await?;
+        write_response(
+            &mut stream,
+            "500 Internal Server Error",
+            "text/plain",
+            b"error",
+        )
+        .await?;
         print_event(&format!("kind=failed id={id} status=500"));
         return Ok(());
     }
@@ -309,7 +315,8 @@ async fn handle_chat_completion(
             "choices": [{"index": 0, "delta": {"content": "tok"}, "finish_reason": finish_reason}],
         });
         let line = format!("data: {chunk}\n\n");
-        if write_half.write_all(line.as_bytes()).await.is_err() || write_half.flush().await.is_err() {
+        if write_half.write_all(line.as_bytes()).await.is_err() || write_half.flush().await.is_err()
+        {
             disconnected = true;
             break;
         }

@@ -31,7 +31,10 @@ const EXIT_SWEEP_NO_CANDIDATE: i32 = 1;
 const EXIT_BAD_USAGE: i32 = 2;
 
 #[derive(Parser, Debug)]
-#[command(name = "rsg-bench", about = "Phase 7 Python-vs-Rust frontend benchmark harness")]
+#[command(
+    name = "rsg-bench",
+    about = "Phase 7 Python-vs-Rust frontend benchmark harness"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -147,8 +150,13 @@ async fn main() {
                 EXIT_SETUP
             }
         },
-        Cmd::Throughput { session, throughput } => run_throughput(session, throughput).await,
-        Cmd::Report { report: report_args } => match report::run_report(report_args) {
+        Cmd::Throughput {
+            session,
+            throughput,
+        } => run_throughput(session, throughput).await,
+        Cmd::Report {
+            report: report_args,
+        } => match report::run_report(report_args) {
             Ok(()) => EXIT_OK,
             Err(e) => {
                 tracing::error!("report failed: {e:#}");
@@ -244,7 +252,10 @@ async fn run_sweep(session: SessionArgs, s2: S2Args, sweep_args: SweepArgs) -> i
         else {
             continue;
         };
-        let peak = trial.result.get("peak_rps").and_then(serde_json::Value::as_f64);
+        let peak = trial
+            .result
+            .get("peak_rps")
+            .and_then(serde_json::Value::as_f64);
         eprintln!("{num_tokenizer:<10} {peak:?}");
         pairs.push((num_tokenizer, peak));
     }

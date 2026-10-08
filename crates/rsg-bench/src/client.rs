@@ -200,7 +200,10 @@ pub async fn stream_chat(
     // AfterHeaders (and AfterChunks(0), which is the same thing): drop right
     // after the headers, before reading any chunk. This models a queued or
     // prefill-stage abort.
-    if matches!(cancel, CancelPlan::AfterHeaders | CancelPlan::AfterChunks(0)) {
+    if matches!(
+        cancel,
+        CancelPlan::AfterHeaders | CancelPlan::AfterChunks(0)
+    ) {
         drop(resp);
         return cancelled_before_read(t_send_unix_ns, t_start.elapsed());
     }

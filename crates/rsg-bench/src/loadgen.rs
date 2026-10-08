@@ -24,9 +24,9 @@ pub const WORDS: [&str; 64] = [
     "the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog", "a", "an", "and", "or", "but",
     "if", "then", "else", "cat", "sparrow", "whale", "fish", "run", "jump", "walk", "talk", "red",
     "blue", "green", "yellow", "big", "small", "fast", "slow", "happy", "sad", "angry", "calm",
-    "bright", "dark", "light", "heavy", "water", "fire", "earth", "air", "tree", "flower",
-    "river", "mountain", "book", "pen", "paper", "table", "chair", "door", "window", "wall",
-    "time", "space", "mind", "body", "soul", "heart", "hand", "eye",
+    "bright", "dark", "light", "heavy", "water", "fire", "earth", "air", "tree", "flower", "river",
+    "mountain", "book", "pen", "paper", "table", "chair", "door", "window", "wall", "time",
+    "space", "mind", "body", "soul", "heart", "hand", "eye",
 ];
 
 /// Joins `range_inclusive_u32(min_words, max_words)` words, each chosen
@@ -291,7 +291,11 @@ pub async fn run_open_loop(
 
     let mut tasks = Vec::with_capacity(offsets.len());
     for offset in offsets {
-        let prompt = make_prompt(&mut prompt_rng, params.prompt_words.0, params.prompt_words.1);
+        let prompt = make_prompt(
+            &mut prompt_rng,
+            params.prompt_words.0,
+            params.prompt_words.1,
+        );
         let client = client.clone();
         let base_url = base_url.to_string();
         let model = model.to_string();
@@ -405,7 +409,10 @@ mod tests {
     fn poisson_offsets_is_non_decreasing_with_bounded_mean_gap() {
         let offsets = poisson_offsets(50.0, 2000, 1);
         for i in 1..offsets.len() {
-            assert!(offsets[i] >= offsets[i - 1], "offsets not non-decreasing at {i}");
+            assert!(
+                offsets[i] >= offsets[i - 1],
+                "offsets not non-decreasing at {i}"
+            );
         }
         let last = offsets.last().expect("non-empty");
         let mean_gap_ms = last.as_secs_f64() * 1000.0 / offsets.len() as f64;

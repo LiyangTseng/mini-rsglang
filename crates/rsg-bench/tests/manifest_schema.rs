@@ -8,13 +8,20 @@ mod common;
 use std::path::Path;
 use std::process::Command;
 
-use rsg_bench::manifest::{collect_meta, read_manifest, utc_rfc3339, write_json_atomic, BackendKind, TrialStatus};
+use rsg_bench::manifest::{
+    BackendKind, TrialStatus, collect_meta, read_manifest, utc_rfc3339, write_json_atomic,
+};
 
 use common::{bench_bin, free_port, repo_root, stub_bin, unique_manifest_path, unique_work_root};
 
 #[test]
 fn manifest_meta_has_d07_fields() {
-    let meta = collect_meta(&repo_root(), "python3", "Qwen/Qwen3-0.6B", BackendKind::Stub);
+    let meta = collect_meta(
+        &repo_root(),
+        "python3",
+        "Qwen/Qwen3-0.6B",
+        BackendKind::Stub,
+    );
 
     // created_utc matches YYYY-MM-DDTHH:MM:SSZ.
     assert_eq!(meta.created_utc.len(), 20, "{:?}", meta.created_utc);
@@ -24,11 +31,15 @@ fn manifest_meta_has_d07_fields() {
 
     assert_eq!(meta.platform, "macos");
 
-    let git_commit = meta.git_commit.expect("git_commit present in a git checkout");
+    let git_commit = meta
+        .git_commit
+        .expect("git_commit present in a git checkout");
     assert_eq!(git_commit.len(), 40);
     assert!(git_commit.bytes().all(|b| b.is_ascii_hexdigit()));
 
-    let upstream_sha = meta.upstream_sha.expect("upstream_sha present (vendor/UPSTREAM_SHA)");
+    let upstream_sha = meta
+        .upstream_sha
+        .expect("upstream_sha present (vendor/UPSTREAM_SHA)");
     let expected = std::fs::read_to_string(repo_root().join("vendor").join("UPSTREAM_SHA"))
         .expect("read vendor/UPSTREAM_SHA")
         .trim()
@@ -102,10 +113,22 @@ fn secrets_never_recorded() {
     let _ = output; // exit code (likely 3, a failed trial) is not the point here
 
     let raw = std::fs::read_to_string(&out).expect("manifest written even with a failed trial");
-    assert!(!raw.contains("sekrit-value"), "raw manifest leaked the --api-key value");
-    assert!(!raw.contains("hf_sekrit123"), "raw manifest leaked the HF_TOKEN=... argv value");
-    assert!(!raw.contains("hf_envsecret"), "raw manifest leaked the harness's own HF_TOKEN env var");
-    assert!(raw.contains("<redacted>"), "raw manifest should contain the redaction marker");
+    assert!(
+        !raw.contains("sekrit-value"),
+        "raw manifest leaked the --api-key value"
+    );
+    assert!(
+        !raw.contains("hf_sekrit123"),
+        "raw manifest leaked the HF_TOKEN=... argv value"
+    );
+    assert!(
+        !raw.contains("hf_envsecret"),
+        "raw manifest leaked the harness's own HF_TOKEN env var"
+    );
+    assert!(
+        raw.contains("<redacted>"),
+        "raw manifest should contain the redaction marker"
+    );
 }
 
 #[test]
@@ -150,7 +173,11 @@ fn failed_trial_recorded() {
         .output()
         .expect("spawn rsg-bench");
 
-    assert_eq!(output.status.code(), Some(3), "a failed trial should give EXIT_TRIAL_FAILED (3)");
+    assert_eq!(
+        output.status.code(),
+        Some(3),
+        "a failed trial should give EXIT_TRIAL_FAILED (3)"
+    );
 
     let manifest = read_manifest(&out).expect("parse manifest");
     assert_eq!(manifest.trials.len(), 2);
@@ -176,10 +203,16 @@ fn write_json_atomic_refuses_symlink() {
     symlink(&target, &link).expect("create symlink");
 
     let err = write_json_atomic(&link, &serde_json::json!({"should_not_land": true}));
-    assert!(err.is_err(), "write_json_atomic must refuse a symlink target");
+    assert!(
+        err.is_err(),
+        "write_json_atomic must refuse a symlink target"
+    );
 
     let contents = std::fs::read_to_string(&target).expect("read target through the symlink");
-    assert_eq!(contents, "{\"original\":true}", "the symlink's destination file must be unchanged");
+    assert_eq!(
+        contents, "{\"original\":true}",
+        "the symlink's destination file must be unchanged"
+    );
 }
 
 #[cfg(unix)]

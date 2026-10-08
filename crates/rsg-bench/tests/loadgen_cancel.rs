@@ -27,9 +27,15 @@ async fn loadgen_counts_match_server() {
 
     let handle = procs::launch(&spec, port).expect("launch bench-stub");
     let client = client::build_client().expect("build client");
-    procs::wait_ready(&handle, &client, port, Duration::from_secs(10), Duration::from_millis(50))
-        .await
-        .expect("bench-stub became ready");
+    procs::wait_ready(
+        &handle,
+        &client,
+        port,
+        Duration::from_secs(10),
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("bench-stub became ready");
 
     let base_url = client::local_base_url(port);
     let model = client::fetch_model_id(&client, &base_url)
@@ -119,9 +125,15 @@ async fn open_loop_respects_schedule() {
 
     let handle = procs::launch(&spec, port).expect("launch bench-stub");
     let client = client::build_client().expect("build client");
-    procs::wait_ready(&handle, &client, port, Duration::from_secs(10), Duration::from_millis(50))
-        .await
-        .expect("bench-stub became ready");
+    procs::wait_ready(
+        &handle,
+        &client,
+        port,
+        Duration::from_secs(10),
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("bench-stub became ready");
 
     let base_url = client::local_base_url(port);
     let model = client::fetch_model_id(&client, &base_url)
@@ -159,7 +171,10 @@ async fn open_loop_respects_schedule() {
         last_send_ns + 2_000_000 >= planned_last_ns,
         "last send {last_send_ns} earlier than planned {planned_last_ns}"
     );
-    assert!(elapsed < Duration::from_secs(3), "elapsed {elapsed:?} >= 3s");
+    assert!(
+        elapsed < Duration::from_secs(3),
+        "elapsed {elapsed:?} >= 3s"
+    );
 
     procs::teardown(handle, Duration::from_secs(5))
         .await
@@ -174,9 +189,15 @@ async fn closed_loop_bounds_concurrency() {
 
     let handle = procs::launch(&spec, port).expect("launch bench-stub");
     let client = client::build_client().expect("build client");
-    procs::wait_ready(&handle, &client, port, Duration::from_secs(10), Duration::from_millis(50))
-        .await
-        .expect("bench-stub became ready");
+    procs::wait_ready(
+        &handle,
+        &client,
+        port,
+        Duration::from_secs(10),
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("bench-stub became ready");
 
     let base_url = client::local_base_url(port);
     let model = client::fetch_model_id(&client, &base_url)

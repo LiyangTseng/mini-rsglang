@@ -71,7 +71,10 @@ pub fn validate_levels(levels: &[f64]) -> anyhow::Result<Vec<f64>> {
         }
     }
     let mut sorted = levels.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).expect("non-NaN levels are totally ordered"));
+    sorted.sort_by(|a, b| {
+        a.partial_cmp(b)
+            .expect("non-NaN levels are totally ordered")
+    });
     for i in 1..sorted.len() {
         if sorted[i] == sorted[i - 1] {
             anyhow::bail!("duplicate level: {}", sorted[i]);
@@ -83,7 +86,11 @@ pub fn validate_levels(levels: &[f64]) -> anyhow::Result<Vec<f64>> {
 /// Sorts `points` ascending by `offered` (stable: ties keep their original
 /// relative order).
 pub fn build_curve(mut points: Vec<CurvePoint>) -> Vec<CurvePoint> {
-    points.sort_by(|a, b| a.offered.partial_cmp(&b.offered).expect("offered levels are non-NaN"));
+    points.sort_by(|a, b| {
+        a.offered
+            .partial_cmp(&b.offered)
+            .expect("offered levels are non-NaN")
+    });
     points
 }
 
@@ -91,11 +98,14 @@ pub fn build_curve(mut points: Vec<CurvePoint>) -> Vec<CurvePoint> {
 /// achieved RPS (e.g. a level where every request failed). `None` for an
 /// empty curve or a curve with no achieved RPS anywhere.
 pub fn peak_rps(curve: &[CurvePoint]) -> Option<f64> {
-    curve.iter().filter_map(|p| p.achieved_rps).fold(None, |acc, rps| match acc {
-        None => Some(rps),
-        Some(best) if rps > best => Some(rps),
-        Some(best) => Some(best),
-    })
+    curve
+        .iter()
+        .filter_map(|p| p.achieved_rps)
+        .fold(None, |acc, rps| match acc {
+            None => Some(rps),
+            Some(best) if rps > best => Some(rps),
+            Some(best) => Some(best),
+        })
 }
 
 /// A [`TrialRunner`] over [`loadgen::run_open_loop`]/[`loadgen::run_closed`],
@@ -130,7 +140,12 @@ impl TrialRunner for S2Runner {
         let levels: Vec<f64> = match self.args.mode {
             LoopMode::Open => validate_levels(&self.args.rates)?,
             LoopMode::Closed => {
-                let as_f64: Vec<f64> = self.args.concurrency.iter().map(|&c| f64::from(c)).collect();
+                let as_f64: Vec<f64> = self
+                    .args
+                    .concurrency
+                    .iter()
+                    .map(|&c| f64::from(c))
+                    .collect();
                 validate_levels(&as_f64)?
             }
         };
@@ -154,7 +169,8 @@ impl TrialRunner for S2Runner {
                         prompt_words,
                         seed,
                     };
-                    let result = loadgen::run_open_loop(ctx.client, &ctx.base_url, &model, &params).await;
+                    let result =
+                        loadgen::run_open_loop(ctx.client, &ctx.base_url, &model, &params).await;
                     (format!("rate={level}"), result)
                 }
                 LoopMode::Closed => {
@@ -166,7 +182,8 @@ impl TrialRunner for S2Runner {
                         prompt_words,
                         seed,
                     };
-                    let result = loadgen::run_closed(ctx.client, &ctx.base_url, &model, &params).await;
+                    let result =
+                        loadgen::run_closed(ctx.client, &ctx.base_url, &model, &params).await;
                     (format!("concurrency={concurrency}"), result)
                 }
             };

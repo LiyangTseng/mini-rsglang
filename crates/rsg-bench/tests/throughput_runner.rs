@@ -27,7 +27,9 @@ fn python_interpreter() -> PathBuf {
     if default.is_file() {
         return default;
     }
-    panic!("no Python interpreter found (set RSG_BENCH_PYTHON, or run scripts/bootstrap_mac_env.sh)");
+    panic!(
+        "no Python interpreter found (set RSG_BENCH_PYTHON, or run scripts/bootstrap_mac_env.sh)"
+    );
 }
 
 fn fixture_path() -> PathBuf {
@@ -35,7 +37,10 @@ fn fixture_path() -> PathBuf {
 }
 
 fn run_rsg_bench(args: &[String]) -> std::process::Output {
-    Command::new(bench_bin()).args(args).output().expect("spawn rsg-bench")
+    Command::new(bench_bin())
+        .args(args)
+        .output()
+        .expect("spawn rsg-bench")
 }
 
 /// `rsg-bench throughput` alternates `python-default`/`rust` through the
@@ -103,8 +108,16 @@ fn throughput_session_and_report_flag_regression() {
 
     let manifest = read_manifest(&out).expect("parse manifest");
     assert_eq!(manifest.trials.len(), 4, "4 trials: 2 runs x 2 arms");
-    let schedule: Vec<&str> = manifest.session.schedule.iter().map(String::as_str).collect();
-    assert_eq!(schedule, vec!["python-default", "rust", "python-default", "rust"]);
+    let schedule: Vec<&str> = manifest
+        .session
+        .schedule
+        .iter()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        schedule,
+        vec!["python-default", "rust", "python-default", "rust"]
+    );
     for t in &manifest.trials {
         assert_eq!(
             t.status,
@@ -120,19 +133,30 @@ fn throughput_session_and_report_flag_regression() {
         .trials
         .iter()
         .filter(|t| t.arm == "python-default")
-        .map(|t| t.result["summary"]["throughput_tok_s"].as_f64().expect("throughput_tok_s"))
+        .map(|t| {
+            t.result["summary"]["throughput_tok_s"]
+                .as_f64()
+                .expect("throughput_tok_s")
+        })
         .collect();
     let rust_throughputs: Vec<f64> = manifest
         .trials
         .iter()
         .filter(|t| t.arm == "rust")
-        .map(|t| t.result["summary"]["throughput_tok_s"].as_f64().expect("throughput_tok_s"))
+        .map(|t| {
+            t.result["summary"]["throughput_tok_s"]
+                .as_f64()
+                .expect("throughput_tok_s")
+        })
         .collect();
     assert_eq!(python_throughputs.len(), 2);
     assert_eq!(rust_throughputs.len(), 2);
     for &r in &rust_throughputs {
         for &p in &python_throughputs {
-            assert!(r < p, "rust throughput {r} should be below python throughput {p}");
+            assert!(
+                r < p,
+                "rust throughput {r} should be below python throughput {p}"
+            );
         }
     }
 
@@ -159,10 +183,15 @@ fn throughput_session_and_report_flag_regression() {
     let report: serde_json::Value = serde_json::from_str(&report_text).expect("parse report json");
 
     let pct = report
-        .pointer("/scenarios/standard_throughput/deltas/rust_vs_python-default/throughput_tok_s/pct")
+        .pointer(
+            "/scenarios/standard_throughput/deltas/rust_vs_python-default/throughput_tok_s/pct",
+        )
         .and_then(serde_json::Value::as_f64)
         .expect("throughput_tok_s delta pct present");
-    assert!(pct < 0.0, "expected a negative (regression) pct delta, got {pct}");
+    assert!(
+        pct < 0.0,
+        "expected a negative (regression) pct delta, got {pct}"
+    );
     assert!(
         report
             .pointer("/scenarios/standard_throughput/deltas/rust_vs_python-default/throughput_tok_s/pct_lo")
@@ -183,15 +212,25 @@ fn throughput_session_and_report_flag_regression() {
         "summary[0] = {summary_first:?}"
     );
 
-    let summary_text = summary.iter().filter_map(serde_json::Value::as_str).collect::<Vec<_>>().join("\n");
-    assert!(summary_text.contains("REGRESSION"), "summary: {summary_text}");
+    let summary_text = summary
+        .iter()
+        .filter_map(serde_json::Value::as_str)
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        summary_text.contains("REGRESSION"),
+        "summary: {summary_text}"
+    );
     assert!(
         summary_text.contains("\u{b1}2% is a reference target, not a gate"),
         "summary: {summary_text}"
     );
 
     let md_text = std::fs::read_to_string(&report_md).expect("read report md");
-    assert!(md_text.contains("REGRESSION"), "markdown missing REGRESSION:\n{md_text}");
+    assert!(
+        md_text.contains("REGRESSION"),
+        "markdown missing REGRESSION:\n{md_text}"
+    );
     assert!(
         md_text.contains("\u{b1}2% is a reference target, not a gate"),
         "markdown missing reference-target sentence:\n{md_text}"

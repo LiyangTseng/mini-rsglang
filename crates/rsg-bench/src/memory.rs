@@ -7,8 +7,8 @@
 //! `Some(0)` standing in for "unavailable" (T-07-11).
 
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -270,7 +270,12 @@ pub struct GroupMemory {
     pub pss_bytes: Option<MemSummary>,
 }
 
-const ALL_GROUPS: [Group; 4] = [Group::Frontend, Group::Launcher, Group::Scheduler, Group::Other];
+const ALL_GROUPS: [Group; 4] = [
+    Group::Frontend,
+    Group::Launcher,
+    Group::Scheduler,
+    Group::Other,
+];
 
 /// Per-[`Group`] and whole-tree RSS/PSS window summaries over the closed
 /// interval `[start_ns, end_ns]`. A window with no samples gives

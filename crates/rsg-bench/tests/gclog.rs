@@ -261,7 +261,10 @@ fn cooccurrence_strict_touch_not_counted() {
     };
     let touching = [&touch_at_send, &touch_at_first];
     let co_touch = gclog::cooccurrence(&requests, &touching).expect("has ttft");
-    assert_eq!(co_touch.spike_with_gc, 0, "touching pauses must not overlap");
+    assert_eq!(
+        co_touch.spike_with_gc, 0,
+        "touching pauses must not overlap"
+    );
 
     // A pause that strictly straddles r1's t_send: starts before, ends after.
     let straddles = GcEvent {
@@ -353,7 +356,10 @@ fn zero_events_role_stats() {
     let role_map = RoleMap::build(100, FrontendKind::Python, &log, &empty_names, "rsg-server");
     let by_role = gclog::gc_by_role(&log, &role_map, FrontendKind::Python, 0, u64::MAX);
 
-    match by_role.get(&Role::ApiServer).expect("ApiServer row present") {
+    match by_role
+        .get(&Role::ApiServer)
+        .expect("ApiServer row present")
+    {
         GcRow::Stats(stats) => {
             assert_eq!(stats.count, 0);
             assert_eq!(stats.total_pause_ms, 0.0);
@@ -474,12 +480,26 @@ fn classify_rules() {
 
     // rsg-server name (the Rust frontend's own process name) -> RustFrontend.
     assert_eq!(
-        classify(5, 1, FrontendKind::Rust, None, Some("rsg-server"), "rsg-server"),
+        classify(
+            5,
+            1,
+            FrontendKind::Rust,
+            None,
+            Some("rsg-server"),
+            "rsg-server"
+        ),
         Role::RustFrontend
     );
     // mock-scheduler name -> Scheduler.
     assert_eq!(
-        classify(5, 1, FrontendKind::Rust, None, Some("mock-scheduler"), "rsg-server"),
+        classify(
+            5,
+            1,
+            FrontendKind::Rust,
+            None,
+            Some("mock-scheduler"),
+            "rsg-server"
+        ),
         Role::Scheduler
     );
     // "-scheduler" suffix (hook name) -> Scheduler.

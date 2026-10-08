@@ -39,6 +39,12 @@ fn histogram_round_trip() {
 #[test]
 fn decode_garbage_hex_never_panics() {
     assert!(metrics::decode_histogram("not-hex-at-all").is_err());
-    assert!(metrics::decode_histogram("abc").is_err(), "odd-length hex should error");
-    assert!(metrics::decode_histogram("").is_err(), "empty bytes have no cookie");
+    assert!(
+        metrics::decode_histogram("abc").is_err(),
+        "odd-length hex should error"
+    );
+    assert!(
+        metrics::decode_histogram("").is_err(),
+        "empty bytes have no cookie"
+    );
 }

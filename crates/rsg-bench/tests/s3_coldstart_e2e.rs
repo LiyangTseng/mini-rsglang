@@ -9,14 +9,17 @@ use std::process::Command;
 
 use rsg_bench::manifest::{BackendKind, TrialStatus, read_manifest};
 use rsg_bench::orchestrator::{
-    GcHook, Lifecycle, MeasuredWindow, SessionArgs, SessionConfig, TrialContext, TrialMeasurement, TrialRunner,
-    run_session,
+    GcHook, Lifecycle, MeasuredWindow, SessionArgs, SessionConfig, TrialContext, TrialMeasurement,
+    TrialRunner, run_session,
 };
 
 use common::{bench_bin, free_port, repo_root, stub_bin, unique_manifest_path, unique_work_root};
 
 fn run_rsg_bench(args: &[String]) -> std::process::Output {
-    Command::new(bench_bin()).args(args).output().expect("spawn rsg-bench")
+    Command::new(bench_bin())
+        .args(args)
+        .output()
+        .expect("spawn rsg-bench")
 }
 
 /// `rsg-bench s3` against two `bench-stub` arms, with hyperfine itself
@@ -28,7 +31,9 @@ fn run_rsg_bench(args: &[String]) -> std::process::Output {
 #[ignore = "needs hyperfine 1.20.0 on PATH"]
 fn s3_session_with_hyperfine_and_stub_arms() {
     if Command::new("hyperfine").arg("--version").output().is_err() {
-        panic!("install hyperfine 1.20.0 (cargo install hyperfine --version 1.20.0 --locked) before running this test");
+        panic!(
+            "install hyperfine 1.20.0 (cargo install hyperfine --version 1.20.0 --locked) before running this test"
+        );
     }
 
     let port = free_port();
@@ -94,14 +99,25 @@ fn s3_session_with_hyperfine_and_stub_arms() {
     assert_eq!(manifest.session.scenario, "s3_coldstart");
 
     for trial in &manifest.trials {
-        assert_eq!(trial.status, TrialStatus::Ok, "trial {} failed: {:?}", trial.arm, trial.error);
+        assert_eq!(
+            trial.status,
+            TrialStatus::Ok,
+            "trial {} failed: {:?}",
+            trial.arm,
+            trial.error
+        );
 
-        let hyperfine_runs = trial.result["hyperfine"]["runs"].as_u64().expect("hyperfine.runs");
+        let hyperfine_runs = trial.result["hyperfine"]["runs"]
+            .as_u64()
+            .expect("hyperfine.runs");
         assert_eq!(hyperfine_runs, 2);
 
         let runs = trial.result["runs"].as_array().expect("runs array");
         assert_eq!(runs.len(), 2, "trial {} runs: {:?}", trial.arm, runs);
-        let run_indices: Vec<u64> = runs.iter().map(|r| r["run"].as_u64().expect("run")).collect();
+        let run_indices: Vec<u64> = runs
+            .iter()
+            .map(|r| r["run"].as_u64().expect("run"))
+            .collect();
         assert_eq!(run_indices, vec![1, 2], "warm-up run 0 should be excluded");
 
         let expected_tail = if trial.arm == "rust" { 0.1 } else { 0.2 };
@@ -190,16 +206,28 @@ async fn runner_managed_skips_harness_launch() {
         out: out.clone(),
     };
 
-    let cfg = SessionConfig::from_args(&session_args, "fake_runner_managed").expect("build SessionConfig");
+    let cfg = SessionConfig::from_args(&session_args, "fake_runner_managed")
+        .expect("build SessionConfig");
     let runner = FakeRunnerManaged;
 
     let outcome = run_session(&cfg, &runner).await.expect("run_session");
-    assert_eq!(outcome.failed_trials, 0, "trial should not have been harness-launched");
+    assert_eq!(
+        outcome.failed_trials, 0,
+        "trial should not have been harness-launched"
+    );
 
     let manifest = read_manifest(&outcome.manifest_path).expect("parse manifest");
     assert_eq!(manifest.trials.len(), 1);
-    assert_eq!(manifest.trials[0].status, TrialStatus::Ok, "trial: {:?}", manifest.trials[0]);
-    assert_eq!(manifest.trials[0].result, serde_json::json!({ "fake": true }));
+    assert_eq!(
+        manifest.trials[0].status,
+        TrialStatus::Ok,
+        "trial: {:?}",
+        manifest.trials[0]
+    );
+    assert_eq!(
+        manifest.trials[0].result,
+        serde_json::json!({ "fake": true })
+    );
 
     rsg_bench::procs::ensure_port_free(port).expect("port never touched by a runner-managed trial");
 }

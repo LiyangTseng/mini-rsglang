@@ -10,7 +10,7 @@ use std::process::Command;
 use std::time::Duration;
 
 use rsg_bench::gclog::GcRow;
-use rsg_bench::manifest::{read_manifest, TrialStatus};
+use rsg_bench::manifest::{TrialStatus, read_manifest};
 use rsg_bench::metrics::decode_histogram;
 use rsg_bench::roles::{Group, Role};
 
@@ -37,7 +37,11 @@ fn only_subdir(dir: &Path) -> PathBuf {
         .map(|e| e.path())
         .filter(|p| p.is_dir())
         .collect();
-    assert_eq!(entries.len(), 1, "expected exactly one session dir in {dir:?}: {entries:?}");
+    assert_eq!(
+        entries.len(),
+        1,
+        "expected exactly one session dir in {dir:?}: {entries:?}"
+    );
     entries.remove(0)
 }
 
@@ -106,7 +110,13 @@ fn s1_session_end_to_end_with_stub_arms() {
 
     let mut p99_by_arm = std::collections::BTreeMap::new();
     for trial in &manifest.trials {
-        assert_eq!(trial.status, TrialStatus::Ok, "trial {} failed: {:?}", trial.arm, trial.error);
+        assert_eq!(
+            trial.status,
+            TrialStatus::Ok,
+            "trial {} failed: {:?}",
+            trial.arm,
+            trial.error
+        );
 
         let sent = trial
             .result
@@ -126,7 +136,11 @@ fn s1_session_end_to_end_with_stub_arms() {
 
         let encoded = trial.histograms.get("s1").expect("s1 histogram present");
         let decoded = decode_histogram(&encoded.ttft_us).expect("decode ttft histogram");
-        assert!(!decoded.is_empty(), "trial {} ttft histogram is empty", trial.arm);
+        assert!(
+            !decoded.is_empty(),
+            "trial {} ttft histogram is empty",
+            trial.arm
+        );
 
         p99_by_arm.insert(trial.arm.clone(), p99.unwrap());
     }
@@ -213,7 +227,10 @@ fn gc_hook_env_identical_across_arms() {
     for trial_dir_name in ["trial-00-python-default", "trial-01-rust"] {
         let log = session_dir.join(trial_dir_name).join("server.log");
         let ev = wait_for_event(&log, |e| e.kind == "env", Duration::from_secs(10));
-        assert_eq!(ev.fields.get("profile_mode").map(String::as_str), Some("gc_only"));
+        assert_eq!(
+            ev.fields.get("profile_mode").map(String::as_str),
+            Some("gc_only")
+        );
         let profile_dir = ev.fields.get("profile_dir").expect("profile_dir field");
         assert!(
             profile_dir.ends_with(&format!("{trial_dir_name}/hook")),
@@ -249,13 +266,25 @@ fn gc_hook_off_strips_env() {
     for trial_dir_name in ["trial-00-python-default", "trial-01-rust"] {
         let log = session_dir.join(trial_dir_name).join("server.log");
         let ev = wait_for_event(&log, |e| e.kind == "env", Duration::from_secs(10));
-        assert_eq!(ev.fields.get("profile_mode").map(String::as_str), Some("unset"));
-        assert_eq!(ev.fields.get("profile_dir").map(String::as_str), Some("unset"));
+        assert_eq!(
+            ev.fields.get("profile_mode").map(String::as_str),
+            Some("unset")
+        );
+        assert_eq!(
+            ev.fields.get("profile_dir").map(String::as_str),
+            Some("unset")
+        );
     }
 
     let manifest = read_manifest(&out).expect("parse manifest");
     for trial in &manifest.trials {
-        assert_eq!(trial.status, TrialStatus::Ok, "trial {} failed: {:?}", trial.arm, trial.error);
+        assert_eq!(
+            trial.status,
+            TrialStatus::Ok,
+            "trial {} failed: {:?}",
+            trial.arm,
+            trial.error
+        );
         for window in &trial.windows {
             assert_eq!(window.gc_status, "disabled");
         }
@@ -281,11 +310,24 @@ fn windows_carry_memory_and_gc() {
     assert_eq!(manifest.trials.len(), 2);
 
     for trial in &manifest.trials {
-        assert_eq!(trial.status, TrialStatus::Ok, "trial {} failed: {:?}", trial.arm, trial.error);
-        assert!(!trial.roles.is_empty(), "trial {} has no classified pids", trial.arm);
+        assert_eq!(
+            trial.status,
+            TrialStatus::Ok,
+            "trial {} failed: {:?}",
+            trial.arm,
+            trial.error
+        );
+        assert!(
+            !trial.roles.is_empty(),
+            "trial {} has no classified pids",
+            trial.arm
+        );
 
         let window = trial.windows.first().expect("one s1 window");
-        let frontend = window.memory.get(&Group::Frontend).expect("frontend memory group");
+        let frontend = window
+            .memory
+            .get(&Group::Frontend)
+            .expect("frontend memory group");
         assert!(
             frontend.rss_bytes.max.unwrap_or(0) > 0,
             "trial {} frontend rss max should be > 0",
@@ -310,7 +352,10 @@ fn windows_carry_memory_and_gc() {
     }
 
     assert!(
-        manifest.warnings.iter().any(|w| w.contains("no hook records from python arm")),
+        manifest
+            .warnings
+            .iter()
+            .any(|w| w.contains("no hook records from python arm")),
         "warnings should name the python-kind trial with no hook records: {:?}",
         manifest.warnings
     );

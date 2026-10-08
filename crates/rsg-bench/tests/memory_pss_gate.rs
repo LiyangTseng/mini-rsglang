@@ -123,10 +123,7 @@ async fn sample_tree_includes_grandchild() {
         sample.procs
     );
     for proc in &sample.procs {
-        assert!(
-            proc.rss_bytes > 0,
-            "{proc:?} must have rss_bytes > 0"
-        );
+        assert!(proc.rss_bytes > 0, "{proc:?} must have rss_bytes > 0");
     }
 
     let leader = sample
@@ -225,7 +222,10 @@ async fn sampler_window_summary() {
         assert_eq!(group_mem.rss_bytes.end, None);
         assert_eq!(group_mem.rss_bytes.max, None);
         assert_eq!(group_mem.rss_bytes.growth, None);
-        assert_eq!(group_mem.pss_bytes, None, "empty window must never fake PSS");
+        assert_eq!(
+            group_mem.pss_bytes, None,
+            "empty window must never fake PSS"
+        );
     }
     assert_eq!(empty_total.rss_bytes.start, None);
     assert_eq!(empty_total.pss_bytes, None);

@@ -167,7 +167,10 @@ pub async fn wait_ready(
 /// it.
 pub fn leader_exited(handle: &ServerHandle) -> bool {
     let mut sys = System::new();
-    sys.refresh_processes(ProcessesToUpdate::Some(&[SysPid::from_u32(handle.leader_pid as u32)]), true);
+    sys.refresh_processes(
+        ProcessesToUpdate::Some(&[SysPid::from_u32(handle.leader_pid as u32)]),
+        true,
+    );
     match sys.process(SysPid::from_u32(handle.leader_pid as u32)) {
         None => true,
         Some(p) => p.status() == ProcessStatus::Zombie,
@@ -186,7 +189,9 @@ pub fn group_members_alive(pgid: i32) -> Vec<i32> {
             if proc.status() == ProcessStatus::Zombie {
                 return None;
             }
-            let got_pgid = nix::unistd::getpgid(Some(Pid::from_raw(pid))).ok()?.as_raw();
+            let got_pgid = nix::unistd::getpgid(Some(Pid::from_raw(pid)))
+                .ok()?
+                .as_raw();
             (got_pgid == pgid).then_some(pid)
         })
         .collect()
@@ -300,8 +305,12 @@ impl ServerHandle {
 /// never show the same start time.
 pub fn process_start_time(pid: i32) -> Option<u64> {
     let mut sys = System::new();
-    sys.refresh_processes(ProcessesToUpdate::Some(&[SysPid::from_u32(pid as u32)]), true);
-    sys.process(SysPid::from_u32(pid as u32)).map(|p| p.start_time())
+    sys.refresh_processes(
+        ProcessesToUpdate::Some(&[SysPid::from_u32(pid as u32)]),
+        true,
+    );
+    sys.process(SysPid::from_u32(pid as u32))
+        .map(|p| p.start_time())
 }
 
 /// Live, non-zombie pids whose process group equals `pgid` *and* whose own
@@ -318,7 +327,9 @@ fn group_members_matching(pgid: i32, min_start_time: u64) -> Vec<i32> {
             if proc.status() == ProcessStatus::Zombie {
                 return None;
             }
-            let got_pgid = nix::unistd::getpgid(Some(Pid::from_raw(pid))).ok()?.as_raw();
+            let got_pgid = nix::unistd::getpgid(Some(Pid::from_raw(pid)))
+                .ok()?
+                .as_raw();
             if got_pgid != pgid {
                 return None;
             }
@@ -349,7 +360,10 @@ fn signal_matching_members(pgid: i32, min_start_time: u64, sig: Signal) {
 /// init rather than left as a zombie reserving the pgid -- signals only
 /// pids individually matching [`group_members_matching`], never `killpg`
 /// on the (possibly-recycled) pgid number itself.
-pub async fn stop_detached(group: &DetachedGroup, grace: Duration) -> anyhow::Result<TeardownReport> {
+pub async fn stop_detached(
+    group: &DetachedGroup,
+    grace: Duration,
+) -> anyhow::Result<TeardownReport> {
     let pgid = group.pgid;
     let leader_present = process_start_time(pgid) == Some(group.leader_start_time);
 

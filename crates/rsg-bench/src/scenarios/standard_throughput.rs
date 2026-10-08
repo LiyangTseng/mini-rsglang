@@ -103,8 +103,8 @@ pub fn parse_throughput_output(text: &str) -> anyhow::Result<ThroughputOutput> {
     let summary_value = doc
         .get("summary")
         .ok_or_else(|| anyhow::anyhow!("throughput output missing 'summary'"))?;
-    let summary: ThroughputSummary =
-        serde_json::from_value(summary_value.clone()).context("parse throughput output 'summary'")?;
+    let summary: ThroughputSummary = serde_json::from_value(summary_value.clone())
+        .context("parse throughput output 'summary'")?;
 
     Ok(ThroughputOutput {
         model,
@@ -127,7 +127,11 @@ fn tail_lines(text: &str, n: usize) -> String {
 /// `crosscheck::run_cross_tool`/`s3_coldstart::run_hyperfine` already
 /// established for a long-lived external subprocess. A non-zero exit is an
 /// `Err` naming the last 40 lines of its stderr.
-fn run_throughput_driver(argv: &[String], python_dir: &Path, timeout: Duration) -> anyhow::Result<()> {
+fn run_throughput_driver(
+    argv: &[String],
+    python_dir: &Path,
+    timeout: Duration,
+) -> anyhow::Result<()> {
     let (argv0, rest) = argv.split_first().context("empty throughput command")?;
     let mut cmd = std::process::Command::new(argv0);
     cmd.args(rest);
@@ -146,8 +150,14 @@ fn run_throughput_driver(argv: &[String], python_dir: &Path, timeout: Duration) 
     let mut child = cmd
         .spawn()
         .with_context(|| format!("spawn throughput driver: {}", argv.join(" ")))?;
-    let mut stdout_pipe = child.stdout.take().context("throughput driver stdout not piped")?;
-    let mut stderr_pipe = child.stderr.take().context("throughput driver stderr not piped")?;
+    let mut stdout_pipe = child
+        .stdout
+        .take()
+        .context("throughput driver stdout not piped")?;
+    let mut stderr_pipe = child
+        .stderr
+        .take()
+        .context("throughput driver stderr not piped")?;
 
     let (tx_out, rx_out) = std::sync::mpsc::channel();
     let reader_out = std::thread::spawn(move || {
@@ -170,7 +180,11 @@ fn run_throughput_driver(argv: &[String], python_dir: &Path, timeout: Duration) 
                 if Instant::now() > deadline {
                     let _ = child.kill();
                     let _ = child.wait();
-                    let stderr_text = reader_err.join().ok().and_then(|()| rx_err.recv().ok()).unwrap_or_default();
+                    let stderr_text = reader_err
+                        .join()
+                        .ok()
+                        .and_then(|()| rx_err.recv().ok())
+                        .unwrap_or_default();
                     anyhow::bail!(
                         "throughput driver timed out after {timeout:?}; last stderr:\n{}",
                         tail_lines(&stderr_text, 40)
@@ -183,7 +197,11 @@ fn run_throughput_driver(argv: &[String], python_dir: &Path, timeout: Duration) 
     };
 
     let _ = reader_out.join().ok().and_then(|()| rx_out.recv().ok());
-    let stderr_text = reader_err.join().ok().and_then(|()| rx_err.recv().ok()).unwrap_or_default();
+    let stderr_text = reader_err
+        .join()
+        .ok()
+        .and_then(|()| rx_err.recv().ok())
+        .unwrap_or_default();
     if !status.success() {
         anyhow::bail!(
             "throughput driver exited {:?}; stderr tail:\n{}",

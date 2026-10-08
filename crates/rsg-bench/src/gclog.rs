@@ -80,8 +80,7 @@ pub fn read_hook_dir(dir: &Path) -> anyhow::Result<HookLog> {
 
     for path in &paths {
         log.files += 1;
-        let text = fs::read_to_string(path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let text = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
         let mut clock: Option<FileClock> = None;
 
         for line in text.lines() {

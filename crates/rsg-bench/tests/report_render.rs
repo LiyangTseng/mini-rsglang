@@ -7,8 +7,12 @@
 
 use std::collections::BTreeMap;
 
-use rsg_bench::gclog::{CoOccurrence, CoOccurrenceRow, GcRow, GcStats, PausePercentiles, RUST_FRONTEND_GC_REASON};
-use rsg_bench::manifest::{ArmInfo, BackendKind, Manifest, Meta, SessionInfo, TrialRecord, TrialStatus, WindowObs};
+use rsg_bench::gclog::{
+    CoOccurrence, CoOccurrenceRow, GcRow, GcStats, PausePercentiles, RUST_FRONTEND_GC_REASON,
+};
+use rsg_bench::manifest::{
+    ArmInfo, BackendKind, Manifest, Meta, SessionInfo, TrialRecord, TrialStatus, WindowObs,
+};
 use rsg_bench::memory::{GroupMemory, MemSummary};
 use rsg_bench::report::{build_report, render_markdown};
 use rsg_bench::roles::{FrontendKind, Group, Role};
@@ -114,7 +118,11 @@ fn window(
         label: label.to_string(),
         start_unix_ns: 0,
         end_unix_ns: 1_000_000_000,
-        gc_status: if gc.is_some() { "collected".to_string() } else { "disabled".to_string() },
+        gc_status: if gc.is_some() {
+            "collected".to_string()
+        } else {
+            "disabled".to_string()
+        },
         gc,
         memory,
         tree_memory,
@@ -153,12 +161,21 @@ fn rust_cooc() -> BTreeMap<Group, CoOccurrenceRow> {
 fn default_memory_maps(pss: Option<u64>) -> (BTreeMap<Group, GroupMemory>, GroupMemory) {
     let mut by_group = BTreeMap::new();
     by_group.insert(Group::Frontend, group_memory(1_000_000, pss));
-    by_group.insert(Group::Scheduler, group_memory(2_000_000, pss.map(|p| p * 2)));
+    by_group.insert(
+        Group::Scheduler,
+        group_memory(2_000_000, pss.map(|p| p * 2)),
+    );
     let tree = group_memory(3_000_000, pss.map(|p| p * 3));
     (by_group, tree)
 }
 
-fn ok_trial(index: usize, round: u32, arm: &str, result: serde_json::Value, windows: Vec<WindowObs>) -> TrialRecord {
+fn ok_trial(
+    index: usize,
+    round: u32,
+    arm: &str,
+    result: serde_json::Value,
+    windows: Vec<WindowObs>,
+) -> TrialRecord {
     TrialRecord {
         index,
         round,
@@ -239,7 +256,13 @@ fn s1_result(ttft_p50: f64, ttft_p99: f64, rps: f64, cancelled: u64) -> serde_js
     })
 }
 
-fn curve_point(label: &str, offered: f64, achieved_rps: f64, ttft_p99: f64, e2e_p99: f64) -> serde_json::Value {
+fn curve_point(
+    label: &str,
+    offered: f64,
+    achieved_rps: f64,
+    ttft_p99: f64,
+    e2e_p99: f64,
+) -> serde_json::Value {
     serde_json::json!({
         "label": label, "offered": offered, "mode": "open",
         "counts": {"sent": 10, "completed": 10, "cancelled": 0, "failed": 0},
@@ -261,7 +284,16 @@ fn mem_point_json(rss: u64, pss: Option<u64>) -> serde_json::Value {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn s3_run(run: u32, e2e: f64, backend: f64, tail: f64, frontend_rss: u64, frontend_pss: Option<u64>, tree_rss: u64, tree_pss: Option<u64>) -> serde_json::Value {
+fn s3_run(
+    run: u32,
+    e2e: f64,
+    backend: f64,
+    tail: f64,
+    frontend_rss: u64,
+    frontend_pss: Option<u64>,
+    tree_rss: u64,
+    tree_pss: Option<u64>,
+) -> serde_json::Value {
     serde_json::json!({
         "run": run, "e2e_ready_s": e2e, "backend_ready_s": backend, "frontend_tail_s": tail,
         "memory_at_ready": {
@@ -273,7 +305,16 @@ fn s3_run(run: u32, e2e: f64, backend: f64, tail: f64, frontend_rss: u64, fronte
 }
 
 #[allow(clippy::too_many_arguments)]
-fn s3_run_with_gc(run: u32, e2e: f64, backend: f64, tail: f64, frontend_rss: u64, frontend_pss: Option<u64>, tree_rss: u64, tree_pss: Option<u64>) -> serde_json::Value {
+fn s3_run_with_gc(
+    run: u32,
+    e2e: f64,
+    backend: f64,
+    tail: f64,
+    frontend_rss: u64,
+    frontend_pss: Option<u64>,
+    tree_rss: u64,
+    tree_pss: Option<u64>,
+) -> serde_json::Value {
     let mut gc_boot = BTreeMap::new();
     gc_boot.insert(Role::ApiServer, gc_stats_row(3, 6.0, 2.0, 2.5));
     let gc_boot_json = serde_json::to_value(gc_boot).expect("serialize gc_boot");
@@ -288,7 +329,10 @@ fn s3_run_with_gc(run: u32, e2e: f64, backend: f64, tail: f64, frontend_rss: u64
 }
 
 fn s3_result(hyperfine_mean: f64, runs: Vec<serde_json::Value>) -> serde_json::Value {
-    let e2e_vals: Vec<f64> = runs.iter().filter_map(|r| r["e2e_ready_s"].as_f64()).collect();
+    let e2e_vals: Vec<f64> = runs
+        .iter()
+        .filter_map(|r| r["e2e_ready_s"].as_f64())
+        .collect();
     let e2e_mean = e2e_vals.iter().sum::<f64>() / e2e_vals.len().max(1) as f64;
     serde_json::json!({
         "hyperfine": {"mean_s": hyperfine_mean, "stddev_s": null, "median_s": hyperfine_mean, "min_s": hyperfine_mean, "max_s": hyperfine_mean, "times_s": [hyperfine_mean], "runs": 1},
@@ -304,7 +348,12 @@ fn s3_result(hyperfine_mean: f64, runs: Vec<serde_json::Value>) -> serde_json::V
     })
 }
 
-fn throughput_result(model: &str, throughput_tok_s: f64, throughput_req_s: f64, ttft_p99: f64) -> serde_json::Value {
+fn throughput_result(
+    model: &str,
+    throughput_tok_s: f64,
+    throughput_req_s: f64,
+    ttft_p99: f64,
+) -> serde_json::Value {
     serde_json::json!({
         "model": model,
         "summary": {
@@ -328,7 +377,9 @@ fn crosscheck_result(ttft_ms_mean: f64, request_throughput: f64) -> serde_json::
 /// next `## ` heading, or end of string).
 fn section_text<'a>(md: &'a str, scenario: &str) -> &'a str {
     let heading = format!("## {scenario}\n");
-    let start = md.find(&heading).unwrap_or_else(|| panic!("section {scenario:?} not found in:\n{md}"));
+    let start = md
+        .find(&heading)
+        .unwrap_or_else(|| panic!("section {scenario:?} not found in:\n{md}"));
     let rest = &md[start + heading.len()..];
     let end = rest.find("\n## ").map(|i| i + 1).unwrap_or(rest.len());
     &rest[..end]
@@ -355,14 +406,26 @@ fn report_has_all_scenarios_and_tables() {
                 0,
                 "python-default",
                 s1_result(50.0, 200.0, 12.0, 2),
-                vec![window("s1", Some(python_gc()), default_memory_maps(Some(500_000)).0, default_memory_maps(Some(500_000)).1, Some(python_cooc()))],
+                vec![window(
+                    "s1",
+                    Some(python_gc()),
+                    default_memory_maps(Some(500_000)).0,
+                    default_memory_maps(Some(500_000)).1,
+                    Some(python_cooc()),
+                )],
             ),
             ok_trial(
                 1,
                 0,
                 "rust",
                 s1_result(30.0, 100.0, 20.0, 1),
-                vec![window("s1", Some(rust_gc()), default_memory_maps(Some(500_000)).0, default_memory_maps(Some(500_000)).1, Some(rust_cooc()))],
+                vec![window(
+                    "s1",
+                    Some(rust_gc()),
+                    default_memory_maps(Some(500_000)).0,
+                    default_memory_maps(Some(500_000)).1,
+                    Some(rust_cooc()),
+                )],
             ),
         ],
         serde_json::json!({}),
@@ -381,15 +444,39 @@ fn report_has_all_scenarios_and_tables() {
                 0,
                 0,
                 "python-default",
-                s2_result(vec![curve_point("rate=5", 5.0, 5.0, 100.0, 120.0), curve_point("rate=10", 10.0, 9.0, 150.0, 170.0)], 9.0),
-                vec![window("rate=5", Some(python_gc()), default_memory_maps(Some(500_000)).0, default_memory_maps(Some(500_000)).1, Some(python_cooc()))],
+                s2_result(
+                    vec![
+                        curve_point("rate=5", 5.0, 5.0, 100.0, 120.0),
+                        curve_point("rate=10", 10.0, 9.0, 150.0, 170.0),
+                    ],
+                    9.0,
+                ),
+                vec![window(
+                    "rate=5",
+                    Some(python_gc()),
+                    default_memory_maps(Some(500_000)).0,
+                    default_memory_maps(Some(500_000)).1,
+                    Some(python_cooc()),
+                )],
             ),
             ok_trial(
                 1,
                 0,
                 "rust",
-                s2_result(vec![curve_point("rate=5", 5.0, 5.0, 60.0, 70.0), curve_point("rate=10", 10.0, 10.0, 80.0, 90.0)], 10.0),
-                vec![window("rate=5", Some(rust_gc()), default_memory_maps(Some(500_000)).0, default_memory_maps(Some(500_000)).1, Some(rust_cooc()))],
+                s2_result(
+                    vec![
+                        curve_point("rate=5", 5.0, 5.0, 60.0, 70.0),
+                        curve_point("rate=10", 10.0, 10.0, 80.0, 90.0),
+                    ],
+                    10.0,
+                ),
+                vec![window(
+                    "rate=5",
+                    Some(rust_gc()),
+                    default_memory_maps(Some(500_000)).0,
+                    default_memory_maps(Some(500_000)).1,
+                    Some(rust_cooc()),
+                )],
             ),
         ],
         serde_json::json!({}),
@@ -408,14 +495,38 @@ fn report_has_all_scenarios_and_tables() {
                 0,
                 0,
                 "python-default",
-                s3_result(16.0, vec![s3_run_with_gc(1, 16.0, 15.0, 1.0, 1_000_000, Some(500_000), 3_000_000, Some(1_500_000))]),
+                s3_result(
+                    16.0,
+                    vec![s3_run_with_gc(
+                        1,
+                        16.0,
+                        15.0,
+                        1.0,
+                        1_000_000,
+                        Some(500_000),
+                        3_000_000,
+                        Some(1_500_000),
+                    )],
+                ),
                 vec![],
             ),
             ok_trial(
                 1,
                 0,
                 "rust",
-                s3_result(5.0, vec![s3_run(1, 5.0, 4.5, 0.5, 400_000, Some(200_000), 1_200_000, Some(600_000))]),
+                s3_result(
+                    5.0,
+                    vec![s3_run(
+                        1,
+                        5.0,
+                        4.5,
+                        0.5,
+                        400_000,
+                        Some(200_000),
+                        1_200_000,
+                        Some(600_000),
+                    )],
+                ),
                 vec![],
             ),
         ],
@@ -436,14 +547,26 @@ fn report_has_all_scenarios_and_tables() {
                 0,
                 "python-default",
                 throughput_result("fast", 100.0, 10.0, 50.0),
-                vec![window("throughput", Some(python_gc()), default_memory_maps(Some(500_000)).0, default_memory_maps(Some(500_000)).1, None)],
+                vec![window(
+                    "throughput",
+                    Some(python_gc()),
+                    default_memory_maps(Some(500_000)).0,
+                    default_memory_maps(Some(500_000)).1,
+                    None,
+                )],
             ),
             ok_trial(
                 1,
                 0,
                 "rust",
                 throughput_result("slow", 80.0, 8.0, 60.0),
-                vec![window("throughput", Some(rust_gc()), default_memory_maps(Some(500_000)).0, default_memory_maps(Some(500_000)).1, None)],
+                vec![window(
+                    "throughput",
+                    Some(rust_gc()),
+                    default_memory_maps(Some(500_000)).0,
+                    default_memory_maps(Some(500_000)).1,
+                    None,
+                )],
             ),
         ],
         serde_json::json!({}),
@@ -459,9 +582,27 @@ fn report_has_all_scenarios_and_tables() {
             arm_info("python-nt4", FrontendKind::Python, Some(4), false),
         ],
         vec![
-            ok_trial(0, 0, "python-nt0", s2_result(vec![curve_point("rate=5", 5.0, 50.0, 100.0, 120.0)], 50.0), vec![]),
-            ok_trial(1, 0, "python-nt2", s2_result(vec![curve_point("rate=5", 5.0, 55.0, 90.0, 110.0)], 55.0), vec![]),
-            ok_trial(2, 0, "python-nt4", s2_result(vec![curve_point("rate=5", 5.0, 55.0, 85.0, 100.0)], 55.0), vec![]),
+            ok_trial(
+                0,
+                0,
+                "python-nt0",
+                s2_result(vec![curve_point("rate=5", 5.0, 50.0, 100.0, 120.0)], 50.0),
+                vec![],
+            ),
+            ok_trial(
+                1,
+                0,
+                "python-nt2",
+                s2_result(vec![curve_point("rate=5", 5.0, 55.0, 90.0, 110.0)], 55.0),
+                vec![],
+            ),
+            ok_trial(
+                2,
+                0,
+                "python-nt4",
+                s2_result(vec![curve_point("rate=5", 5.0, 55.0, 85.0, 100.0)], 55.0),
+                vec![],
+            ),
         ],
         serde_json::json!({}),
     );
@@ -475,7 +616,13 @@ fn report_has_all_scenarios_and_tables() {
             arm_info("rust", FrontendKind::Rust, None, false),
         ],
         vec![
-            ok_trial(0, 0, "python-default", crosscheck_result(100.0, 10.0), vec![]),
+            ok_trial(
+                0,
+                0,
+                "python-default",
+                crosscheck_result(100.0, 10.0),
+                vec![],
+            ),
             ok_trial(1, 0, "rust", crosscheck_result(80.0, 12.0), vec![]),
         ],
         serde_json::json!({}),
@@ -493,28 +640,60 @@ fn report_has_all_scenarios_and_tables() {
         "num_tokenizer_sweep",
         "crosscheck_vllm",
     ] {
-        assert!(md.contains(&format!("## {scenario}")), "missing section for {scenario}:\n{md}");
+        assert!(
+            md.contains(&format!("## {scenario}")),
+            "missing section for {scenario}:\n{md}"
+        );
     }
 
-    for scenario in ["s1_cancel", "s2_saturation", "s3_coldstart", "standard_throughput"] {
+    for scenario in [
+        "s1_cancel",
+        "s2_saturation",
+        "s3_coldstart",
+        "standard_throughput",
+    ] {
         let section = section_text(&md, scenario);
-        assert!(section.contains("GC pauses"), "{scenario} section missing GC pauses table:\n{section}");
-        assert!(section.contains("Memory"), "{scenario} section missing Memory table:\n{section}");
+        assert!(
+            section.contains("GC pauses"),
+            "{scenario} section missing GC pauses table:\n{section}"
+        );
+        assert!(
+            section.contains("Memory"),
+            "{scenario} section missing Memory table:\n{section}"
+        );
     }
 
     let s1_section = section_text(&md, "s1_cancel");
-    assert!(s1_section.contains("P99 TTFT"), "s1 section missing P99 TTFT:\n{s1_section}");
-    assert!(s1_section.contains("RPS"), "s1 section missing RPS:\n{s1_section}");
+    assert!(
+        s1_section.contains("P99 TTFT"),
+        "s1 section missing P99 TTFT:\n{s1_section}"
+    );
+    assert!(
+        s1_section.contains("RPS"),
+        "s1 section missing RPS:\n{s1_section}"
+    );
 
     let s2_section = section_text(&md, "s2_saturation");
     let level_rows = s2_section.matches("| rate=").count();
-    assert_eq!(level_rows, 2, "expected one curve row per level:\n{s2_section}");
+    assert_eq!(
+        level_rows, 2,
+        "expected one curve row per level:\n{s2_section}"
+    );
 
     let s3_section = section_text(&md, "s3_coldstart");
-    assert!(s3_section.contains("End-to-end startup"), "s3 section missing End-to-end startup:\n{s3_section}");
-    assert!(s3_section.contains("Frontend cold start"), "s3 section missing Frontend cold start:\n{s3_section}");
+    assert!(
+        s3_section.contains("End-to-end startup"),
+        "s3 section missing End-to-end startup:\n{s3_section}"
+    );
+    assert!(
+        s3_section.contains("Frontend cold start"),
+        "s3 section missing Frontend cold start:\n{s3_section}"
+    );
 
-    assert!(!md.contains("NOT A FRONTEND COMPARISON"), "no banner expected when every manifest is real+gpu:\n{md}");
+    assert!(
+        !md.contains("NOT A FRONTEND COMPARISON"),
+        "no banner expected when every manifest is real+gpu:\n{md}"
+    );
 }
 
 /// The Rust frontend's GC row is always the fixed N/A reason -- never a
@@ -535,14 +714,26 @@ fn rust_gc_row_not_applicable() {
                 0,
                 "python-default",
                 s1_result(50.0, 200.0, 12.0, 2),
-                vec![window("s1", Some(python_gc()), BTreeMap::new(), group_memory(0, None), None)],
+                vec![window(
+                    "s1",
+                    Some(python_gc()),
+                    BTreeMap::new(),
+                    group_memory(0, None),
+                    None,
+                )],
             ),
             ok_trial(
                 1,
                 0,
                 "rust",
                 s1_result(30.0, 100.0, 20.0, 1),
-                vec![window("s1", Some(rust_gc()), BTreeMap::new(), group_memory(0, None), None)],
+                vec![window(
+                    "s1",
+                    Some(rust_gc()),
+                    BTreeMap::new(),
+                    group_memory(0, None),
+                    None,
+                )],
             ),
         ],
         serde_json::json!({}),
@@ -569,8 +760,20 @@ fn ci_n_lt_2_note() {
             arm_info("rust", FrontendKind::Rust, None, false),
         ],
         vec![
-            ok_trial(0, 0, "python-default", throughput_result("fast", 100.0, 10.0, 50.0), vec![]),
-            ok_trial(1, 0, "rust", throughput_result("slow", 80.0, 8.0, 60.0), vec![]),
+            ok_trial(
+                0,
+                0,
+                "python-default",
+                throughput_result("fast", 100.0, 10.0, 50.0),
+                vec![],
+            ),
+            ok_trial(
+                1,
+                0,
+                "rust",
+                throughput_result("slow", 80.0, 8.0, 60.0),
+                vec![],
+            ),
         ],
         serde_json::json!({}),
     );
@@ -578,18 +781,29 @@ fn ci_n_lt_2_note() {
     let report = build_report(&[m]).expect("build_report");
     let json = serde_json::to_value(&report).expect("serialize report");
     let ci_note = json
-        .pointer("/scenarios/standard_throughput/arms/python-default/metrics/throughput_tok_s/ci_note")
+        .pointer(
+            "/scenarios/standard_throughput/arms/python-default/metrics/throughput_tok_s/ci_note",
+        )
         .and_then(serde_json::Value::as_str);
-    assert_eq!(ci_note, Some("n<2"), "ci_note should be n<2 for a single trial: {json}");
+    assert_eq!(
+        ci_note,
+        Some("n<2"),
+        "ci_note should be n<2 for a single trial: {json}"
+    );
     assert!(
-        json.pointer("/scenarios/standard_throughput/arms/python-default/metrics/throughput_tok_s/ci95_lo")
-            .map(serde_json::Value::is_null)
-            .unwrap_or(true),
+        json.pointer(
+            "/scenarios/standard_throughput/arms/python-default/metrics/throughput_tok_s/ci95_lo"
+        )
+        .map(serde_json::Value::is_null)
+        .unwrap_or(true),
         "ci95_lo should be null/absent for n<2: {json}"
     );
 
     let md = render_markdown(&report);
-    assert!(md.contains("n/a (n<2)"), "markdown missing n/a (n<2):\n{md}");
+    assert!(
+        md.contains("n/a (n<2)"),
+        "markdown missing n/a (n<2):\n{md}"
+    );
 }
 
 /// A failed trial is listed with its error under its arm, and named by
@@ -605,7 +819,13 @@ fn failed_trials_listed() {
             arm_info("rust", FrontendKind::Rust, None, false),
         ],
         vec![
-            ok_trial(0, 0, "python-default", s1_result(50.0, 200.0, 12.0, 2), vec![]),
+            ok_trial(
+                0,
+                0,
+                "python-default",
+                s1_result(50.0, 200.0, 12.0, 2),
+                vec![],
+            ),
             failed_trial(1, 0, "python-default", "server not ready after 900s"),
             ok_trial(2, 0, "rust", s1_result(30.0, 100.0, 20.0, 1), vec![]),
         ],
@@ -613,14 +833,23 @@ fn failed_trials_listed() {
     );
 
     let report = build_report(&[m]).expect("build_report");
-    let arm = report.scenarios["s1_cancel"].arms.get("python-default").expect("python-default arm");
+    let arm = report.scenarios["s1_cancel"]
+        .arms
+        .get("python-default")
+        .expect("python-default arm");
     assert_eq!(arm.failed_trials.len(), 1);
     assert_eq!(arm.failed_trials[0].index, 1);
     assert_eq!(arm.failed_trials[0].error, "server not ready after 900s");
 
     let summary_text = report.summary.join("\n");
-    assert!(summary_text.contains("trial 1"), "summary should name the failed trial's index: {summary_text}");
-    assert!(summary_text.contains("server not ready after 900s"), "summary: {summary_text}");
+    assert!(
+        summary_text.contains("trial 1"),
+        "summary should name the failed trial's index: {summary_text}"
+    );
+    assert!(
+        summary_text.contains("server not ready after 900s"),
+        "summary: {summary_text}"
+    );
 }
 
 /// A mock backend_kind makes `summary[0]` the provenance banner, naming
@@ -631,19 +860,37 @@ fn banner_for_mock_provenance() {
         "s1_cancel",
         BackendKind::Mock,
         Some("Test GPU"),
-        vec![arm_info("python-default", FrontendKind::Python, Some(0), false)],
-        vec![ok_trial(0, 0, "python-default", s1_result(50.0, 200.0, 12.0, 2), vec![])],
+        vec![arm_info(
+            "python-default",
+            FrontendKind::Python,
+            Some(0),
+            false,
+        )],
+        vec![ok_trial(
+            0,
+            0,
+            "python-default",
+            s1_result(50.0, 200.0, 12.0, 2),
+            vec![],
+        )],
         serde_json::json!({}),
     );
 
     let report = build_report(&[m]).expect("build_report");
-    assert!(!report.summary.is_empty(), "summary should have at least the banner");
+    assert!(
+        !report.summary.is_empty(),
+        "summary should have at least the banner"
+    );
     assert!(
         report.summary[0].starts_with("NOT A FRONTEND COMPARISON"),
         "summary[0] = {:?}",
         report.summary[0]
     );
-    assert!(report.summary[0].contains("mock"), "summary[0] should name 'mock': {:?}", report.summary[0]);
+    assert!(
+        report.summary[0].contains("mock"),
+        "summary[0] should name 'mock': {:?}",
+        report.summary[0]
+    );
 }
 
 /// A sweep manifest with `peak_rps {0: 50, 2: 55, 4: 55}` recomputes
@@ -661,20 +908,47 @@ fn sweep_best_recomputed() {
             arm_info("python-nt4", FrontendKind::Python, Some(4), false),
         ],
         vec![
-            ok_trial(0, 0, "python-nt0", s2_result(vec![curve_point("rate=5", 5.0, 50.0, 100.0, 120.0)], 50.0), vec![]),
-            ok_trial(1, 0, "python-nt2", s2_result(vec![curve_point("rate=5", 5.0, 55.0, 90.0, 110.0)], 55.0), vec![]),
-            ok_trial(2, 0, "python-nt4", s2_result(vec![curve_point("rate=5", 5.0, 55.0, 85.0, 100.0)], 55.0), vec![]),
+            ok_trial(
+                0,
+                0,
+                "python-nt0",
+                s2_result(vec![curve_point("rate=5", 5.0, 50.0, 100.0, 120.0)], 50.0),
+                vec![],
+            ),
+            ok_trial(
+                1,
+                0,
+                "python-nt2",
+                s2_result(vec![curve_point("rate=5", 5.0, 55.0, 90.0, 110.0)], 55.0),
+                vec![],
+            ),
+            ok_trial(
+                2,
+                0,
+                "python-nt4",
+                s2_result(vec![curve_point("rate=5", 5.0, 55.0, 85.0, 100.0)], 55.0),
+                vec![],
+            ),
         ],
         serde_json::json!({}),
     );
 
     let report = build_report(&[m]).expect("build_report");
     let extra = &report.scenarios["num_tokenizer_sweep"].extra;
-    assert_eq!(extra.pointer("/best").and_then(serde_json::Value::as_u64), Some(2));
+    assert_eq!(
+        extra.pointer("/best").and_then(serde_json::Value::as_u64),
+        Some(2)
+    );
 
     let summary_text = report.summary.join("\n");
-    assert!(summary_text.contains("default --num-tokenizer is 0"), "summary: {summary_text}");
-    assert!(summary_text.contains("best-performing candidate is 2"), "summary: {summary_text}");
+    assert!(
+        summary_text.contains("default --num-tokenizer is 0"),
+        "summary: {summary_text}"
+    );
+    assert!(
+        summary_text.contains("best-performing candidate is 2"),
+        "summary: {summary_text}"
+    );
 }
 
 /// `also_best: true` on `python-default` gives a summary line saying the
@@ -690,7 +964,13 @@ fn also_best_note() {
             arm_info("rust", FrontendKind::Rust, None, false),
         ],
         vec![
-            ok_trial(0, 0, "python-default", s1_result(50.0, 200.0, 12.0, 2), vec![]),
+            ok_trial(
+                0,
+                0,
+                "python-default",
+                s1_result(50.0, 200.0, 12.0, 2),
+                vec![],
+            ),
             ok_trial(1, 0, "rust", s1_result(30.0, 100.0, 20.0, 1), vec![]),
         ],
         serde_json::json!({}),
@@ -721,14 +1001,26 @@ fn pss_unavailable_rendered() {
                 0,
                 "python-default",
                 s1_result(50.0, 200.0, 12.0, 2),
-                vec![window("s1", Some(python_gc()), default_memory_maps(None).0, default_memory_maps(None).1, Some(python_cooc()))],
+                vec![window(
+                    "s1",
+                    Some(python_gc()),
+                    default_memory_maps(None).0,
+                    default_memory_maps(None).1,
+                    Some(python_cooc()),
+                )],
             ),
             ok_trial(
                 1,
                 0,
                 "rust",
                 s1_result(30.0, 100.0, 20.0, 1),
-                vec![window("s1", Some(rust_gc()), default_memory_maps(None).0, default_memory_maps(None).1, Some(rust_cooc()))],
+                vec![window(
+                    "s1",
+                    Some(rust_gc()),
+                    default_memory_maps(None).0,
+                    default_memory_maps(None).1,
+                    Some(rust_cooc()),
+                )],
             ),
         ],
         serde_json::json!({}),
@@ -736,7 +1028,10 @@ fn pss_unavailable_rendered() {
 
     let report = build_report(&[m]).expect("build_report");
     let md = render_markdown(&report);
-    assert!(md.contains("n/a (PSS needs Linux)"), "markdown missing PSS-unavailable phrase:\n{md}");
+    assert!(
+        md.contains("n/a (PSS needs Linux)"),
+        "markdown missing PSS-unavailable phrase:\n{md}"
+    );
 }
 
 /// Rust throughput at or above Python's gives the "No throughput
@@ -752,17 +1047,50 @@ fn no_regression_sentence() {
             arm_info("rust", FrontendKind::Rust, None, false),
         ],
         vec![
-            ok_trial(0, 0, "python-default", throughput_result("fast", 100.0, 10.0, 50.0), vec![]),
-            ok_trial(1, 0, "python-default", throughput_result("fast", 102.0, 10.2, 51.0), vec![]),
-            ok_trial(2, 0, "rust", throughput_result("slow", 110.0, 11.0, 48.0), vec![]),
-            ok_trial(3, 0, "rust", throughput_result("slow", 112.0, 11.2, 49.0), vec![]),
+            ok_trial(
+                0,
+                0,
+                "python-default",
+                throughput_result("fast", 100.0, 10.0, 50.0),
+                vec![],
+            ),
+            ok_trial(
+                1,
+                0,
+                "python-default",
+                throughput_result("fast", 102.0, 10.2, 51.0),
+                vec![],
+            ),
+            ok_trial(
+                2,
+                0,
+                "rust",
+                throughput_result("slow", 110.0, 11.0, 48.0),
+                vec![],
+            ),
+            ok_trial(
+                3,
+                0,
+                "rust",
+                throughput_result("slow", 112.0, 11.2, 49.0),
+                vec![],
+            ),
         ],
         serde_json::json!({}),
     );
 
     let report = build_report(&[m]).expect("build_report");
     let summary_text = report.summary.join("\n");
-    assert!(summary_text.contains("No throughput regression"), "summary: {summary_text}");
-    assert!(summary_text.contains('%'), "summary should still carry a percent: {summary_text}");
-    assert!(summary_text.contains("95% CI"), "summary should still carry a CI: {summary_text}");
+    assert!(
+        summary_text.contains("No throughput regression"),
+        "summary: {summary_text}"
+    );
+    assert!(
+        summary_text.contains('%'),
+        "summary should still carry a percent: {summary_text}"
+    );
+    assert!(
+        summary_text.contains("95% CI"),
+        "summary should still carry a CI: {summary_text}"
+    );
 }

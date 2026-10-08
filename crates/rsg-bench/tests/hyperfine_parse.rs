@@ -22,17 +22,41 @@ fn approx_eq(a: f64, b: f64) -> bool {
 #[test]
 fn parse_phase2_shape() {
     let stats = parse_hyperfine_json(FIXTURE, "fixture").expect("parse fixture");
-    assert!(approx_eq(stats.mean_s, 16.15580571078667), "mean_s: {}", stats.mean_s);
     assert!(
-        approx_eq(stats.stddev_s.expect("stddev_s present"), 1.1798471426963029),
+        approx_eq(stats.mean_s, 16.15580571078667),
+        "mean_s: {}",
+        stats.mean_s
+    );
+    assert!(
+        approx_eq(
+            stats.stddev_s.expect("stddev_s present"),
+            1.1798471426963029
+        ),
         "stddev_s: {:?}",
         stats.stddev_s
     );
-    assert!(approx_eq(stats.median_s, 16.244755787120003), "median_s: {}", stats.median_s);
-    assert!(approx_eq(stats.min_s, 14.934000985119999), "min_s: {}", stats.min_s);
-    assert!(approx_eq(stats.max_s, 17.28866036012), "max_s: {}", stats.max_s);
+    assert!(
+        approx_eq(stats.median_s, 16.244755787120003),
+        "median_s: {}",
+        stats.median_s
+    );
+    assert!(
+        approx_eq(stats.min_s, 14.934000985119999),
+        "min_s: {}",
+        stats.min_s
+    );
+    assert!(
+        approx_eq(stats.max_s, 17.28866036012),
+        "max_s: {}",
+        stats.max_s
+    );
     let expected_times = [16.244755787120003, 17.28866036012, 14.934000985119999];
-    assert_eq!(stats.times_s.len(), expected_times.len(), "times_s: {:?}", stats.times_s);
+    assert_eq!(
+        stats.times_s.len(),
+        expected_times.len(),
+        "times_s: {:?}",
+        stats.times_s
+    );
     for (got, want) in stats.times_s.iter().zip(expected_times.iter()) {
         assert!(approx_eq(*got, *want), "times_s entry {got} != {want}");
     }
@@ -50,8 +74,7 @@ fn parse_missing_results_errors() {
 
 #[test]
 fn parse_null_stddev_ok() {
-    let text =
-        r#"{"results":[{"command":"x","mean":1.0,"stddev":null,"median":1.0,"min":1.0,"max":1.0,"times":[1.0]}]}"#;
+    let text = r#"{"results":[{"command":"x","mean":1.0,"stddev":null,"median":1.0,"min":1.0,"max":1.0,"times":[1.0]}]}"#;
     let stats = parse_hyperfine_json(text, "null-stddev.json").expect("parse");
     assert_eq!(stats.stddev_s, None);
     assert_eq!(stats.runs, 1);
@@ -82,13 +105,19 @@ fn shell_quote_round_trip() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let got: Vec<&str> = std::str::from_utf8(&output.stdout).expect("utf8 stdout").lines().collect();
+    let got: Vec<&str> = std::str::from_utf8(&output.stdout)
+        .expect("utf8 stdout")
+        .lines()
+        .collect();
     assert_eq!(got, tokens.iter().map(String::as_str).collect::<Vec<_>>());
 
     // shell_quote itself (not just via shell_join) must round-trip the
     // injection token literally, wrapped in single quotes.
     let quoted = shell_quote(";rm -rf /");
-    assert!(quoted.starts_with('\'') && quoted.ends_with('\''), "quoted: {quoted}");
+    assert!(
+        quoted.starts_with('\'') && quoted.ends_with('\''),
+        "quoted: {quoted}"
+    );
 }
 
 #[test]

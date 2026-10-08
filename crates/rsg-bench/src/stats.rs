@@ -182,7 +182,8 @@ mod tests {
 
     #[test]
     fn welch_diff_ci95_known_example() {
-        let w = welch_diff_ci95(&[10.0, 12.0, 14.0], &[20.0, 22.0, 24.0, 26.0]).expect("n>=2 both sides");
+        let w = welch_diff_ci95(&[10.0, 12.0, 14.0], &[20.0, 22.0, 24.0, 26.0])
+            .expect("n>=2 both sides");
         approx(w.diff, 11.0, 1e-9);
         approx(w.df, 4.959, 0.001);
         approx(w.half_width, 4.808, 0.001);

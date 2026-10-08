@@ -221,7 +221,9 @@ mod tests {
 
     impl EnvGuard {
         fn new() -> Self {
-            let lock = ENV_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            let lock = ENV_LOCK
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let hf_home = tempfile::tempdir().expect("tempdir for HF_HOME");
             let keys = [
                 "HF_TOKEN",

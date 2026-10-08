@@ -155,7 +155,10 @@ fn extract_metrics(obj: &serde_json::Map<String, serde_json::Value>) -> BTreeMap
         let Some(num) = value.as_f64() else { continue };
         let lower = key.to_lowercase();
         let matches_latency_pattern = lower.ends_with("_ms")
-            && (lower.contains("ttft") || lower.contains("itl") || lower.contains("tpot") || lower.contains("e2e"));
+            && (lower.contains("ttft")
+                || lower.contains("itl")
+                || lower.contains("tpot")
+                || lower.contains("e2e"));
         let is_named = NAMED_METRIC_KEYS.contains(&key.as_str());
         if matches_latency_pattern || is_named {
             out.insert(key.clone(), num);
@@ -170,7 +173,9 @@ fn extract_metrics(obj: &serde_json::Map<String, serde_json::Value>) -> BTreeMap
 /// Returns `Ok(())` on a zero exit, `Err` naming the last 20 stderr lines
 /// otherwise.
 fn run_cross_tool(argv: &[String], timeout: Duration) -> anyhow::Result<()> {
-    let (argv0, rest) = argv.split_first().context("empty cross-check tool command")?;
+    let (argv0, rest) = argv
+        .split_first()
+        .context("empty cross-check tool command")?;
     let mut cmd = std::process::Command::new(argv0);
     cmd.args(rest);
     cmd.stdin(Stdio::null());
@@ -180,7 +185,10 @@ fn run_cross_tool(argv: &[String], timeout: Duration) -> anyhow::Result<()> {
     let mut child = cmd
         .spawn()
         .with_context(|| format!("spawn cross-check tool: {}", argv.join(" ")))?;
-    let mut stderr_pipe = child.stderr.take().context("cross-check tool stderr not piped")?;
+    let mut stderr_pipe = child
+        .stderr
+        .take()
+        .context("cross-check tool stderr not piped")?;
 
     let (tx, rx) = std::sync::mpsc::channel();
     let reader = std::thread::spawn(move || {
@@ -197,7 +205,11 @@ fn run_cross_tool(argv: &[String], timeout: Duration) -> anyhow::Result<()> {
                 if Instant::now() > deadline {
                     let _ = child.kill();
                     let _ = child.wait();
-                    let stderr_text = reader.join().ok().and_then(|()| rx.recv().ok()).unwrap_or_default();
+                    let stderr_text = reader
+                        .join()
+                        .ok()
+                        .and_then(|()| rx.recv().ok())
+                        .unwrap_or_default();
                     anyhow::bail!(
                         "cross-check tool timed out after {timeout:?}; last stderr:\n{}",
                         tail_lines(&stderr_text, 20)
@@ -209,7 +221,11 @@ fn run_cross_tool(argv: &[String], timeout: Duration) -> anyhow::Result<()> {
         }
     };
 
-    let stderr_text = reader.join().ok().and_then(|()| rx.recv().ok()).unwrap_or_default();
+    let stderr_text = reader
+        .join()
+        .ok()
+        .and_then(|()| rx.recv().ok())
+        .unwrap_or_default();
     if !status.success() {
         anyhow::bail!(
             "cross-check tool exited {:?}; last stderr:\n{}",
@@ -254,7 +270,11 @@ impl TrialRunner for CrossRunner {
             .clone()
             .ok_or_else(|| anyhow::anyhow!("TrialContext has no model_id"))?;
 
-        let template = self.args.tool_cmd.clone().unwrap_or_else(|| default_template(self.args.tool).to_string());
+        let template = self
+            .args
+            .tool_cmd
+            .clone()
+            .unwrap_or_else(|| default_template(self.args.tool).to_string());
         let out_file = format!("{}-result.json", self.args.tool.as_str());
 
         let mut values: BTreeMap<&str, String> = BTreeMap::new();
@@ -277,12 +297,19 @@ impl TrialRunner for CrossRunner {
         let argv = cmdline::render(&template, &values)?;
 
         let start_unix_ns = unix_ns_now();
-        run_cross_tool(&argv, Duration::from_secs_f64(self.args.tool_timeout_s.max(0.0)))?;
+        run_cross_tool(
+            &argv,
+            Duration::from_secs_f64(self.args.tool_timeout_s.max(0.0)),
+        )?;
         let end_unix_ns = unix_ns_now();
 
         let result_path = ctx.trial_dir.join(&out_file);
-        let text = std::fs::read_to_string(&result_path)
-            .with_context(|| format!("read cross-check tool result file {}", result_path.display()))?;
+        let text = std::fs::read_to_string(&result_path).with_context(|| {
+            format!(
+                "read cross-check tool result file {}",
+                result_path.display()
+            )
+        })?;
         let result = parse_tool_result(self.args.tool, &text)?;
 
         Ok(TrialMeasurement {

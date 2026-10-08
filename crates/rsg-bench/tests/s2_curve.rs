@@ -11,17 +11,28 @@ use std::process::Command;
 
 use rsg_bench::manifest::{TrialStatus, read_manifest};
 use rsg_bench::metrics::LatencyHistograms;
-use rsg_bench::scenarios::s2_saturation::{CurvePoint, LoopMode, build_curve, peak_rps, validate_levels};
+use rsg_bench::scenarios::s2_saturation::{
+    CurvePoint, LoopMode, build_curve, peak_rps, validate_levels,
+};
 
 use common::{bench_bin, free_port, repo_root, stub_bin, unique_manifest_path, unique_work_root};
 
 fn run_rsg_bench(args: &[String]) -> std::process::Output {
-    Command::new(bench_bin()).args(args).output().expect("spawn rsg-bench")
+    Command::new(bench_bin())
+        .args(args)
+        .output()
+        .expect("spawn rsg-bench")
 }
 
 /// A common `rsg-bench s2` invocation against two `bench-stub` arms, with
 /// `mode_args` appended for the mode-specific level flags.
-fn s2_args(mode: &str, mode_args: &[(&str, &str)], work_root: &Path, out: &Path, port: u16) -> Vec<String> {
+fn s2_args(
+    mode: &str,
+    mode_args: &[(&str, &str)],
+    work_root: &Path,
+    out: &Path,
+    port: u16,
+) -> Vec<String> {
     let python_cmd = format!("{} --port {{port}} --ttft-ms 20 --itl-ms 1", stub_bin());
     let rust_cmd = format!("{} --port {{port}} --ttft-ms 10 --itl-ms 1", stub_bin());
     let mut args: Vec<String> = vec![
@@ -88,19 +99,39 @@ fn s2_open_loop_curve_with_stub_arms() {
     assert_eq!(manifest.trials.len(), 2);
 
     for trial in &manifest.trials {
-        assert_eq!(trial.status, TrialStatus::Ok, "trial {} failed: {:?}", trial.arm, trial.error);
+        assert_eq!(
+            trial.status,
+            TrialStatus::Ok,
+            "trial {} failed: {:?}",
+            trial.arm,
+            trial.error
+        );
 
         let curve = trial
             .result
             .get("curve")
             .and_then(|c| c.as_array())
             .unwrap_or_else(|| panic!("trial {} has no curve array", trial.arm));
-        let labels: Vec<&str> = curve.iter().map(|p| p["label"].as_str().expect("label")).collect();
-        assert_eq!(labels, vec!["rate=20", "rate=40"], "trial {} curve labels not ascending", trial.arm);
+        let labels: Vec<&str> = curve
+            .iter()
+            .map(|p| p["label"].as_str().expect("label"))
+            .collect();
+        assert_eq!(
+            labels,
+            vec!["rate=20", "rate=40"],
+            "trial {} curve labels not ascending",
+            trial.arm
+        );
 
         for point in curve {
-            let completed = point["counts"]["completed"].as_u64().expect("counts.completed");
-            assert_eq!(completed, 30, "trial {} point {:?} completed != 30", trial.arm, point["label"]);
+            let completed = point["counts"]["completed"]
+                .as_u64()
+                .expect("counts.completed");
+            assert_eq!(
+                completed, 30,
+                "trial {} point {:?} completed != 30",
+                trial.arm, point["label"]
+            );
             assert!(
                 point["latency"]["ttft_ms"]["p99"].is_number(),
                 "trial {} point {:?} missing ttft_ms.p99",
@@ -110,17 +141,30 @@ fn s2_open_loop_curve_with_stub_arms() {
         }
 
         assert!(
-            trial.result.get("peak_rps").and_then(|v| v.as_f64()).is_some(),
+            trial
+                .result
+                .get("peak_rps")
+                .and_then(|v| v.as_f64())
+                .is_some(),
             "trial {} result.peak_rps missing",
             trial.arm
         );
 
         let hist_keys: BTreeSet<&str> = trial.histograms.keys().map(String::as_str).collect();
         let expected_keys: BTreeSet<&str> = ["rate=20", "rate=40"].into_iter().collect();
-        assert_eq!(hist_keys, expected_keys, "trial {} histogram keys mismatch", trial.arm);
+        assert_eq!(
+            hist_keys, expected_keys,
+            "trial {} histogram keys mismatch",
+            trial.arm
+        );
 
         let window_labels: Vec<&str> = trial.windows.iter().map(|w| w.label.as_str()).collect();
-        assert_eq!(window_labels, vec!["rate=20", "rate=40"], "trial {} window labels mismatch", trial.arm);
+        assert_eq!(
+            window_labels,
+            vec!["rate=20", "rate=40"],
+            "trial {} window labels mismatch",
+            trial.arm
+        );
     }
 }
 
@@ -131,7 +175,13 @@ fn closed_mode_curve() {
     let out = unique_manifest_path();
 
     // Deliberately unsorted: should yield ["concurrency=1", "concurrency=4"].
-    let args = s2_args("closed", &[("--concurrency", "4,1")], &work_root, &out, port);
+    let args = s2_args(
+        "closed",
+        &[("--concurrency", "4,1")],
+        &work_root,
+        &out,
+        port,
+    );
 
     let output = run_rsg_bench(&args);
     assert!(
@@ -146,20 +196,53 @@ fn closed_mode_curve() {
     assert_eq!(manifest.trials.len(), 2);
 
     for trial in &manifest.trials {
-        assert_eq!(trial.status, TrialStatus::Ok, "trial {} failed: {:?}", trial.arm, trial.error);
-        let curve = trial.result.get("curve").and_then(|c| c.as_array()).expect("curve array");
-        let labels: Vec<&str> = curve.iter().map(|p| p["label"].as_str().expect("label")).collect();
-        assert_eq!(labels, vec!["concurrency=1", "concurrency=4"], "trial {} curve labels mismatch", trial.arm);
+        assert_eq!(
+            trial.status,
+            TrialStatus::Ok,
+            "trial {} failed: {:?}",
+            trial.arm,
+            trial.error
+        );
+        let curve = trial
+            .result
+            .get("curve")
+            .and_then(|c| c.as_array())
+            .expect("curve array");
+        let labels: Vec<&str> = curve
+            .iter()
+            .map(|p| p["label"].as_str().expect("label"))
+            .collect();
+        assert_eq!(
+            labels,
+            vec!["concurrency=1", "concurrency=4"],
+            "trial {} curve labels mismatch",
+            trial.arm
+        );
     }
 }
 
 #[test]
 fn validate_levels_rules() {
-    assert!(validate_levels(&[]).is_err(), "empty list should be rejected");
-    assert!(validate_levels(&[0.0]).is_err(), "zero level should be rejected");
-    assert!(validate_levels(&[-1.0]).is_err(), "negative level should be rejected");
-    assert!(validate_levels(&[f64::NAN]).is_err(), "NaN level should be rejected");
-    assert!(validate_levels(&[1.0, 1.0]).is_err(), "duplicate levels should be rejected");
+    assert!(
+        validate_levels(&[]).is_err(),
+        "empty list should be rejected"
+    );
+    assert!(
+        validate_levels(&[0.0]).is_err(),
+        "zero level should be rejected"
+    );
+    assert!(
+        validate_levels(&[-1.0]).is_err(),
+        "negative level should be rejected"
+    );
+    assert!(
+        validate_levels(&[f64::NAN]).is_err(),
+        "NaN level should be rejected"
+    );
+    assert!(
+        validate_levels(&[1.0, 1.0]).is_err(),
+        "duplicate levels should be rejected"
+    );
     assert_eq!(
         validate_levels(&[5.0, 1.0, 3.0]).expect("valid levels"),
         vec![1.0, 3.0, 5.0],

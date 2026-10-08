@@ -261,7 +261,11 @@ pub fn shell_quote(token: &str) -> String {
 /// shell, so building them this way -- never by plain string concatenation
 /// -- means no harness-built value is ever reinterpreted as shell syntax.
 pub fn shell_join(tokens: &[String]) -> String {
-    tokens.iter().map(|t| shell_quote(t)).collect::<Vec<_>>().join(" ")
+    tokens
+        .iter()
+        .map(|t| shell_quote(t))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[cfg(test)]

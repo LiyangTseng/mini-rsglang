@@ -225,7 +225,10 @@ fn probe_upstream_sha(repo_root: &Path) -> Option<String> {
     let path = repo_root.join("vendor").join("UPSTREAM_SHA");
     let text = std::fs::read_to_string(path).ok()?;
     let sha = text.trim();
-    let valid = sha.len() == 40 && sha.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase());
+    let valid = sha.len() == 40
+        && sha
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase());
     valid.then(|| sha.to_string())
 }
 
@@ -330,7 +333,12 @@ pub fn collect_meta(
         gpu_driver,
         torch_cuda: probe_torch_cuda(python),
         rustc: probe_rustc_version(),
-        harness_profile: if cfg!(debug_assertions) { "debug" } else { "release" }.to_string(),
+        harness_profile: if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
+        .to_string(),
         env: collect_env(),
         backend_kind,
     }

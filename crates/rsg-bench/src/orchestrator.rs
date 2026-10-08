@@ -326,7 +326,9 @@ fn make_session_dir(cfg: &SessionConfig) -> anyhow::Result<PathBuf> {
         .with_context(|| format!("create work root {}", cfg.work_root.display()))?;
     let compact = manifest::utc_rfc3339(unix_secs_now()).replace(['-', ':'], "");
     let pid = std::process::id();
-    let dir = cfg.work_root.join(format!("{}-{compact}-{pid}", cfg.scenario));
+    let dir = cfg
+        .work_root
+        .join(format!("{}-{compact}-{pid}", cfg.scenario));
     std::fs::create_dir(&dir).with_context(|| format!("create session dir {}", dir.display()))?;
     Ok(dir)
 }
@@ -383,7 +385,11 @@ fn py_repr_float(v: f64) -> String {
 /// leaks into the trial. Shared by [`run_one_trial`] (harness-managed) and
 /// [`run_one_trial_runner_managed`] (runner-managed), so both lifecycles
 /// build the exact same environment from the exact same `cfg`.
-fn build_trial_env(cfg: &SessionConfig, hook_dir: &Path, shim_dir: &Path) -> (Vec<(String, String)>, Vec<String>) {
+fn build_trial_env(
+    cfg: &SessionConfig,
+    hook_dir: &Path,
+    shim_dir: &Path,
+) -> (Vec<(String, String)>, Vec<String>) {
     let mut env_set = Vec::new();
     let mut env_remove = Vec::new();
     if cfg.gc_hook {
@@ -601,7 +607,11 @@ async fn run_one_trial<R: TrialRunner>(
         log_path,
     };
 
-    match attempt_trial(cfg, runner, client, arm, argv, &spec, slot, trial_dir, &hook_dir).await {
+    match attempt_trial(
+        cfg, runner, client, arm, argv, &spec, slot, trial_dir, &hook_dir,
+    )
+    .await
+    {
         Ok((partial, measurement, hook, role_map)) => {
             if hook.mem_records > 0 {
                 warnings.push(format!(
@@ -649,8 +659,12 @@ async fn run_one_trial<R: TrialRunner>(
                         w.end_unix_ns,
                     )
                 });
-                let (by_group, total) =
-                    memory::memory_by_group(&partial.samples, &role_map, w.start_unix_ns, w.end_unix_ns);
+                let (by_group, total) = memory::memory_by_group(
+                    &partial.samples,
+                    &role_map,
+                    w.start_unix_ns,
+                    w.end_unix_ns,
+                );
                 windows.push(manifest::WindowObs {
                     label: w.label.clone(),
                     start_unix_ns: w.start_unix_ns,
@@ -735,7 +749,12 @@ async fn run_one_trial_runner_managed<R: TrialRunner>(
     let launched_utc = Some(manifest::utc_rfc3339(unix_secs_now()));
     let (env_set, env_remove) = build_trial_env(cfg, &hook_dir, shim_dir);
 
-    fn failed_record(slot: &TrialSlot, arm: &Arm, launched_utc: Option<String>, error: String) -> manifest::TrialRecord {
+    fn failed_record(
+        slot: &TrialSlot,
+        arm: &Arm,
+        launched_utc: Option<String>,
+        error: String,
+    ) -> manifest::TrialRecord {
         manifest::TrialRecord {
             index: slot.index,
             round: slot.round,
@@ -790,7 +809,9 @@ async fn run_one_trial_runner_managed<R: TrialRunner>(
 
     let measurement = match measurement {
         Ok(m) => m,
-        Err(e) => return failed_record(slot, arm, launched_utc, format!("run_trial failed: {e:#}")),
+        Err(e) => {
+            return failed_record(slot, arm, launched_utc, format!("run_trial failed: {e:#}"));
+        }
     };
 
     let mut windows = Vec::with_capacity(measurement.windows.len());
@@ -804,7 +825,12 @@ async fn run_one_trial_runner_managed<R: TrialRunner>(
             gc: None,
             memory: BTreeMap::new(),
             tree_memory: memory::GroupMemory {
-                rss_bytes: memory::MemSummary { start: None, end: None, max: None, growth: None },
+                rss_bytes: memory::MemSummary {
+                    start: None,
+                    end: None,
+                    max: None,
+                    growth: None,
+                },
                 pss_bytes: None,
             },
             cooccurrence: None,
@@ -854,10 +880,16 @@ async fn run_one_trial_dispatch<R: TrialRunner>(
 ) -> manifest::TrialRecord {
     match lifecycle {
         Lifecycle::HarnessManaged => {
-            run_one_trial(cfg, runner, client, slot, arm, argv, trial_dir, shim_dir, warnings).await
+            run_one_trial(
+                cfg, runner, client, slot, arm, argv, trial_dir, shim_dir, warnings,
+            )
+            .await
         }
         Lifecycle::RunnerManaged => {
-            run_one_trial_runner_managed(cfg, runner, client, slot, arm, argv, trial_dir, shim_dir, warnings).await
+            run_one_trial_runner_managed(
+                cfg, runner, client, slot, arm, argv, trial_dir, shim_dir, warnings,
+            )
+            .await
         }
     }
 }
@@ -881,7 +913,12 @@ pub async fn run_session<R: TrialRunner>(
     }
 
     let client = client::build_client()?;
-    let meta = manifest::collect_meta(&cfg.repo_root, &cfg.python, &cfg.model_arg, cfg.backend_kind);
+    let meta = manifest::collect_meta(
+        &cfg.repo_root,
+        &cfg.python,
+        &cfg.model_arg,
+        cfg.backend_kind,
+    );
 
     let mut arm_infos = Vec::with_capacity(cfg.arms.len());
     let mut rendered = Vec::with_capacity(cfg.arms.len());
@@ -1018,8 +1055,14 @@ mod tests {
 
     #[test]
     fn select_unknown_arm_errors() {
-        let err = build_arms("py", "rs", 0, None, Some(&["rust".to_string(), "bogus".to_string()]))
-            .unwrap_err();
+        let err = build_arms(
+            "py",
+            "rs",
+            0,
+            None,
+            Some(&["rust".to_string(), "bogus".to_string()]),
+        )
+        .unwrap_err();
         assert!(err.to_string().contains("bogus"));
     }
 }

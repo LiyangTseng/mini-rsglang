@@ -32,8 +32,14 @@ fn pick_best_all_failed_errors() {
 
 #[test]
 fn validate_candidates_rules() {
-    assert!(validate_candidates(&[]).is_err(), "empty list should be rejected");
-    assert!(validate_candidates(&[2, 0, 2]).is_err(), "duplicate candidate should be rejected");
+    assert!(
+        validate_candidates(&[]).is_err(),
+        "empty list should be rejected"
+    );
+    assert!(
+        validate_candidates(&[2, 0, 2]).is_err(),
+        "duplicate candidate should be rejected"
+    );
     assert_eq!(
         validate_candidates(&[4, 0, 1]).expect("valid candidates"),
         vec![0, 1, 4],
@@ -49,7 +55,10 @@ fn sweep_end_to_end_prints_best() {
 
     // itl = "1" + "{num_tokenizer}": 10ms for K=0 (faster), 14ms for K=4
     // (slower), so K=0 genuinely achieves the higher peak RPS.
-    let python_cmd = format!("{} --port {{port}} --ttft-ms 5 --itl-ms 1{{num_tokenizer}}", stub_bin());
+    let python_cmd = format!(
+        "{} --port {{port}} --ttft-ms 5 --itl-ms 1{{num_tokenizer}}",
+        stub_bin()
+    );
 
     let args: Vec<String> = vec![
         "sweep-num-tokenizer".to_string(),
@@ -87,7 +96,10 @@ fn sweep_end_to_end_prints_best() {
         out.to_string_lossy().into_owned(),
     ];
 
-    let output = Command::new(bench_bin()).args(&args).output().expect("spawn rsg-bench");
+    let output = Command::new(bench_bin())
+        .args(&args)
+        .output()
+        .expect("spawn rsg-bench");
     assert!(
         output.status.success(),
         "sweep-num-tokenizer exited {:?}\nstdout:\n{}\nstderr:\n{}",

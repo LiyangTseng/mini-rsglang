@@ -21,9 +21,15 @@ async fn tracer_one_request_end_to_end() {
     let handle = procs::launch(&spec, port).expect("launch bench-stub");
     let client = client::build_client().expect("build client");
 
-    procs::wait_ready(&handle, &client, port, Duration::from_secs(10), Duration::from_millis(50))
-        .await
-        .expect("bench-stub became ready");
+    procs::wait_ready(
+        &handle,
+        &client,
+        port,
+        Duration::from_secs(10),
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("bench-stub became ready");
 
     let base_url = client::local_base_url(port);
     let model_id = client::fetch_model_id(&client, &base_url)
@@ -52,14 +58,21 @@ async fn tracer_one_request_end_to_end() {
     let report = procs::teardown(handle, Duration::from_secs(5))
         .await
         .expect("teardown");
-    assert!(report.survivors.is_empty(), "survivors: {:?}", report.survivors);
+    assert!(
+        report.survivors.is_empty(),
+        "survivors: {:?}",
+        report.survivors
+    );
 
     procs::ensure_port_free(port).expect("port free after teardown");
 
     let events = common::read_stub_events(&log_path);
     let done_events: Vec<_> = events.iter().filter(|e| e.kind == "done").collect();
     assert_eq!(done_events.len(), 1, "events: {events:?}");
-    assert_eq!(done_events[0].fields.get("tokens").map(String::as_str), Some("8"));
+    assert_eq!(
+        done_events[0].fields.get("tokens").map(String::as_str),
+        Some("8")
+    );
 }
 
 /// D-02 / RESEARCH Pitfall 5: a mid-stream client cancel (`AfterChunks(3)`)
@@ -73,9 +86,15 @@ async fn cancel_after_chunks_disconnects() {
 
     let handle = procs::launch(&spec, port).expect("launch bench-stub");
     let client = client::build_client().expect("build client");
-    procs::wait_ready(&handle, &client, port, Duration::from_secs(10), Duration::from_millis(50))
-        .await
-        .expect("bench-stub became ready");
+    procs::wait_ready(
+        &handle,
+        &client,
+        port,
+        Duration::from_secs(10),
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("bench-stub became ready");
 
     let base_url = client::local_base_url(port);
     let model_id = client::fetch_model_id(&client, &base_url)
@@ -91,7 +110,11 @@ async fn cancel_after_chunks_disconnects() {
     assert_eq!(record.outcome, Outcome::Cancelled, "record: {record:?}");
     assert_eq!(record.chunks, 3, "record: {record:?}");
 
-    let ev = common::wait_for_event(&log_path, |e| e.kind == "disconnect", Duration::from_secs(2));
+    let ev = common::wait_for_event(
+        &log_path,
+        |e| e.kind == "disconnect",
+        Duration::from_secs(2),
+    );
     let tokens: u32 = ev
         .fields
         .get("tokens")
@@ -108,7 +131,11 @@ async fn cancel_after_chunks_disconnects() {
     let report = procs::teardown(handle, Duration::from_secs(5))
         .await
         .expect("teardown");
-    assert!(report.survivors.is_empty(), "survivors: {:?}", report.survivors);
+    assert!(
+        report.survivors.is_empty(),
+        "survivors: {:?}",
+        report.survivors
+    );
 }
 
 /// D-02 / RESEARCH Assumption A1: dropping right after the headers aborts
@@ -122,9 +149,15 @@ async fn cancel_after_headers_disconnects_during_prefill() {
 
     let handle = procs::launch(&spec, port).expect("launch bench-stub");
     let client = client::build_client().expect("build client");
-    procs::wait_ready(&handle, &client, port, Duration::from_secs(10), Duration::from_millis(50))
-        .await
-        .expect("bench-stub became ready");
+    procs::wait_ready(
+        &handle,
+        &client,
+        port,
+        Duration::from_secs(10),
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("bench-stub became ready");
 
     let base_url = client::local_base_url(port);
     let model_id = client::fetch_model_id(&client, &base_url)
@@ -147,7 +180,11 @@ async fn cancel_after_headers_disconnects_during_prefill() {
         "client-side cancel took {client_elapsed:?}"
     );
 
-    let ev = common::wait_for_event(&log_path, |e| e.kind == "disconnect", Duration::from_millis(1500));
+    let ev = common::wait_for_event(
+        &log_path,
+        |e| e.kind == "disconnect",
+        Duration::from_millis(1500),
+    );
     let server_elapsed = t0.elapsed();
     assert_eq!(ev.fields.get("tokens").map(String::as_str), Some("0"));
     assert!(
@@ -169,9 +206,15 @@ async fn failed_status_is_recorded() {
 
     let handle = procs::launch(&spec, port).expect("launch bench-stub");
     let client = client::build_client().expect("build client");
-    procs::wait_ready(&handle, &client, port, Duration::from_secs(10), Duration::from_millis(50))
-        .await
-        .expect("bench-stub became ready");
+    procs::wait_ready(
+        &handle,
+        &client,
+        port,
+        Duration::from_secs(10),
+        Duration::from_millis(50),
+    )
+    .await
+    .expect("bench-stub became ready");
 
     let base_url = client::local_base_url(port);
     let model_id = client::fetch_model_id(&client, &base_url)
@@ -191,7 +234,10 @@ async fn failed_status_is_recorded() {
     assert_eq!(second.error.as_deref(), Some("status 500"));
 
     let events = common::read_stub_events(&log_path);
-    assert!(events.iter().any(|e| e.kind == "failed"), "events: {events:?}");
+    assert!(
+        events.iter().any(|e| e.kind == "failed"),
+        "events: {events:?}"
+    );
 
     procs::teardown(handle, Duration::from_secs(5))
         .await

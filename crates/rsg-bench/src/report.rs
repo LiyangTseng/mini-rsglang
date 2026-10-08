@@ -346,8 +346,12 @@ fn headline_metric_names(scenario: &str, trials: &[TrialRecord]) -> Vec<String> 
 fn extract_metric(scenario: &str, result: &Value, metric: &str) -> Option<f64> {
     match scenario_family(scenario) {
         "s1_cancel" => match metric {
-            "ttft_p99_ms" => result.pointer("/latency/ttft_ms/p99").and_then(Value::as_f64),
-            "ttft_p50_ms" => result.pointer("/latency/ttft_ms/p50").and_then(Value::as_f64),
+            "ttft_p99_ms" => result
+                .pointer("/latency/ttft_ms/p99")
+                .and_then(Value::as_f64),
+            "ttft_p50_ms" => result
+                .pointer("/latency/ttft_ms/p50")
+                .and_then(Value::as_f64),
             "rps" => result.pointer("/rps").and_then(Value::as_f64),
             "cancelled" => result.pointer("/counts/cancelled").and_then(Value::as_f64),
             _ => None,
@@ -356,14 +360,24 @@ fn extract_metric(scenario: &str, result: &Value, metric: &str) -> Option<f64> {
             "peak_rps" => result.pointer("/peak_rps").and_then(Value::as_f64),
             _ => None,
         },
-        "s3_coldstart" => result.pointer(&format!("/means/{metric}")).and_then(Value::as_f64),
+        "s3_coldstart" => result
+            .pointer(&format!("/means/{metric}"))
+            .and_then(Value::as_f64),
         "standard_throughput" => match metric {
-            "throughput_tok_s" => result.pointer("/summary/throughput_tok_s").and_then(Value::as_f64),
-            "throughput_req_s" => result.pointer("/summary/throughput_req_s").and_then(Value::as_f64),
-            "ttft_p99_ms" => result.pointer("/summary/ttft_ms/p99").and_then(Value::as_f64),
+            "throughput_tok_s" => result
+                .pointer("/summary/throughput_tok_s")
+                .and_then(Value::as_f64),
+            "throughput_req_s" => result
+                .pointer("/summary/throughput_req_s")
+                .and_then(Value::as_f64),
+            "ttft_p99_ms" => result
+                .pointer("/summary/ttft_ms/p99")
+                .and_then(Value::as_f64),
             _ => None,
         },
-        "crosscheck" => result.pointer(&format!("/metrics/{metric}")).and_then(Value::as_f64),
+        "crosscheck" => result
+            .pointer(&format!("/metrics/{metric}"))
+            .and_then(Value::as_f64),
         _ => None,
     }
 }
@@ -400,7 +414,9 @@ fn metric_report(values: &[f64]) -> MetricReport {
 /// Rust-minus-every-Python-arm deltas (BENCH-07), keyed
 /// `"rust_vs_<python arm id>"`. Omits a metric entirely when either side
 /// has `n < 2` -- never an invented interval.
-fn compute_deltas(arm_values: &BTreeMap<String, BTreeMap<String, Vec<f64>>>) -> BTreeMap<String, BTreeMap<String, DeltaReport>> {
+fn compute_deltas(
+    arm_values: &BTreeMap<String, BTreeMap<String, Vec<f64>>>,
+) -> BTreeMap<String, BTreeMap<String, DeltaReport>> {
     let mut out = BTreeMap::new();
     let Some(rust_values) = arm_values.get("rust") else {
         return out;
@@ -453,15 +469,26 @@ fn build_curve_extra(m: &Manifest) -> Value {
             continue;
         };
         for point in curve {
-            let label = point.get("label").and_then(Value::as_str).unwrap_or("").to_string();
+            let label = point
+                .get("label")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
             if !labels.contains(&label) {
                 labels.push(label.clone());
             }
-            let entry = per_label_arm.entry(label).or_default().entry(t.arm.clone()).or_default();
+            let entry = per_label_arm
+                .entry(label)
+                .or_default()
+                .entry(t.arm.clone())
+                .or_default();
             if let Some(v) = point.get("achieved_rps").and_then(Value::as_f64) {
                 entry.0.push(v);
             }
-            if let Some(v) = point.pointer("/latency/ttft_ms/p99").and_then(Value::as_f64) {
+            if let Some(v) = point
+                .pointer("/latency/ttft_ms/p99")
+                .and_then(Value::as_f64)
+            {
                 entry.1.push(v);
             }
             if let Some(v) = point.pointer("/latency/e2e_ms/p99").and_then(Value::as_f64) {
@@ -543,7 +570,11 @@ fn build_extra(
             let best = sweep::pick_best(&candidates).ok();
             let default_k = candidates.iter().map(|(k, _)| *k).min();
             if let (Some(default_k), Some(best)) = (default_k, best) {
-                let suffix = if default_k == best { " (default equals best)" } else { "" };
+                let suffix = if default_k == best {
+                    " (default equals best)"
+                } else {
+                    ""
+                };
                 summary.push(format!(
                     "D-10: Python's default --num-tokenizer is {default_k}; this sweep's best-performing candidate is {best}{suffix}."
                 ));
@@ -552,7 +583,10 @@ fn build_extra(
                 .iter()
                 .map(|(k, p)| serde_json::json!({"k": k, "peak_rps": p}))
                 .collect();
-            (serde_json::json!({"candidates": candidates_json, "best": best}), summary)
+            (
+                serde_json::json!({"candidates": candidates_json, "best": best}),
+                summary,
+            )
         }
         "s2_saturation" => (serde_json::json!({"curve": build_curve_extra(m)}), summary),
         _ => (Value::Null, summary),
@@ -595,7 +629,12 @@ fn aggregate_gc(maps: &[&BTreeMap<Role, GcRow>]) -> BTreeMap<Role, GcAggRow> {
             }
         }
         if let Some(reason) = na_reason {
-            out.insert(role, GcAggRow::NotApplicable { not_applicable: reason });
+            out.insert(
+                role,
+                GcAggRow::NotApplicable {
+                    not_applicable: reason,
+                },
+            );
         } else if !counts.is_empty() {
             out.insert(
                 role,
@@ -603,7 +642,9 @@ fn aggregate_gc(maps: &[&BTreeMap<Role, GcRow>]) -> BTreeMap<Role, GcAggRow> {
                     count: mean_opt(&counts).unwrap_or(0.0),
                     total_pause_ms: mean_opt(&totals).unwrap_or(0.0),
                     p99_pause_ms: mean_opt(&p99s),
-                    max_pause_ms: maxs.into_iter().fold(None, |acc: Option<f64>, v| Some(acc.map_or(v, |a| a.max(v)))),
+                    max_pause_ms: maxs.into_iter().fold(None, |acc: Option<f64>, v| {
+                        Some(acc.map_or(v, |a| a.max(v)))
+                    }),
                 },
             );
         }
@@ -622,7 +663,8 @@ fn aggregate_memory(points: &[MemObsPoint]) -> MemoryAggReport {
 
     let mut by_group = BTreeMap::new();
     for group in groups {
-        let present: Vec<&(f64, Option<f64>)> = points.iter().filter_map(|(g, _)| g.get(&group)).collect();
+        let present: Vec<&(f64, Option<f64>)> =
+            points.iter().filter_map(|(g, _)| g.get(&group)).collect();
         let rss_vals: Vec<f64> = present.iter().map(|(r, _)| *r).collect();
         let pss_ok = !present.is_empty() && present.iter().all(|(_, p)| p.is_some());
         let pss_vals: Vec<f64> = if pss_ok {
@@ -648,7 +690,11 @@ fn aggregate_memory(points: &[MemObsPoint]) -> MemoryAggReport {
     };
     let tree = MemAggRow {
         rss_bytes_mean: mean_opt(&tree_rss),
-        pss_bytes_mean: if tree_pss_ok { mean_opt(&tree_pss) } else { None },
+        pss_bytes_mean: if tree_pss_ok {
+            mean_opt(&tree_pss)
+        } else {
+            None
+        },
     };
 
     MemoryAggReport { by_group, tree }
@@ -659,7 +705,9 @@ fn aggregate_memory(points: &[MemObsPoint]) -> MemoryAggReport {
 /// [`crate::gclog::CoOccurrenceRow::NotApplicable`] (the Rust frontend)
 /// keeps that reason; a group with rows but none `Computed` (every window
 /// observed no first token) reports `NoFirstToken`.
-fn aggregate_cooccurrence(maps: &[&BTreeMap<Group, crate::gclog::CoOccurrenceRow>]) -> BTreeMap<Group, CoOccAggRow> {
+fn aggregate_cooccurrence(
+    maps: &[&BTreeMap<Group, crate::gclog::CoOccurrenceRow>],
+) -> BTreeMap<Group, CoOccAggRow> {
     use crate::gclog::CoOccurrenceRow;
     let mut groups: BTreeSet<Group> = BTreeSet::new();
     for m in maps {
@@ -689,7 +737,12 @@ fn aggregate_cooccurrence(maps: &[&BTreeMap<Group, crate::gclog::CoOccurrenceRow
             }
         }
         if let Some(reason) = na_reason {
-            out.insert(group, CoOccAggRow::NotApplicable { not_applicable: reason });
+            out.insert(
+                group,
+                CoOccAggRow::NotApplicable {
+                    not_applicable: reason,
+                },
+            );
         } else if any_computed {
             out.insert(
                 group,
@@ -699,7 +752,12 @@ fn aggregate_cooccurrence(maps: &[&BTreeMap<Group, crate::gclog::CoOccurrenceRow
                 },
             );
         } else {
-            out.insert(group, CoOccAggRow::NoFirstToken { no_first_token: true });
+            out.insert(
+                group,
+                CoOccAggRow::NoFirstToken {
+                    no_first_token: true,
+                },
+            );
         }
     }
     out
@@ -708,7 +766,13 @@ fn aggregate_cooccurrence(maps: &[&BTreeMap<Group, crate::gclog::CoOccurrenceRow
 /// Every window-observing scenario except `s3_coldstart`: aggregates
 /// `WindowObs.gc`/`memory`/`tree_memory`/`cooccurrence` across every
 /// window of every ok trial for one arm.
-fn aggregate_window_observations(ok_trials: &[&&TrialRecord]) -> (BTreeMap<Role, GcAggRow>, MemoryAggReport, BTreeMap<Group, CoOccAggRow>) {
+fn aggregate_window_observations(
+    ok_trials: &[&&TrialRecord],
+) -> (
+    BTreeMap<Role, GcAggRow>,
+    MemoryAggReport,
+    BTreeMap<Group, CoOccAggRow>,
+) {
     let mut gc_maps: Vec<&BTreeMap<Role, GcRow>> = Vec::new();
     let mut mem_points: Vec<MemObsPoint> = Vec::new();
     let mut cooc_maps: Vec<&BTreeMap<Group, crate::gclog::CoOccurrenceRow>> = Vec::new();
@@ -730,7 +794,12 @@ fn aggregate_window_observations(ok_trials: &[&&TrialRecord]) -> (BTreeMap<Role,
                 }
             }
             if let Some(max) = w.tree_memory.rss_bytes.max {
-                let pss = w.tree_memory.pss_bytes.as_ref().and_then(|p| p.max).map(|v| v as f64);
+                let pss = w
+                    .tree_memory
+                    .pss_bytes
+                    .as_ref()
+                    .and_then(|p| p.max)
+                    .map(|v| v as f64);
                 mem_points.push((groups_point, (max as f64, pss)));
             }
         }
@@ -750,7 +819,13 @@ fn aggregate_window_observations(ok_trials: &[&&TrialRecord]) -> (BTreeMap<Role,
 /// returns zero `MeasuredWindow`s (it owns its own observation entirely).
 /// There is no co-occurrence data for this scenario (no requests are ever
 /// sent), so that map is always empty.
-fn aggregate_s3_observations(ok_trials: &[&&TrialRecord]) -> (BTreeMap<Role, GcAggRow>, MemoryAggReport, BTreeMap<Group, CoOccAggRow>) {
+fn aggregate_s3_observations(
+    ok_trials: &[&&TrialRecord],
+) -> (
+    BTreeMap<Role, GcAggRow>,
+    MemoryAggReport,
+    BTreeMap<Group, CoOccAggRow>,
+) {
     let mut gc_rows: Vec<BTreeMap<Role, GcRow>> = Vec::new();
     let mut mem_points: Vec<MemObsPoint> = Vec::new();
 
@@ -772,7 +847,8 @@ fn aggregate_s3_observations(ok_trials: &[&&TrialRecord]) -> (BTreeMap<Role, GcA
             };
             let mut groups_point: BTreeMap<Group, (f64, Option<f64>)> = BTreeMap::new();
             if let Some(groups_val) = mem.get("groups")
-                && let Ok(parsed) = serde_json::from_value::<BTreeMap<Group, MemPoint>>(groups_val.clone())
+                && let Ok(parsed) =
+                    serde_json::from_value::<BTreeMap<Group, MemPoint>>(groups_val.clone())
             {
                 for (g, mp) in parsed {
                     groups_point.insert(g, (mp.rss_bytes as f64, mp.pss_bytes.map(|p| p as f64)));
@@ -781,16 +857,30 @@ fn aggregate_s3_observations(ok_trials: &[&&TrialRecord]) -> (BTreeMap<Role, GcA
             if let Some(tree_val) = mem.get("tree")
                 && let Ok(mp) = serde_json::from_value::<MemPoint>(tree_val.clone())
             {
-                mem_points.push((groups_point, (mp.rss_bytes as f64, mp.pss_bytes.map(|p| p as f64))));
+                mem_points.push((
+                    groups_point,
+                    (mp.rss_bytes as f64, mp.pss_bytes.map(|p| p as f64)),
+                ));
             }
         }
     }
 
     let gc_refs: Vec<&BTreeMap<Role, GcRow>> = gc_rows.iter().collect();
-    (aggregate_gc(&gc_refs), aggregate_memory(&mem_points), BTreeMap::new())
+    (
+        aggregate_gc(&gc_refs),
+        aggregate_memory(&mem_points),
+        BTreeMap::new(),
+    )
 }
 
-fn aggregate_observations(scenario: &str, ok_trials: &[&&TrialRecord]) -> (BTreeMap<Role, GcAggRow>, MemoryAggReport, BTreeMap<Group, CoOccAggRow>) {
+fn aggregate_observations(
+    scenario: &str,
+    ok_trials: &[&&TrialRecord],
+) -> (
+    BTreeMap<Role, GcAggRow>,
+    MemoryAggReport,
+    BTreeMap<Group, CoOccAggRow>,
+) {
     if scenario == "s3_coldstart" {
         aggregate_s3_observations(ok_trials)
     } else {
@@ -811,7 +901,10 @@ fn build_scenario_report(m: &Manifest) -> (ScenarioReport, Vec<String>) {
     let mut summary_lines = Vec::new();
 
     for (arm_id, trials) in &by_arm {
-        let ok_trials: Vec<&&TrialRecord> = trials.iter().filter(|t| t.status == TrialStatus::Ok).collect();
+        let ok_trials: Vec<&&TrialRecord> = trials
+            .iter()
+            .filter(|t| t.status == TrialStatus::Ok)
+            .collect();
         let failed_trials: Vec<FailedTrialReport> = trials
             .iter()
             .filter(|t| t.status == TrialStatus::Failed)
@@ -884,7 +977,10 @@ fn build_scenario_report(m: &Manifest) -> (ScenarioReport, Vec<String>) {
 /// COMPARISON` banner naming every such backend kind/condition found
 /// (PROJECT: projections stay projections until measured).
 pub fn build_report(manifests: &[Manifest]) -> anyhow::Result<Report> {
-    let sources: Vec<String> = manifests.iter().map(|m| m.session.scenario.clone()).collect();
+    let sources: Vec<String> = manifests
+        .iter()
+        .map(|m| m.session.scenario.clone())
+        .collect();
     let backend_kinds: Vec<BackendKind> = manifests.iter().map(|m| m.meta.backend_kind).collect();
     let gpus: Vec<Option<String>> = manifests.iter().map(|m| m.meta.gpu.clone()).collect();
     let comparison_valid = manifests
@@ -944,11 +1040,13 @@ fn render_ci(mr: &MetricReport) -> String {
 }
 
 fn fmt_opt(v: Option<f64>, decimals: usize) -> String {
-    v.map(|x| format!("{x:.decimals$}")).unwrap_or_else(|| "n/a".to_string())
+    v.map(|x| format!("{x:.decimals$}"))
+        .unwrap_or_else(|| "n/a".to_string())
 }
 
 fn fmt_pss(v: Option<f64>) -> String {
-    v.map(|x| format!("{x:.0}")).unwrap_or_else(|| "n/a (PSS needs Linux)".to_string())
+    v.map(|x| format!("{x:.0}"))
+        .unwrap_or_else(|| "n/a (PSS needs Linux)".to_string())
 }
 
 fn render_s1_extras(out: &mut String, sr: &ScenarioReport) {
@@ -957,7 +1055,11 @@ fn render_s1_extras(out: &mut String, sr: &ScenarioReport) {
     for (arm, ar) in &sr.arms {
         let ttft = ar.metrics.get("ttft_p99_ms").and_then(|m| m.mean);
         let rps = ar.metrics.get("rps").and_then(|m| m.mean);
-        out.push_str(&format!("| {arm} | {} | {} |\n", fmt_opt(ttft, 2), fmt_opt(rps, 2)));
+        out.push_str(&format!(
+            "| {arm} | {} | {} |\n",
+            fmt_opt(ttft, 2),
+            fmt_opt(rps, 2)
+        ));
     }
     out.push('\n');
 }
@@ -1047,7 +1149,9 @@ fn render_curve_table(out: &mut String, sr: &ScenarioReport) {
 
 fn render_deltas_table(out: &mut String, sr: &ScenarioReport) {
     out.push_str("**Rust vs Python deltas:**\n\n");
-    out.push_str("| Comparison | Metric | Diff | 95% CI | % | % 95% CI |\n|---|---|---|---|---|---|\n");
+    out.push_str(
+        "| Comparison | Metric | Diff | 95% CI | % | % 95% CI |\n|---|---|---|---|---|---|\n",
+    );
     for (key, metrics) in &sr.deltas {
         for (metric, d) in metrics {
             out.push_str(&format!(
@@ -1070,7 +1174,9 @@ fn render_gc_table(out: &mut String, sr: &ScenarioReport) {
         for (role, row) in &ar.gc {
             match row {
                 GcAggRow::NotApplicable { not_applicable } => {
-                    out.push_str(&format!("| {arm} | {role:?} | N/A ({not_applicable}) | | | |\n"));
+                    out.push_str(&format!(
+                        "| {arm} | {role:?} | N/A ({not_applicable}) | | | |\n"
+                    ));
                 }
                 GcAggRow::Stats {
                     count,
@@ -1099,7 +1205,9 @@ fn render_memory_table(out: &mut String, sr: &ScenarioReport) {
         return;
     }
     out.push_str("**Memory:**\n\n");
-    out.push_str("| Arm | Group | RSS max (mean, bytes) | PSS max (mean, bytes) |\n|---|---|---|---|\n");
+    out.push_str(
+        "| Arm | Group | RSS max (mean, bytes) | PSS max (mean, bytes) |\n|---|---|---|---|\n",
+    );
     for (arm, ar) in &sr.arms {
         for (group, row) in &ar.memory.by_group {
             out.push_str(&format!(
@@ -1125,21 +1233,29 @@ fn render_cooccurrence_table(out: &mut String, sr: &ScenarioReport) {
         return;
     }
     out.push_str("**GC/P99 co-occurrence:**\n\n");
-    out.push_str("| Arm | Group | Spike overlap (mean) | Non-spike overlap (mean) |\n|---|---|---|---|\n");
+    out.push_str(
+        "| Arm | Group | Spike overlap (mean) | Non-spike overlap (mean) |\n|---|---|---|---|\n",
+    );
     for (arm, ar) in &sr.arms {
         for (group, row) in &ar.cooccurrence {
             match row {
                 CoOccAggRow::NotApplicable { not_applicable } => {
-                    out.push_str(&format!("| {arm} | {group:?} | N/A ({not_applicable}) | |\n"));
+                    out.push_str(&format!(
+                        "| {arm} | {group:?} | N/A ({not_applicable}) | |\n"
+                    ));
                 }
                 CoOccAggRow::NoFirstToken { .. } => {
-                    out.push_str(&format!("| {arm} | {group:?} | no first token observed | |\n"));
+                    out.push_str(&format!(
+                        "| {arm} | {group:?} | no first token observed | |\n"
+                    ));
                 }
                 CoOccAggRow::Computed {
                     spike_overlap_rate_mean,
                     nonspike_overlap_rate_mean,
                 } => {
-                    let spike = spike_overlap_rate_mean.map(|v| format!("{:.1}%", v * 100.0)).unwrap_or_else(|| "n/a".to_string());
+                    let spike = spike_overlap_rate_mean
+                        .map(|v| format!("{:.1}%", v * 100.0))
+                        .unwrap_or_else(|| "n/a".to_string());
                     let nonspike = nonspike_overlap_rate_mean
                         .map(|v| format!("{:.1}%", v * 100.0))
                         .unwrap_or_else(|| "n/a".to_string());
@@ -1182,8 +1298,14 @@ fn render_scenario_section(out: &mut String, scenario: &str, sr: &ScenarioReport
         out.push_str("| Arm | Metric | Mean | 95% CI |\n|---|---|---|---|\n");
         for (arm, ar) in &sr.arms {
             for (metric, mr) in &ar.metrics {
-                let mean_str = mr.mean.map(|v| format!("{v:.4}")).unwrap_or_else(|| "n/a".to_string());
-                out.push_str(&format!("| {arm} | {metric} | {mean_str} | {} |\n", render_ci(mr)));
+                let mean_str = mr
+                    .mean
+                    .map(|v| format!("{v:.4}"))
+                    .unwrap_or_else(|| "n/a".to_string());
+                out.push_str(&format!(
+                    "| {arm} | {metric} | {mean_str} | {} |\n",
+                    render_ci(mr)
+                ));
             }
         }
         out.push('\n');

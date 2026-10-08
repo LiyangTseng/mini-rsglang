@@ -34,8 +34,14 @@ fn parse_vllm_fixture() {
     assert_eq!(result.metrics.get("request_throughput"), Some(&42.7));
     assert_eq!(result.metrics.get("output_throughput"), Some(&1366.4));
     assert_eq!(result.metrics.get("completed"), Some(&512.0));
-    assert!(!result.metrics.contains_key("backend"), "non-numeric fields must be absent");
-    assert!(!result.metrics.contains_key("duration"), "unrelated numeric fields must be absent");
+    assert!(
+        !result.metrics.contains_key("backend"),
+        "non-numeric fields must be absent"
+    );
+    assert!(
+        !result.metrics.contains_key("duration"),
+        "unrelated numeric fields must be absent"
+    );
     assert_eq!(result.metrics.len(), 10, "metrics: {:?}", result.metrics);
 }
 
@@ -47,25 +53,43 @@ fn parse_sglang_jsonl_last_line() {
     assert_eq!(result.metrics.get("median_e2e_latency_ms"), Some(&845.3));
     assert_eq!(result.metrics.get("request_throughput"), Some(&39.4));
     assert!(!result.metrics.contains_key("backend"));
-    assert!(!result.metrics.contains_key("completed"), "only the last line should be parsed");
-    assert!(!result.metrics.contains_key("total"), "only the last line should be parsed");
+    assert!(
+        !result.metrics.contains_key("completed"),
+        "only the last line should be parsed"
+    );
+    assert!(
+        !result.metrics.contains_key("total"),
+        "only the last line should be parsed"
+    );
     assert_eq!(result.metrics.len(), 4, "metrics: {:?}", result.metrics);
 }
 
 #[test]
 fn parse_rejects_no_ttft() {
     let err = parse_tool_result(Tool::Vllm, r#"{"request_throughput": 5.0}"#).unwrap_err();
-    assert!(err.to_string().contains("TTFT"), "error should mention TTFT: {err}");
+    assert!(
+        err.to_string().contains("TTFT"),
+        "error should mention TTFT: {err}"
+    );
 }
 
 #[test]
 fn parse_rejects_non_object() {
-    assert!(parse_tool_result(Tool::Vllm, "[1,2]").is_err(), "a JSON array should be rejected");
-    assert!(parse_tool_result(Tool::Vllm, "not json").is_err(), "non-JSON text should be rejected");
+    assert!(
+        parse_tool_result(Tool::Vllm, "[1,2]").is_err(),
+        "a JSON array should be rejected"
+    );
+    assert!(
+        parse_tool_result(Tool::Vllm, "not json").is_err(),
+        "non-JSON text should be rejected"
+    );
 }
 
 fn run_rsg_bench(args: &[String]) -> std::process::Output {
-    Command::new(bench_bin()).args(args).output().expect("spawn rsg-bench")
+    Command::new(bench_bin())
+        .args(args)
+        .output()
+        .expect("spawn rsg-bench")
 }
 
 /// A single-arm `crosscheck` session (python-default only, to avoid
@@ -112,10 +136,16 @@ fn crosscheck_session_with_fake_tool() {
     let work_root = unique_work_root();
     let out = unique_manifest_path();
     let fixtures = fixtures_dir();
-    let tool_cmd =
-        format!("sh {fixtures}/fake_bench_tool.sh {{out_dir}} {{out_file}} {fixtures}/vllm_result.json");
+    let tool_cmd = format!(
+        "sh {fixtures}/fake_bench_tool.sh {{out_dir}} {{out_file}} {fixtures}/vllm_result.json"
+    );
     let args = base_cross_args(
-        &["--tool".to_string(), "vllm".to_string(), "--tool-cmd".to_string(), tool_cmd],
+        &[
+            "--tool".to_string(),
+            "vllm".to_string(),
+            "--tool-cmd".to_string(),
+            tool_cmd,
+        ],
         &work_root,
         &out,
         port,
@@ -133,7 +163,13 @@ fn crosscheck_session_with_fake_tool() {
     let manifest = read_manifest(&out).expect("parse manifest");
     assert_eq!(manifest.trials.len(), 1);
     for trial in &manifest.trials {
-        assert_eq!(trial.status, TrialStatus::Ok, "trial {} failed: {:?}", trial.arm, trial.error);
+        assert_eq!(
+            trial.status,
+            TrialStatus::Ok,
+            "trial {} failed: {:?}",
+            trial.arm,
+            trial.error
+        );
         let mean_ttft = trial
             .result
             .get("metrics")
@@ -148,7 +184,12 @@ fn crosscheck_requires_tool_path() {
     let port = free_port();
     let work_root = unique_work_root();
     let out = unique_manifest_path();
-    let args = base_cross_args(&["--tool".to_string(), "vllm".to_string()], &work_root, &out, port);
+    let args = base_cross_args(
+        &["--tool".to_string(), "vllm".to_string()],
+        &work_root,
+        &out,
+        port,
+    );
 
     let output = run_rsg_bench(&args);
     assert_eq!(

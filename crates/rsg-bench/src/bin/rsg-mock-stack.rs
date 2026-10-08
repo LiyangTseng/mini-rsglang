@@ -76,7 +76,9 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
         .with_ansi(false)
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .init();
     let cli = Cli::parse();
     std::process::exit(run(cli).await);
@@ -166,7 +168,10 @@ async fn run(cli: Cli) -> i32 {
     {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("rsg-mock-stack: failed to spawn mock-scheduler ({}): {e}", cli.mock_scheduler_bin);
+            eprintln!(
+                "rsg-mock-stack: failed to spawn mock-scheduler ({}): {e}",
+                cli.mock_scheduler_bin
+            );
             return EXIT_FAILED;
         }
     };
@@ -184,9 +189,16 @@ async fn run(cli: Cli) -> i32 {
     let mut mock_stdout = BufReader::new(mock.stdout.take().expect("mock-scheduler stdout piped"));
 
     let mut handshake_line = String::new();
-    match tokio::time::timeout(HANDSHAKE_TIMEOUT, mock_stdout.read_line(&mut handshake_line)).await {
+    match tokio::time::timeout(
+        HANDSHAKE_TIMEOUT,
+        mock_stdout.read_line(&mut handshake_line),
+    )
+    .await
+    {
         Ok(Ok(0)) => {
-            eprintln!("rsg-mock-stack: mock-scheduler closed stdout before sending its handshake line");
+            eprintln!(
+                "rsg-mock-stack: mock-scheduler closed stdout before sending its handshake line"
+            );
             drop(mock_stdin);
             let _ = mock.start_kill();
             let _ = mock.wait().await;
@@ -246,7 +258,10 @@ async fn run(cli: Cli) -> i32 {
     {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("rsg-mock-stack: failed to spawn rsg-server ({}): {e}", cli.rsg_server_bin);
+            eprintln!(
+                "rsg-mock-stack: failed to spawn rsg-server ({}): {e}",
+                cli.rsg_server_bin
+            );
             drop(mock_stdin);
             let _ = mock.start_kill();
             let _ = mock.wait().await;

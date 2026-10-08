@@ -52,7 +52,10 @@ fn three_arms_round_robin() {
 fn best_equal_to_default_merges() {
     let arms = build_arms("py", "rs", 0, Some(0), None).expect("build_arms");
     assert_eq!(arms.len(), 2);
-    let python_default = arms.iter().find(|a| a.id == "python-default").expect("python-default arm");
+    let python_default = arms
+        .iter()
+        .find(|a| a.id == "python-default")
+        .expect("python-default arm");
     assert!(python_default.also_best);
 }
 
@@ -68,9 +71,15 @@ fn select_unknown_arm_errors() {
         ])
         .output()
         .expect("spawn rsg-bench");
-    assert!(!output.status.success(), "expected a non-zero exit for an unknown --arms entry");
+    assert!(
+        !output.status.success(),
+        "expected a non-zero exit for an unknown --arms entry"
+    );
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("bogus"), "stderr should name the unknown arm: {stderr}");
+    assert!(
+        stderr.contains("bogus"),
+        "stderr should name the unknown arm: {stderr}"
+    );
 }
 
 #[test]
@@ -85,7 +94,11 @@ fn runs_zero_rejected_by_cli() {
         ])
         .output()
         .expect("spawn rsg-bench");
-    assert_eq!(output.status.code(), Some(2), "--runs 0 should be a clap usage error (exit 2)");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "--runs 0 should be a clap usage error (exit 2)"
+    );
 }
 
 #[test]

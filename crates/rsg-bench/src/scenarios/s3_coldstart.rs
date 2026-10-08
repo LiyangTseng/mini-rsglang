@@ -94,7 +94,9 @@ pub fn parse_hyperfine_json(text: &str, path_for_errors: &str) -> anyhow::Result
         result
             .get(name)
             .and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| anyhow::anyhow!("{path_for_errors}: results[0] missing numeric '{name}'"))
+            .ok_or_else(|| {
+                anyhow::anyhow!("{path_for_errors}: results[0] missing numeric '{name}'")
+            })
     };
     let mean_s = field_f64("mean")?;
     let stddev_s = result.get("stddev").and_then(serde_json::Value::as_f64);
@@ -193,7 +195,12 @@ impl Serialize for ColdstartRecord {
                 map.serialize_entry("frontend_tail_s", frontend_tail_s)?;
                 map.end()
             }
-            ColdstartRecord::Mem { run, groups, tree, roles } => {
+            ColdstartRecord::Mem {
+                run,
+                groups,
+                tree,
+                roles,
+            } => {
                 let mut map = serializer.serialize_map(Some(5))?;
                 map.serialize_entry("kind", "mem")?;
                 map.serialize_entry("run", run)?;
@@ -236,7 +243,9 @@ impl<'de> Deserialize<'de> for ColdstartRecord {
                     roles: f.roles,
                 })
             }
-            other => Err(D::Error::custom(format!("unknown coldstart record kind: {other}"))),
+            other => Err(D::Error::custom(format!(
+                "unknown coldstart record kind: {other}"
+            ))),
         }
     }
 }
@@ -337,7 +346,9 @@ fn pick_run_and_hook_dir(args: &OnceArgs) -> anyhow::Result<(u32, Option<PathBuf
                         k += 1;
                     }
                     Err(e) => {
-                        return Err(e).with_context(|| format!("create hook run dir {}", candidate.display()));
+                        return Err(e).with_context(|| {
+                            format!("create hook run dir {}", candidate.display())
+                        });
                     }
                 }
             }
@@ -371,7 +382,10 @@ pub async fn coldstart_once(args: OnceArgs) -> anyhow::Result<()> {
 
     let mut env_set = Vec::new();
     if let Some(dir) = &hook_dir {
-        env_set.push(("RSGLANG_PROFILE_DIR".to_string(), dir.to_string_lossy().into_owned()));
+        env_set.push((
+            "RSGLANG_PROFILE_DIR".to_string(),
+            dir.to_string_lossy().into_owned(),
+        ));
     }
 
     let spec = procs::LaunchSpec {
@@ -513,7 +527,11 @@ pub async fn coldstart_stop(args: StopArgs) -> anyhow::Result<bool> {
         },
     )?;
 
-    let report = procs::stop_detached(&group, Duration::from_secs_f64(args.teardown_grace_s.max(0.0))).await?;
+    let report = procs::stop_detached(
+        &group,
+        Duration::from_secs_f64(args.teardown_grace_s.max(0.0)),
+    )
+    .await?;
     let _ = std::fs::remove_file(&args.pgid_file);
 
     Ok(report.survivors.is_empty())
@@ -597,7 +615,11 @@ fn run_hyperfine(
                 if Instant::now() > deadline {
                     let _ = child.kill();
                     let _ = child.wait();
-                    let stderr_text = reader.join().ok().and_then(|()| rx.recv().ok()).unwrap_or_default();
+                    let stderr_text = reader
+                        .join()
+                        .ok()
+                        .and_then(|()| rx.recv().ok())
+                        .unwrap_or_default();
                     anyhow::bail!(
                         "hyperfine timed out after {timeout:?}; last stderr:\n{}",
                         tail_lines(&stderr_text, 40)
@@ -609,7 +631,11 @@ fn run_hyperfine(
         }
     };
 
-    let stderr_text = reader.join().ok().and_then(|()| rx.recv().ok()).unwrap_or_default();
+    let stderr_text = reader
+        .join()
+        .ok()
+        .and_then(|()| rx.recv().ok())
+        .unwrap_or_default();
     if !status.success() {
         anyhow::bail!(
             "hyperfine exited {:?}; last stderr:\n{}",
@@ -641,7 +667,8 @@ impl TrialRunner for S3Runner {
     }
 
     async fn run_trial(&self, ctx: &TrialContext<'_>) -> anyhow::Result<TrialMeasurement> {
-        let current_exe = std::env::current_exe().context("current_exe for coldstart-once/-stop")?;
+        let current_exe =
+            std::env::current_exe().context("current_exe for coldstart-once/-stop")?;
         let current_exe_str = current_exe.to_string_lossy().into_owned();
 
         let record_file = ctx.trial_dir.join("coldstart.jsonl");
@@ -706,7 +733,10 @@ impl TrialRunner for S3Runner {
 
         let attempts = (self.args.hyperfine_runs + self.args.hyperfine_warmup) as f64;
         let timeout = Duration::from_secs_f64(
-            attempts * (ctx.cfg.ready_timeout.as_secs_f64() + ctx.cfg.teardown_grace.as_secs_f64() + 30.0),
+            attempts
+                * (ctx.cfg.ready_timeout.as_secs_f64()
+                    + ctx.cfg.teardown_grace.as_secs_f64()
+                    + 30.0),
         );
 
         let mut env_set = ctx.env_set.clone();
@@ -729,7 +759,8 @@ impl TrialRunner for S3Runner {
 
         let hyperfine_text = std::fs::read_to_string(&export_json)
             .with_context(|| format!("read hyperfine export {}", export_json.display()))?;
-        let hyperfine_stats = parse_hyperfine_json(&hyperfine_text, &export_json.to_string_lossy())?;
+        let hyperfine_stats =
+            parse_hyperfine_json(&hyperfine_text, &export_json.to_string_lossy())?;
 
         let records = read_records(&record_file);
         let mut ready_by_run: BTreeMap<u32, ColdstartRecord> = BTreeMap::new();
@@ -771,12 +802,18 @@ impl TrialRunner for S3Runner {
             };
 
             let (groups, tree, roles) = match mem_by_run.get(&run) {
-                Some(ColdstartRecord::Mem { groups, tree, roles, .. }) => {
-                    (groups.clone(), *tree, roles.clone())
-                }
+                Some(ColdstartRecord::Mem {
+                    groups,
+                    tree,
+                    roles,
+                    ..
+                }) => (groups.clone(), *tree, roles.clone()),
                 _ => (
                     BTreeMap::new(),
-                    MemPoint { rss_bytes: 0, pss_bytes: None },
+                    MemPoint {
+                        rss_bytes: 0,
+                        pss_bytes: None,
+                    },
                     BTreeMap::new(),
                 ),
             };
@@ -802,7 +839,9 @@ impl TrialRunner for S3Runner {
             mem_n += 1;
 
             let gc_boot: Option<BTreeMap<Role, GcRow>> = if hook_log_full.present {
-                let role_map = RoleMap { roles: roles.clone() };
+                let role_map = RoleMap {
+                    roles: roles.clone(),
+                };
                 Some(gclog::gc_by_role(
                     &hook_log_full,
                     &role_map,
