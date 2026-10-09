@@ -418,7 +418,14 @@ pub async fn coldstart_once(args: OnceArgs) -> anyhow::Result<()> {
             if trailing.contains(&args.backend_ready_marker) {
                 backend_ready_elapsed = Some(handle.launched_at.elapsed());
             } else if trailing.len() > marker_len {
-                let cut = trailing.len() - marker_len;
+                // Round down to the nearest UTF-8 char boundary: the log
+                // can contain multi-byte characters (e.g. tqdm progress-bar
+                // block glyphs from CUDA graph capture), and a raw byte
+                // offset can land mid-character, which `drain` rejects.
+                let mut cut = trailing.len() - marker_len;
+                while cut > 0 && !trailing.is_char_boundary(cut) {
+                    cut -= 1;
+                }
                 trailing.drain(0..cut);
             }
         }
