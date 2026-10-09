@@ -1,0 +1,4601 @@
+{
+  "schema_version": 1,
+  "generated_by": "crates/rsg-bench",
+  "meta": {
+    "created_utc": "2026-10-09T09:14:39Z",
+    "platform": "linux",
+    "python": "Python 3.12.3",
+    "git_commit": "eac591044c30f2887d6e565b2aa5a58f458b1425",
+    "git_dirty": true,
+    "upstream_sha": "9a91cfafe754aa85daee49998176275667eb58f2",
+    "model": "Qwen/Qwen3-0.6B",
+    "gpu": "NVIDIA GeForce RTX 3050",
+    "arch": "x86_64",
+    "os_long": "Linux (Ubuntu 24.04)",
+    "kernel": "5.15.167.4-microsoft-standard-WSL2",
+    "cpu_brand": "12th Gen Intel(R) Core(TM) i5-12600K",
+    "cpu_count": 12,
+    "total_memory_bytes": 16646324224,
+    "gpu_driver": "610.47",
+    "torch_cuda": "12.8",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "harness_profile": "release",
+    "env": {},
+    "backend_kind": "real"
+  },
+  "session": {
+    "scenario": "standard_throughput",
+    "seed": 42,
+    "runs": 5,
+    "schedule": [
+      "python-default",
+      "rust",
+      "python-best",
+      "python-default",
+      "rust",
+      "python-best",
+      "python-default",
+      "rust",
+      "python-best",
+      "python-default",
+      "rust",
+      "python-best",
+      "python-default",
+      "rust",
+      "python-best"
+    ],
+    "arms": [
+      {
+        "id": "python-default",
+        "kind": "python",
+        "num_tokenizer": 0,
+        "also_best": false,
+        "argv": [
+          ".venv/bin/python",
+          "-m",
+          "rsglang.launch",
+          "--frontend",
+          "python",
+          "--model",
+          "Qwen/Qwen3-0.6B",
+          "--port",
+          "1919",
+          "--num-tokenizer",
+          "<redacted>"
+        ]
+      },
+      {
+        "id": "rust",
+        "kind": "rust",
+        "num_tokenizer": null,
+        "also_best": false,
+        "argv": [
+          ".venv/bin/python",
+          "-m",
+          "rsglang.launch",
+          "--frontend",
+          "rust",
+          "--model",
+          "Qwen/Qwen3-0.6B",
+          "--port",
+          "1919",
+          "--backend-timeout-ms",
+          "180000"
+        ]
+      },
+      {
+        "id": "python-best",
+        "kind": "python",
+        "num_tokenizer": 2,
+        "also_best": false,
+        "argv": [
+          ".venv/bin/python",
+          "-m",
+          "rsglang.launch",
+          "--frontend",
+          "python",
+          "--model",
+          "Qwen/Qwen3-0.6B",
+          "--port",
+          "1919",
+          "--num-tokenizer",
+          "<redacted>"
+        ]
+      }
+    ],
+    "harness_argv": [
+      "target/release/rsg-bench",
+      "throughput",
+      "--backend-kind",
+      "real",
+      "--model-arg",
+      "Qwen/Qwen3-0.6B",
+      "--port",
+      "1919",
+      "--python",
+      ".venv/bin/python",
+      "--runs",
+      "5",
+      "--python-best-num-tokenizer",
+      "<redacted>",
+      "--python-cmd",
+      "{python} -m rsglang.launch --frontend python --model {model} --port {port} --num-tokenizer <redacted>",
+      "--rust-cmd",
+      "{python} -m rsglang.launch --frontend rust --model {model} --port {port} --backend-timeout-ms 180000",
+      "--out",
+      "docs/benchmarks/frontend-benchmarks/standard_throughput.manifest.json"
+    ],
+    "workload": {
+      "throughput_cmd": "{python} -m rsglang.bench.standard_throughput --port {port} --out {out} --seed {seed}",
+      "throughput_timeout_s": 3600.0
+    }
+  },
+  "trials": [
+    {
+      "index": 0,
+      "round": 0,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:14:41Z",
+      "ready_s": 9.463056462,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 122.55087765699864,
+          "e2e_s": {
+            "avg": 70.50988319917198,
+            "max": 122.50828443699902,
+            "p50": 70.49601321800037,
+            "p90": 108.40146442399964,
+            "p99": 122.50828443699902
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5222320820837066,
+          "throughput_tok_s": 254.32702397476513,
+          "tpot_ms": {
+            "avg": 37.39526732577339,
+            "max": 2467.0340749999013,
+            "p50": 31.636866999178892,
+            "p90": 34.561329001007834,
+            "p99": 285.92515499985893
+          },
+          "ttft_ms": {
+            "avg": 52373.17854617188,
+            "max": 106562.64024600024,
+            "p50": 52290.08577700006,
+            "p90": 97446.82841899883,
+            "p99": 106562.64024600024
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791537297004615424,
+          "end_unix_ns": 1791537419662799360,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 18,
+              "by_generation": {
+                "0": 16,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.6937729999999998,
+              "pause_ms": {
+                "p50": 0.057222999999999996,
+                "p99": 1.091275,
+                "max": 1.091275
+              }
+            },
+            "tokenizer": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 1498533888,
+                "end": 1499303936,
+                "max": 1499303936,
+                "growth": 770048
+              },
+              "pss_bytes": {
+                "start": 1046584320,
+                "end": 1047438336,
+                "max": 1047438336,
+                "growth": 854016
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2492133376,
+                "end": 2492403712,
+                "max": 2492403712,
+                "growth": 270336
+              },
+              "pss_bytes": {
+                "start": 2264325120,
+                "end": 2264875008,
+                "max": 2264875008,
+                "growth": 549888
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 100524814336,
+                "end": 100544163840,
+                "max": 100544163840,
+                "growth": 19349504
+              },
+              "pss_bytes": {
+                "start": 83962433536,
+                "end": 83982322688,
+                "max": 83982322688,
+                "growth": 19889152
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 104515481600,
+              "end": 104535871488,
+              "max": 104535871488,
+              "growth": 20389888
+            },
+            "pss_bytes": {
+              "start": 87273342976,
+              "end": 87294636032,
+              "max": 87294636032,
+              "growth": 21293056
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "23069": "api_server",
+        "23072": "other",
+        "23073": "other",
+        "23074": "other",
+        "23075": "other",
+        "23076": "other",
+        "23077": "other",
+        "23078": "other",
+        "23079": "other",
+        "23080": "other",
+        "23081": "other",
+        "23082": "other",
+        "23083": "other",
+        "23084": "other",
+        "23085": "other",
+        "23086": "other",
+        "23087": "other",
+        "23088": "other",
+        "23089": "scheduler",
+        "23090": "tokenizer",
+        "23091": "other",
+        "23092": "other",
+        "23093": "other",
+        "23094": "other",
+        "23095": "other",
+        "23096": "other",
+        "23097": "other",
+        "23098": "other",
+        "23099": "other",
+        "23100": "other",
+        "23101": "other",
+        "23102": "other",
+        "23103": "other",
+        "23104": "other",
+        "23105": "other",
+        "23106": "other",
+        "23107": "other",
+        "23108": "other",
+        "23109": "other",
+        "23110": "other",
+        "23111": "other",
+        "23112": "other",
+        "23113": "other",
+        "23114": "other",
+        "23115": "other",
+        "23116": "other",
+        "23117": "other",
+        "23118": "other",
+        "23119": "other",
+        "23120": "other",
+        "23121": "other",
+        "23122": "other",
+        "23124": "other",
+        "23125": "other",
+        "23126": "other",
+        "23127": "other",
+        "23128": "other",
+        "23129": "other",
+        "23131": "other",
+        "23133": "other",
+        "23135": "other",
+        "23142": "other",
+        "23143": "other",
+        "23144": "other",
+        "23145": "other",
+        "23146": "other",
+        "23147": "other",
+        "23148": "other",
+        "23149": "other",
+        "23150": "other",
+        "23151": "other",
+        "23152": "other",
+        "23153": "other",
+        "23154": "other",
+        "23155": "other",
+        "23156": "other",
+        "23157": "other",
+        "23158": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 5,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 1,
+      "round": 0,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:17:03Z",
+      "ready_s": 9.171304386,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 122.35247284800062,
+          "e2e_s": {
+            "avg": 58.68988235981243,
+            "max": 119.46280297900012,
+            "p50": 56.06828811499872,
+            "p90": 102.18632559999968,
+            "p99": 119.46280297900012
+          },
+          "num_requests": 64,
+          "num_tokens": 31170,
+          "throughput_req_s": 0.5230789252580753,
+          "throughput_tok_s": 254.755782817097,
+          "tpot_ms": {
+            "avg": 36.83314660952901,
+            "max": 2834.4006480001553,
+            "p50": 30.661008999231857,
+            "p90": 33.116495000285795,
+            "p99": 282.808997999382
+          },
+          "ttft_ms": {
+            "avg": 40824.65521835931,
+            "max": 102691.1278940006,
+            "p50": 35320.75502999942,
+            "p90": 89014.61856800051,
+            "p99": 102691.1278940006
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791537439046996736,
+          "end_unix_ns": 1791537561487558912,
+          "gc_status": "collected",
+          "gc": {
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "launcher": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 2154184704,
+                "end": 8863481856,
+                "max": 8868741120,
+                "growth": 6709297152
+              },
+              "pss_bytes": null
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 684609536,
+                "end": 688517120,
+                "max": 688517120,
+                "growth": 3907584
+              },
+              "pss_bytes": null
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2497794048,
+                "end": 2498600960,
+                "max": 2498600960,
+                "growth": 806912
+              },
+              "pss_bytes": null
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 123760500736,
+                "end": 134056898560,
+                "max": 273627873280,
+                "growth": 10296397824
+              },
+              "pss_bytes": null
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 129097089024,
+              "end": 146107498496,
+              "max": 285675565056,
+              "growth": 17010409472
+            },
+            "pss_bytes": null
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "23312": "launcher",
+        "23314": "other",
+        "23315": "other",
+        "23316": "other",
+        "23317": "other",
+        "23318": "other",
+        "23319": "other",
+        "23320": "other",
+        "23321": "other",
+        "23322": "other",
+        "23323": "other",
+        "23324": "other",
+        "23325": "other",
+        "23326": "rust_frontend",
+        "23327": "other",
+        "23328": "other",
+        "23329": "other",
+        "23330": "other",
+        "23331": "other",
+        "23332": "other",
+        "23333": "other",
+        "23334": "other",
+        "23335": "other",
+        "23336": "other",
+        "23337": "scheduler",
+        "23338": "other",
+        "23339": "other",
+        "23340": "other",
+        "23341": "other",
+        "23342": "other",
+        "23344": "other",
+        "23345": "other",
+        "23346": "other",
+        "23349": "other",
+        "23350": "other",
+        "23351": "other",
+        "23352": "other",
+        "23353": "other",
+        "23354": "other",
+        "23355": "other",
+        "23356": "other",
+        "23357": "other",
+        "23358": "other",
+        "23359": "other",
+        "23360": "rust_frontend",
+        "23361": "rust_frontend",
+        "23362": "other",
+        "23363": "other",
+        "23364": "rust_frontend",
+        "23365": "other",
+        "23366": "other",
+        "23368": "other",
+        "23369": "other",
+        "23370": "other",
+        "23371": "other",
+        "23372": "other",
+        "23373": "other",
+        "23376": "other",
+        "23378": "other",
+        "23385": "other",
+        "23386": "other",
+        "23387": "other",
+        "23388": "other",
+        "23389": "other",
+        "23390": "other",
+        "23392": "other",
+        "23393": "other",
+        "23394": "other",
+        "23395": "other",
+        "23396": "other",
+        "23397": "other",
+        "23398": "other",
+        "23399": "other",
+        "23400": "other",
+        "23401": "other",
+        "23402": "other",
+        "23403": "other",
+        "23435": "other",
+        "23436": "other",
+        "23437": "other",
+        "23438": "other",
+        "23439": "other",
+        "23440": "other",
+        "23441": "other",
+        "23442": "other",
+        "23443": "other",
+        "23444": "other",
+        "23445": "other",
+        "23446": "other",
+        "23447": "other",
+        "23448": "other",
+        "23449": "other",
+        "23450": "other",
+        "23451": "other",
+        "23452": "other",
+        "23453": "other",
+        "23454": "other",
+        "23455": "other",
+        "23456": "other",
+        "23457": "other",
+        "23458": "other",
+        "23459": "other",
+        "23460": "other",
+        "23461": "other",
+        "23462": "other",
+        "23463": "other",
+        "23464": "other",
+        "23465": "other",
+        "23466": "other",
+        "23467": "other",
+        "23468": "other",
+        "23469": "other",
+        "23470": "other",
+        "23471": "other",
+        "23472": "other",
+        "23473": "other",
+        "23474": "other",
+        "23475": "other",
+        "23476": "other",
+        "23477": "other",
+        "23478": "other",
+        "23479": "other",
+        "23480": "other",
+        "23481": "other",
+        "23482": "other",
+        "23483": "other",
+        "23484": "other",
+        "23485": "other",
+        "23486": "other",
+        "23487": "other",
+        "23488": "other",
+        "23489": "other",
+        "23490": "other",
+        "23491": "other",
+        "23492": "other",
+        "23493": "other",
+        "23494": "other",
+        "23495": "other",
+        "23496": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 3,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 2,
+      "round": 0,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:19:24Z",
+      "ready_s": 10.36698137,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 116.7235915679994,
+          "e2e_s": {
+            "avg": 67.48935652390625,
+            "max": 116.6890971140001,
+            "p50": 68.07689545799985,
+            "p90": 103.82558379000147,
+            "p99": 116.6890971140001
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5483038958985054,
+          "throughput_tok_s": 267.0239973025721,
+          "tpot_ms": {
+            "avg": 35.036746884439374,
+            "max": 2653.1334610008344,
+            "p50": 29.665636000572704,
+            "p90": 31.334511999375536,
+            "p99": 297.27090499909536
+          },
+          "ttft_ms": {
+            "avg": 50496.53428495316,
+            "max": 100465.48715099924,
+            "p50": 50731.548080999346,
+            "p90": 91481.12106699956,
+            "p99": 100465.48715099924
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791537581693731072,
+          "end_unix_ns": 1791537698520109824,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 18,
+              "by_generation": {
+                "0": 16,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.2147920000000005,
+              "pause_ms": {
+                "p50": 0.053308,
+                "p99": 0.842711,
+                "max": 0.842711
+              }
+            },
+            "tokenizer": {
+              "count": 1,
+              "by_generation": {
+                "0": 1,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": 0.293169,
+              "pause_ms": {
+                "p50": 0.293169,
+                "p99": 0.293169,
+                "max": 0.293169
+              }
+            },
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 3047399424,
+                "end": 3048542208,
+                "max": 3048542208,
+                "growth": 1142784
+              },
+              "pss_bytes": {
+                "start": 2034127872,
+                "end": 2035524608,
+                "max": 2035524608,
+                "growth": 1396736
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2496647168,
+                "end": 2496647168,
+                "max": 2496647168,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 2245048320,
+                "end": 2245195776,
+                "max": 2245195776,
+                "growth": 147456
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 139340308480,
+                "end": 139358593024,
+                "max": 139358593024,
+                "growth": 18284544
+              },
+              "pss_bytes": {
+                "start": 108145401856,
+                "end": 108172185600,
+                "max": 108172185600,
+                "growth": 26783744
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 144884355072,
+              "end": 144903782400,
+              "max": 144903782400,
+              "growth": 19427328
+            },
+            "pss_bytes": {
+              "start": 112424578048,
+              "end": 112452905984,
+              "max": 112452905984,
+              "growth": 28327936
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "23500": "api_server",
+        "23503": "other",
+        "23504": "other",
+        "23505": "other",
+        "23506": "other",
+        "23507": "other",
+        "23508": "other",
+        "23509": "other",
+        "23510": "other",
+        "23511": "other",
+        "23512": "other",
+        "23513": "other",
+        "23514": "other",
+        "23515": "other",
+        "23516": "other",
+        "23517": "other",
+        "23518": "other",
+        "23519": "other",
+        "23520": "scheduler",
+        "23521": "tokenizer",
+        "23522": "tokenizer",
+        "23523": "tokenizer",
+        "23524": "other",
+        "23525": "other",
+        "23526": "other",
+        "23527": "other",
+        "23528": "other",
+        "23529": "other",
+        "23530": "other",
+        "23531": "other",
+        "23532": "other",
+        "23533": "other",
+        "23534": "other",
+        "23535": "other",
+        "23536": "other",
+        "23537": "other",
+        "23538": "other",
+        "23539": "other",
+        "23540": "other",
+        "23541": "other",
+        "23542": "other",
+        "23543": "other",
+        "23544": "other",
+        "23545": "other",
+        "23546": "other",
+        "23547": "other",
+        "23548": "other",
+        "23549": "other",
+        "23550": "other",
+        "23551": "other",
+        "23552": "other",
+        "23553": "other",
+        "23554": "other",
+        "23555": "other",
+        "23556": "other",
+        "23557": "other",
+        "23558": "other",
+        "23559": "other",
+        "23560": "other",
+        "23561": "other",
+        "23562": "other",
+        "23563": "other",
+        "23564": "other",
+        "23565": "other",
+        "23566": "other",
+        "23567": "other",
+        "23568": "other",
+        "23569": "other",
+        "23570": "other",
+        "23571": "other",
+        "23572": "other",
+        "23573": "other",
+        "23574": "other",
+        "23575": "other",
+        "23576": "other",
+        "23577": "other",
+        "23578": "other",
+        "23579": "other",
+        "23580": "other",
+        "23581": "other",
+        "23582": "other",
+        "23583": "other",
+        "23584": "other",
+        "23585": "other",
+        "23586": "other",
+        "23587": "other",
+        "23588": "other",
+        "23589": "other",
+        "23590": "other",
+        "23591": "other",
+        "23593": "other",
+        "23594": "other",
+        "23595": "other",
+        "23596": "other",
+        "23597": "other",
+        "23598": "other",
+        "23600": "other",
+        "23601": "other",
+        "23602": "other",
+        "23604": "other",
+        "23606": "other",
+        "23613": "other",
+        "23614": "other",
+        "23615": "other",
+        "23616": "other",
+        "23617": "other",
+        "23618": "other",
+        "23619": "other",
+        "23620": "other",
+        "23621": "other",
+        "23622": "other",
+        "23623": "other",
+        "23624": "other",
+        "23625": "other",
+        "23626": "other",
+        "23627": "other",
+        "23628": "other",
+        "23629": "other",
+        "23632": "other",
+        "23633": "other",
+        "23634": "other",
+        "23635": "other",
+        "23636": "other",
+        "23637": "other",
+        "23638": "other",
+        "23639": "other",
+        "23640": "other",
+        "23641": "other",
+        "23642": "other",
+        "23643": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 7,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 3,
+      "round": 1,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:21:43Z",
+      "ready_s": 9.253832155,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 116.77005769599964,
+          "e2e_s": {
+            "avg": 67.53962856009366,
+            "max": 116.7422556929996,
+            "p50": 66.8774634170004,
+            "p90": 103.2231383189992,
+            "p99": 116.7422556929996
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5480857101793873,
+          "throughput_tok_s": 266.91774085736165,
+          "tpot_ms": {
+            "avg": 35.136454466720345,
+            "max": 2515.723680999145,
+            "p50": 29.86052800042671,
+            "p90": 31.619241999578666,
+            "p99": 280.0596540000697
+          },
+          "ttft_ms": {
+            "avg": 50498.44814373429,
+            "max": 101456.04283399916,
+            "p50": 50683.3256129994,
+            "p90": 92650.58800399856,
+            "p99": 101456.04283399916
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791537717920251648,
+          "end_unix_ns": 1791537834803440384,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 18,
+              "by_generation": {
+                "0": 16,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.239254,
+              "pause_ms": {
+                "p50": 0.049862,
+                "p99": 0.739639,
+                "max": 0.739639
+              }
+            },
+            "tokenizer": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 1494867968,
+                "end": 1496694784,
+                "max": 1496694784,
+                "growth": 1826816
+              },
+              "pss_bytes": {
+                "start": 1044970496,
+                "end": 1046879232,
+                "max": 1046879232,
+                "growth": 1908736
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2496655360,
+                "end": 2497466368,
+                "max": 2497466368,
+                "growth": 811008
+              },
+              "pss_bytes": {
+                "start": 2268431360,
+                "end": 2269422592,
+                "max": 2269422592,
+                "growth": 991232
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 100492283904,
+                "end": 100542599168,
+                "max": 100542599168,
+                "growth": 50315264
+              },
+              "pss_bytes": {
+                "start": 83982241792,
+                "end": 84034473984,
+                "max": 84034473984,
+                "growth": 52232192
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 104483807232,
+              "end": 104536760320,
+              "max": 104536760320,
+              "growth": 52953088
+            },
+            "pss_bytes": {
+              "start": 87295643648,
+              "end": 87350775808,
+              "max": 87350775808,
+              "growth": 55132160
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "23674": "api_server",
+        "23677": "other",
+        "23678": "other",
+        "23679": "other",
+        "23680": "other",
+        "23681": "other",
+        "23682": "other",
+        "23683": "other",
+        "23684": "other",
+        "23685": "other",
+        "23686": "other",
+        "23687": "other",
+        "23688": "other",
+        "23689": "other",
+        "23690": "other",
+        "23691": "other",
+        "23692": "other",
+        "23693": "other",
+        "23694": "scheduler",
+        "23695": "tokenizer",
+        "23696": "other",
+        "23697": "other",
+        "23698": "other",
+        "23699": "other",
+        "23700": "other",
+        "23701": "other",
+        "23702": "other",
+        "23703": "other",
+        "23704": "other",
+        "23705": "other",
+        "23706": "other",
+        "23707": "other",
+        "23708": "other",
+        "23709": "other",
+        "23710": "other",
+        "23711": "other",
+        "23712": "other",
+        "23713": "other",
+        "23714": "other",
+        "23715": "other",
+        "23716": "other",
+        "23717": "other",
+        "23718": "other",
+        "23719": "other",
+        "23720": "other",
+        "23721": "other",
+        "23722": "other",
+        "23723": "other",
+        "23724": "other",
+        "23725": "other",
+        "23726": "other",
+        "23727": "other",
+        "23729": "other",
+        "23730": "other",
+        "23731": "other",
+        "23732": "other",
+        "23733": "other",
+        "23734": "other",
+        "23736": "other",
+        "23738": "other",
+        "23740": "other",
+        "23747": "other",
+        "23748": "other",
+        "23749": "other",
+        "23750": "other",
+        "23751": "other",
+        "23752": "other",
+        "23753": "other",
+        "23754": "other",
+        "23755": "other",
+        "23756": "other",
+        "23757": "other",
+        "23758": "other",
+        "23759": "other",
+        "23760": "other",
+        "23761": "other",
+        "23762": "other",
+        "23763": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 5,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 4,
+      "round": 1,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:23:58Z",
+      "ready_s": 8.443406075,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 117.22620606999952,
+          "e2e_s": {
+            "avg": 53.48734349207814,
+            "max": 114.59542313999918,
+            "p50": 47.181480469000235,
+            "p90": 101.78331910199996,
+            "p99": 114.59542313999918
+          },
+          "num_requests": 64,
+          "num_tokens": 31169,
+          "throughput_req_s": 0.5459530095325574,
+          "throughput_tok_s": 265.8876461581294,
+          "tpot_ms": {
+            "avg": 36.03609296743028,
+            "max": 2457.8339959989535,
+            "p50": 30.035407000468695,
+            "p90": 32.05859099944064,
+            "p99": 327.4865260009392
+          },
+          "ttft_ms": {
+            "avg": 36009.27533892184,
+            "max": 102548.39120699944,
+            "p50": 31900.258107998525,
+            "p90": 84834.32091100076,
+            "p99": 102548.39120699944
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791537853110745600,
+          "end_unix_ns": 1791537970522243584,
+          "gc_status": "collected",
+          "gc": {
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "launcher": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 1716781056,
+                "end": 8875753472,
+                "max": 8875753472,
+                "growth": 7158972416
+              },
+              "pss_bytes": {
+                "start": 7087591424,
+                "end": 8876961792,
+                "max": 8895119360,
+                "growth": 1789370368
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 685375488,
+                "end": 689123328,
+                "max": 689123328,
+                "growth": 3747840
+              },
+              "pss_bytes": {
+                "start": 490289152,
+                "end": 494036992,
+                "max": 494036992,
+                "growth": 3747840
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2490925056,
+                "end": 2491731968,
+                "max": 2491731968,
+                "growth": 806912
+              },
+              "pss_bytes": {
+                "start": 2290337792,
+                "end": 2291845120,
+                "max": 2291845120,
+                "growth": 1507328
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 108385812480,
+                "end": 133959073792,
+                "max": 273691402240,
+                "growth": 25573261312
+              },
+              "pss_bytes": {
+                "start": 231972779008,
+                "end": 126022481920,
+                "max": 266189110272,
+                "growth": -105950297088
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 113278894080,
+              "end": 146015682560,
+              "max": 285743742976,
+              "growth": 32736788480
+            },
+            "pss_bytes": {
+              "start": 241840997376,
+              "end": 137685325824,
+              "max": 277866355712,
+              "growth": -104155671552
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "23796": "launcher",
+        "23798": "other",
+        "23799": "other",
+        "23800": "other",
+        "23801": "other",
+        "23802": "other",
+        "23803": "other",
+        "23804": "other",
+        "23805": "other",
+        "23806": "other",
+        "23807": "other",
+        "23808": "other",
+        "23809": "other",
+        "23810": "rust_frontend",
+        "23811": "other",
+        "23812": "other",
+        "23813": "scheduler",
+        "23814": "other",
+        "23815": "other",
+        "23816": "other",
+        "23817": "other",
+        "23818": "other",
+        "23819": "other",
+        "23820": "other",
+        "23821": "other",
+        "23822": "other",
+        "23823": "other",
+        "23824": "other",
+        "23825": "other",
+        "23829": "other",
+        "23830": "other",
+        "23832": "other",
+        "23833": "other",
+        "23834": "other",
+        "23835": "other",
+        "23836": "other",
+        "23837": "other",
+        "23838": "other",
+        "23839": "other",
+        "23840": "other",
+        "23841": "other",
+        "23842": "other",
+        "23844": "rust_frontend",
+        "23845": "rust_frontend",
+        "23846": "other",
+        "23847": "other",
+        "23848": "rust_frontend",
+        "23849": "other",
+        "23850": "other",
+        "23852": "other",
+        "23853": "other",
+        "23854": "other",
+        "23855": "other",
+        "23856": "other",
+        "23857": "other",
+        "23860": "other",
+        "23862": "other",
+        "23869": "other",
+        "23870": "other",
+        "23871": "other",
+        "23872": "other",
+        "23873": "other",
+        "23874": "other",
+        "23876": "other",
+        "23877": "other",
+        "23878": "other",
+        "23879": "other",
+        "23880": "other",
+        "23881": "other",
+        "23882": "other",
+        "23883": "other",
+        "23884": "other",
+        "23885": "other",
+        "23886": "other",
+        "23887": "other",
+        "23918": "other",
+        "23919": "other",
+        "23920": "other",
+        "23921": "other",
+        "23922": "other",
+        "23923": "other",
+        "23924": "other",
+        "23925": "other",
+        "23926": "other",
+        "23927": "other",
+        "23928": "other",
+        "23929": "other",
+        "23930": "other",
+        "23931": "other",
+        "23932": "other",
+        "23933": "other",
+        "23934": "other",
+        "23935": "other",
+        "23936": "other",
+        "23937": "other",
+        "23938": "other",
+        "23939": "other",
+        "23940": "other",
+        "23941": "other",
+        "23942": "other",
+        "23943": "other",
+        "23944": "other",
+        "23945": "other",
+        "23946": "other",
+        "23947": "other",
+        "23948": "other",
+        "23949": "other",
+        "23950": "other",
+        "23951": "other",
+        "23952": "other",
+        "23953": "other",
+        "23954": "other",
+        "23955": "other",
+        "23956": "other",
+        "23957": "other",
+        "23958": "other",
+        "23959": "other",
+        "23960": "other",
+        "23961": "other",
+        "23962": "other",
+        "23963": "other",
+        "23964": "other",
+        "23965": "other",
+        "23966": "other",
+        "23967": "other",
+        "23968": "other",
+        "23969": "other",
+        "23970": "other",
+        "23971": "other",
+        "23972": "other",
+        "23973": "other",
+        "23974": "other",
+        "23975": "other",
+        "23976": "other",
+        "23977": "other",
+        "23978": "other",
+        "23979": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 3,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 5,
+      "round": 1,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:26:14Z",
+      "ready_s": 9.963216379,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 116.45624228799898,
+          "e2e_s": {
+            "avg": 67.2092854263282,
+            "max": 116.42215070400016,
+            "p50": 67.79990386799909,
+            "p90": 103.55217331700078,
+            "p99": 116.42215070400016
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5495626403754856,
+          "throughput_tok_s": 267.6370058628615,
+          "tpot_ms": {
+            "avg": 35.04344368460046,
+            "max": 2644.027502999961,
+            "p50": 29.66597699924023,
+            "p90": 31.354816999737523,
+            "p99": 298.03016900041257
+          },
+          "ttft_ms": {
+            "avg": 50213.21523929697,
+            "max": 100189.28317599966,
+            "p50": 50451.40850499956,
+            "p90": 91202.60865100136,
+            "p99": 100189.28317599966
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791537990635527168,
+          "end_unix_ns": 1791538107201473792,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 18,
+              "by_generation": {
+                "0": 16,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.6184040000000004,
+              "pause_ms": {
+                "p50": 0.055482000000000004,
+                "p99": 0.9132800000000001,
+                "max": 0.9132800000000001
+              }
+            },
+            "tokenizer": {
+              "count": 1,
+              "by_generation": {
+                "0": 1,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": 0.159512,
+              "pause_ms": {
+                "p50": 0.159512,
+                "p99": 0.159512,
+                "max": 0.159512
+              }
+            },
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 3045244928,
+                "end": 3045244928,
+                "max": 3045244928,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 2035021824,
+                "end": 2035292160,
+                "max": 2035292160,
+                "growth": 270336
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2495016960,
+                "end": 2495827968,
+                "max": 2495827968,
+                "growth": 811008
+              },
+              "pss_bytes": {
+                "start": 2240918528,
+                "end": 2241700864,
+                "max": 2241700864,
+                "growth": 782336
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 139242729472,
+                "end": 139263815680,
+                "max": 139263815680,
+                "growth": 21086208
+              },
+              "pss_bytes": {
+                "start": 108108327936,
+                "end": 108117777408,
+                "max": 108117777408,
+                "growth": 9449472
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 144782991360,
+              "end": 144804888576,
+              "max": 144804888576,
+              "growth": 21897216
+            },
+            "pss_bytes": {
+              "start": 112384268288,
+              "end": 112394770432,
+              "max": 112394770432,
+              "growth": 10502144
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "23981": "api_server",
+        "23984": "other",
+        "23985": "other",
+        "23986": "other",
+        "23987": "other",
+        "23988": "other",
+        "23989": "other",
+        "23990": "other",
+        "23991": "other",
+        "23992": "other",
+        "23993": "other",
+        "23994": "other",
+        "23995": "other",
+        "23996": "other",
+        "23997": "other",
+        "23998": "other",
+        "23999": "other",
+        "24000": "other",
+        "24001": "scheduler",
+        "24002": "tokenizer",
+        "24003": "tokenizer",
+        "24004": "tokenizer",
+        "24005": "other",
+        "24006": "other",
+        "24007": "other",
+        "24008": "other",
+        "24009": "other",
+        "24010": "other",
+        "24011": "other",
+        "24012": "other",
+        "24013": "other",
+        "24014": "other",
+        "24015": "other",
+        "24016": "other",
+        "24017": "other",
+        "24018": "other",
+        "24019": "other",
+        "24020": "other",
+        "24021": "other",
+        "24022": "other",
+        "24023": "other",
+        "24024": "other",
+        "24025": "other",
+        "24026": "other",
+        "24027": "other",
+        "24028": "other",
+        "24029": "other",
+        "24030": "other",
+        "24031": "other",
+        "24032": "other",
+        "24033": "other",
+        "24034": "other",
+        "24035": "other",
+        "24036": "other",
+        "24037": "other",
+        "24038": "other",
+        "24039": "other",
+        "24040": "other",
+        "24041": "other",
+        "24042": "other",
+        "24043": "other",
+        "24044": "other",
+        "24045": "other",
+        "24046": "other",
+        "24047": "other",
+        "24048": "other",
+        "24049": "other",
+        "24050": "other",
+        "24051": "other",
+        "24052": "other",
+        "24053": "other",
+        "24054": "other",
+        "24055": "other",
+        "24056": "other",
+        "24057": "other",
+        "24058": "other",
+        "24059": "other",
+        "24060": "other",
+        "24061": "other",
+        "24062": "other",
+        "24063": "other",
+        "24064": "other",
+        "24065": "other",
+        "24066": "other",
+        "24067": "other",
+        "24068": "other",
+        "24069": "other",
+        "24070": "other",
+        "24071": "other",
+        "24072": "other",
+        "24074": "other",
+        "24075": "other",
+        "24076": "other",
+        "24077": "other",
+        "24078": "other",
+        "24079": "other",
+        "24081": "other",
+        "24082": "other",
+        "24083": "other",
+        "24085": "other",
+        "24087": "other",
+        "24094": "other",
+        "24095": "other",
+        "24096": "other",
+        "24097": "other",
+        "24098": "other",
+        "24099": "other",
+        "24100": "other",
+        "24101": "other",
+        "24102": "other",
+        "24103": "other",
+        "24104": "other",
+        "24105": "other",
+        "24106": "other",
+        "24107": "other",
+        "24108": "other",
+        "24109": "other",
+        "24110": "other",
+        "24113": "other",
+        "24114": "other",
+        "24115": "other",
+        "24116": "other",
+        "24117": "other",
+        "24118": "other",
+        "24119": "other",
+        "24120": "other",
+        "24121": "other",
+        "24122": "other",
+        "24123": "other",
+        "24124": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 7,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 6,
+      "round": 2,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:28:31Z",
+      "ready_s": 9.452990288,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 117.8404716040004,
+          "e2e_s": {
+            "avg": 68.60298865578125,
+            "max": 117.80404449900016,
+            "p50": 67.9341390110003,
+            "p90": 104.27838396100016,
+            "p99": 117.80404449900016
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5431071271937047,
+          "throughput_tok_s": 264.4931709433342,
+          "tpot_ms": {
+            "avg": 35.18482762535458,
+            "max": 2805.1577689984697,
+            "p50": 29.835250999894924,
+            "p90": 31.64604700032214,
+            "p99": 279.8017049990449
+          },
+          "ttft_ms": {
+            "avg": 51538.347257484274,
+            "max": 102511.64201199936,
+            "p50": 51747.0721869995,
+            "p90": 93706.85826600128,
+            "p99": 102511.64201199936
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791538126378704384,
+          "end_unix_ns": 1791538244311322368,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 18,
+              "by_generation": {
+                "0": 16,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.3540689999999995,
+              "pause_ms": {
+                "p50": 0.059053,
+                "p99": 0.7627499999999999,
+                "max": 0.7627499999999999
+              }
+            },
+            "tokenizer": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 1489485824,
+                "end": 1494802432,
+                "max": 1494802432,
+                "growth": 5316608
+              },
+              "pss_bytes": {
+                "start": 1043110912,
+                "end": 1044872192,
+                "max": 1044872192,
+                "growth": 1761280
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2495025152,
+                "end": 2496102400,
+                "max": 2496102400,
+                "growth": 1077248
+              },
+              "pss_bytes": {
+                "start": 2266753024,
+                "end": 2268334080,
+                "max": 2268334080,
+                "growth": 1581056
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 100339462144,
+                "end": 100499845120,
+                "max": 100499845120,
+                "growth": 160382976
+              },
+              "pss_bytes": {
+                "start": 83956154368,
+                "end": 83997216768,
+                "max": 83997216768,
+                "growth": 41062400
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 104323973120,
+              "end": 104490749952,
+              "max": 104490749952,
+              "growth": 166776832
+            },
+            "pss_bytes": {
+              "start": 87266018304,
+              "end": 87310423040,
+              "max": 87310423040,
+              "growth": 44404736
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "24156": "api_server",
+        "24159": "other",
+        "24160": "other",
+        "24161": "other",
+        "24162": "other",
+        "24163": "other",
+        "24164": "other",
+        "24165": "other",
+        "24166": "other",
+        "24167": "other",
+        "24168": "other",
+        "24169": "other",
+        "24170": "other",
+        "24171": "other",
+        "24172": "other",
+        "24173": "other",
+        "24174": "other",
+        "24175": "other",
+        "24176": "scheduler",
+        "24177": "tokenizer",
+        "24178": "other",
+        "24179": "other",
+        "24180": "other",
+        "24181": "other",
+        "24182": "other",
+        "24183": "other",
+        "24184": "other",
+        "24185": "other",
+        "24186": "other",
+        "24187": "other",
+        "24188": "other",
+        "24189": "other",
+        "24190": "other",
+        "24191": "other",
+        "24192": "other",
+        "24193": "other",
+        "24194": "other",
+        "24195": "other",
+        "24196": "other",
+        "24197": "other",
+        "24198": "other",
+        "24199": "other",
+        "24200": "other",
+        "24201": "other",
+        "24202": "other",
+        "24203": "other",
+        "24204": "other",
+        "24205": "other",
+        "24206": "other",
+        "24207": "other",
+        "24208": "other",
+        "24209": "other",
+        "24211": "other",
+        "24212": "other",
+        "24213": "other",
+        "24214": "other",
+        "24215": "other",
+        "24216": "other",
+        "24218": "other",
+        "24220": "other",
+        "24222": "other",
+        "24229": "other",
+        "24230": "other",
+        "24231": "other",
+        "24232": "other",
+        "24233": "other",
+        "24234": "other",
+        "24235": "other",
+        "24236": "other",
+        "24237": "other",
+        "24238": "other",
+        "24239": "other",
+        "24240": "other",
+        "24241": "other",
+        "24242": "other",
+        "24243": "other",
+        "24244": "other",
+        "24245": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 5,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 7,
+      "round": 2,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:30:48Z",
+      "ready_s": 8.539934954,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 117.36086265500126,
+          "e2e_s": {
+            "avg": 55.42139273535943,
+            "max": 114.6653706800007,
+            "p50": 53.087273871000434,
+            "p90": 98.0564668750012,
+            "p99": 114.6653706800007
+          },
+          "num_requests": 64,
+          "num_tokens": 31169,
+          "throughput_req_s": 0.5453265982556467,
+          "throughput_tok_s": 265.5825740785977,
+          "tpot_ms": {
+            "avg": 35.944428004284795,
+            "max": 3657.0353530005377,
+            "p50": 29.819385999871884,
+            "p90": 31.843947999732336,
+            "p99": 331.3272329996835
+          },
+          "ttft_ms": {
+            "avg": 37987.78352159374,
+            "max": 98862.10401300012,
+            "p50": 32625.400674000048,
+            "p90": 86527.38555399992,
+            "p99": 98862.10401300012
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791538263042094336,
+          "end_unix_ns": 1791538380544425472,
+          "gc_status": "collected",
+          "gc": {
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "launcher": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 909344768,
+                "end": 8871198720,
+                "max": 8871198720,
+                "growth": 7961853952
+              },
+              "pss_bytes": null
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 686166016,
+                "end": 686936064,
+                "max": 686936064,
+                "growth": 770048
+              },
+              "pss_bytes": null
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2497232896,
+                "end": 2498039808,
+                "max": 2498039808,
+                "growth": 806912
+              },
+              "pss_bytes": null
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 88652910592,
+                "end": 134071345152,
+                "max": 273748082688,
+                "growth": 45418434560
+              },
+              "pss_bytes": null
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 92745654272,
+              "end": 146127519744,
+              "max": 285801930752,
+              "growth": 53381865472
+            },
+            "pss_bytes": null
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "24278": "launcher",
+        "24280": "other",
+        "24281": "other",
+        "24282": "other",
+        "24283": "other",
+        "24284": "other",
+        "24285": "other",
+        "24286": "other",
+        "24287": "other",
+        "24288": "other",
+        "24289": "other",
+        "24290": "other",
+        "24291": "other",
+        "24292": "rust_frontend",
+        "24293": "other",
+        "24294": "other",
+        "24295": "other",
+        "24296": "other",
+        "24297": "other",
+        "24298": "other",
+        "24299": "other",
+        "24300": "scheduler",
+        "24301": "other",
+        "24302": "other",
+        "24303": "other",
+        "24304": "other",
+        "24305": "other",
+        "24306": "other",
+        "24307": "other",
+        "24311": "other",
+        "24312": "other",
+        "24314": "other",
+        "24315": "other",
+        "24316": "other",
+        "24317": "other",
+        "24318": "other",
+        "24319": "other",
+        "24320": "other",
+        "24321": "other",
+        "24322": "other",
+        "24323": "other",
+        "24324": "other",
+        "24326": "rust_frontend",
+        "24327": "rust_frontend",
+        "24328": "other",
+        "24329": "other",
+        "24330": "rust_frontend",
+        "24331": "other",
+        "24332": "other",
+        "24334": "other",
+        "24335": "other",
+        "24336": "other",
+        "24337": "other",
+        "24338": "other",
+        "24339": "other",
+        "24342": "other",
+        "24344": "other",
+        "24351": "other",
+        "24352": "other",
+        "24353": "other",
+        "24354": "other",
+        "24355": "other",
+        "24356": "other",
+        "24358": "other",
+        "24359": "other",
+        "24360": "other",
+        "24361": "other",
+        "24362": "other",
+        "24363": "other",
+        "24364": "other",
+        "24365": "other",
+        "24366": "other",
+        "24367": "other",
+        "24368": "other",
+        "24369": "other",
+        "24400": "other",
+        "24401": "other",
+        "24402": "other",
+        "24403": "other",
+        "24404": "other",
+        "24405": "other",
+        "24406": "other",
+        "24407": "other",
+        "24408": "other",
+        "24409": "other",
+        "24410": "other",
+        "24411": "other",
+        "24412": "other",
+        "24413": "other",
+        "24414": "other",
+        "24415": "other",
+        "24416": "other",
+        "24417": "other",
+        "24418": "other",
+        "24419": "other",
+        "24420": "other",
+        "24421": "other",
+        "24422": "other",
+        "24423": "other",
+        "24424": "other",
+        "24425": "other",
+        "24426": "other",
+        "24427": "other",
+        "24428": "other",
+        "24429": "other",
+        "24430": "other",
+        "24431": "other",
+        "24432": "other",
+        "24433": "other",
+        "24434": "other",
+        "24435": "other",
+        "24436": "other",
+        "24437": "other",
+        "24438": "other",
+        "24439": "other",
+        "24440": "other",
+        "24441": "other",
+        "24442": "other",
+        "24443": "other",
+        "24444": "other",
+        "24445": "other",
+        "24446": "other",
+        "24447": "other",
+        "24448": "other",
+        "24449": "other",
+        "24450": "other",
+        "24451": "other",
+        "24452": "other",
+        "24453": "other",
+        "24454": "other",
+        "24455": "other",
+        "24456": "other",
+        "24457": "other",
+        "24458": "other",
+        "24459": "other",
+        "24460": "other",
+        "24461": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 3,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 8,
+      "round": 2,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:33:04Z",
+      "ready_s": 9.866305225,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 116.52326426800028,
+          "e2e_s": {
+            "avg": 67.24879952028144,
+            "max": 116.48657947300126,
+            "p50": 67.82211458499842,
+            "p90": 103.60915304099944,
+            "p99": 116.48657947300126
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5492465423282493,
+          "throughput_tok_s": 267.48306611385743,
+          "tpot_ms": {
+            "avg": 35.053065011888265,
+            "max": 2618.9035679999506,
+            "p50": 29.679249000764685,
+            "p90": 31.369718999485485,
+            "p99": 297.09966399968835
+          },
+          "ttft_ms": {
+            "avg": 50248.06298951563,
+            "max": 100247.29483400006,
+            "p50": 50481.640521999,
+            "p90": 91252.56709799942,
+            "p99": 100247.29483400006
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791538400573036032,
+          "end_unix_ns": 1791538517186422528,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 18,
+              "by_generation": {
+                "0": 16,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.6234810000000004,
+              "pause_ms": {
+                "p50": 0.056374,
+                "p99": 0.96511,
+                "max": 0.96511
+              }
+            },
+            "tokenizer": {
+              "count": 1,
+              "by_generation": {
+                "0": 1,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": 0.156148,
+              "pause_ms": {
+                "p50": 0.156148,
+                "p99": 0.156148,
+                "max": 0.156148
+              }
+            },
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 3044016128,
+                "end": 3044286464,
+                "max": 3044286464,
+                "growth": 270336
+              },
+              "pss_bytes": {
+                "start": 2035351552,
+                "end": 2035609600,
+                "max": 2035609600,
+                "growth": 258048
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2495258624,
+                "end": 2495258624,
+                "max": 2495258624,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 2240397312,
+                "end": 2240548864,
+                "max": 2240548864,
+                "growth": 151552
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 139215372288,
+                "end": 139219697664,
+                "max": 139219697664,
+                "growth": 4325376
+              },
+              "pss_bytes": {
+                "start": 108089617408,
+                "end": 108098300928,
+                "max": 108098300928,
+                "growth": 8683520
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 144754647040,
+              "end": 144759242752,
+              "max": 144759242752,
+              "growth": 4595712
+            },
+            "pss_bytes": {
+              "start": 112365366272,
+              "end": 112374459392,
+              "max": 112374459392,
+              "growth": 9093120
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "24463": "api_server",
+        "24466": "other",
+        "24467": "other",
+        "24468": "other",
+        "24469": "other",
+        "24470": "other",
+        "24471": "other",
+        "24472": "other",
+        "24473": "other",
+        "24474": "other",
+        "24475": "other",
+        "24476": "other",
+        "24477": "other",
+        "24478": "other",
+        "24479": "other",
+        "24480": "other",
+        "24481": "other",
+        "24482": "other",
+        "24483": "scheduler",
+        "24484": "tokenizer",
+        "24485": "tokenizer",
+        "24486": "tokenizer",
+        "24487": "other",
+        "24488": "other",
+        "24489": "other",
+        "24490": "other",
+        "24491": "other",
+        "24492": "other",
+        "24493": "other",
+        "24494": "other",
+        "24495": "other",
+        "24496": "other",
+        "24497": "other",
+        "24498": "other",
+        "24499": "other",
+        "24500": "other",
+        "24501": "other",
+        "24502": "other",
+        "24503": "other",
+        "24504": "other",
+        "24505": "other",
+        "24506": "other",
+        "24507": "other",
+        "24508": "other",
+        "24509": "other",
+        "24510": "other",
+        "24511": "other",
+        "24512": "other",
+        "24513": "other",
+        "24514": "other",
+        "24515": "other",
+        "24516": "other",
+        "24517": "other",
+        "24518": "other",
+        "24519": "other",
+        "24520": "other",
+        "24521": "other",
+        "24522": "other",
+        "24523": "other",
+        "24524": "other",
+        "24525": "other",
+        "24526": "other",
+        "24527": "other",
+        "24528": "other",
+        "24529": "other",
+        "24530": "other",
+        "24531": "other",
+        "24532": "other",
+        "24533": "other",
+        "24534": "other",
+        "24535": "other",
+        "24536": "other",
+        "24537": "other",
+        "24538": "other",
+        "24539": "other",
+        "24540": "other",
+        "24541": "other",
+        "24542": "other",
+        "24543": "other",
+        "24544": "other",
+        "24545": "other",
+        "24546": "other",
+        "24547": "other",
+        "24548": "other",
+        "24549": "other",
+        "24550": "other",
+        "24551": "other",
+        "24552": "other",
+        "24553": "other",
+        "24554": "other",
+        "24556": "other",
+        "24557": "other",
+        "24558": "other",
+        "24559": "other",
+        "24560": "other",
+        "24561": "other",
+        "24563": "other",
+        "24564": "other",
+        "24565": "other",
+        "24567": "other",
+        "24569": "other",
+        "24576": "other",
+        "24577": "other",
+        "24578": "other",
+        "24579": "other",
+        "24580": "other",
+        "24581": "other",
+        "24582": "other",
+        "24583": "other",
+        "24584": "other",
+        "24585": "other",
+        "24586": "other",
+        "24587": "other",
+        "24588": "other",
+        "24589": "other",
+        "24590": "other",
+        "24591": "other",
+        "24592": "other",
+        "24595": "other",
+        "24596": "other",
+        "24597": "other",
+        "24598": "other",
+        "24599": "other",
+        "24600": "other",
+        "24601": "other",
+        "24602": "other",
+        "24603": "other",
+        "24604": "other",
+        "24605": "other",
+        "24606": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 7,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 9,
+      "round": 3,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:35:22Z",
+      "ready_s": 9.354255592,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 116.78773451500092,
+          "e2e_s": {
+            "avg": 67.5390644503126,
+            "max": 116.7588175380006,
+            "p50": 66.86891019500035,
+            "p90": 103.22240054500072,
+            "p99": 116.7588175380006
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5480027527358146,
+          "throughput_tok_s": 266.8773405823417,
+          "tpot_ms": {
+            "avg": 35.1416023296394,
+            "max": 2510.4207010008395,
+            "p50": 29.86029400017287,
+            "p90": 31.69341499960865,
+            "p99": 280.0951389999682
+          },
+          "ttft_ms": {
+            "avg": 50495.38732043749,
+            "max": 101456.36567099972,
+            "p50": 50687.83111399898,
+            "p90": 92648.62510400052,
+            "p99": 101456.36567099972
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791538536945218304,
+          "end_unix_ns": 1791538653837856256,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 19,
+              "by_generation": {
+                "0": 17,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.239033,
+              "pause_ms": {
+                "p50": 0.050501000000000004,
+                "p99": 0.859545,
+                "max": 0.859545
+              }
+            },
+            "tokenizer": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 1498050560,
+                "end": 1498050560,
+                "max": 1498050560,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 1044550656,
+                "end": 1044632576,
+                "max": 1044632576,
+                "growth": 81920
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2493743104,
+                "end": 2494283776,
+                "max": 2494283776,
+                "growth": 540672
+              },
+              "pss_bytes": {
+                "start": 2263460864,
+                "end": 2264435712,
+                "max": 2264435712,
+                "growth": 974848
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 100508491776,
+                "end": 100522549248,
+                "max": 100522549248,
+                "growth": 14057472
+              },
+              "pss_bytes": {
+                "start": 83848539136,
+                "end": 83869715456,
+                "max": 83869715456,
+                "growth": 21176320
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 104500285440,
+              "end": 104514883584,
+              "max": 104514883584,
+              "growth": 14598144
+            },
+            "pss_bytes": {
+              "start": 87156550656,
+              "end": 87178783744,
+              "max": 87178783744,
+              "growth": 22233088
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "24637": "api_server",
+        "24640": "other",
+        "24641": "other",
+        "24642": "other",
+        "24643": "other",
+        "24644": "other",
+        "24645": "other",
+        "24646": "other",
+        "24647": "other",
+        "24648": "other",
+        "24649": "other",
+        "24650": "other",
+        "24651": "other",
+        "24652": "other",
+        "24653": "other",
+        "24654": "other",
+        "24655": "other",
+        "24656": "other",
+        "24657": "scheduler",
+        "24658": "tokenizer",
+        "24659": "other",
+        "24660": "other",
+        "24661": "other",
+        "24662": "other",
+        "24663": "other",
+        "24664": "other",
+        "24665": "other",
+        "24666": "other",
+        "24667": "other",
+        "24668": "other",
+        "24669": "other",
+        "24670": "other",
+        "24671": "other",
+        "24672": "other",
+        "24673": "other",
+        "24674": "other",
+        "24675": "other",
+        "24676": "other",
+        "24677": "other",
+        "24678": "other",
+        "24679": "other",
+        "24680": "other",
+        "24681": "other",
+        "24682": "other",
+        "24683": "other",
+        "24684": "other",
+        "24685": "other",
+        "24686": "other",
+        "24687": "other",
+        "24688": "other",
+        "24689": "other",
+        "24690": "other",
+        "24692": "other",
+        "24693": "other",
+        "24694": "other",
+        "24695": "other",
+        "24696": "other",
+        "24697": "other",
+        "24699": "other",
+        "24701": "other",
+        "24703": "other",
+        "24710": "other",
+        "24711": "other",
+        "24712": "other",
+        "24713": "other",
+        "24714": "other",
+        "24715": "other",
+        "24716": "other",
+        "24717": "other",
+        "24718": "other",
+        "24719": "other",
+        "24720": "other",
+        "24721": "other",
+        "24722": "other",
+        "24723": "other",
+        "24724": "other",
+        "24725": "other",
+        "24726": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 5,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 10,
+      "round": 3,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:37:37Z",
+      "ready_s": 9.265597031,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 117.66205598799934,
+          "e2e_s": {
+            "avg": 51.1961928662345,
+            "max": 114.7389027219997,
+            "p50": 39.127965321000374,
+            "p90": 103.0696089009998,
+            "p99": 114.7389027219997
+          },
+          "num_requests": 64,
+          "num_tokens": 31169,
+          "throughput_req_s": 0.5439306619504212,
+          "throughput_tok_s": 264.9027312864481,
+          "tpot_ms": {
+            "avg": 35.67500919387277,
+            "max": 2134.3117649994383,
+            "p50": 29.85143799924117,
+            "p90": 31.941817000188166,
+            "p99": 331.9301230003475
+          },
+          "ttft_ms": {
+            "avg": 33893.25598518755,
+            "max": 103826.22523200008,
+            "p50": 21946.279364001384,
+            "p90": 90809.60291300109,
+            "p99": 103826.22523200008
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791538673149845504,
+          "end_unix_ns": 1791538790939987456,
+          "gc_status": "collected",
+          "gc": {
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "launcher": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 2880380928,
+                "end": 8879128576,
+                "max": 8881242112,
+                "growth": 5998747648
+              },
+              "pss_bytes": null
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 682827776,
+                "end": 683597824,
+                "max": 683597824,
+                "growth": 770048
+              },
+              "pss_bytes": null
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2495565824,
+                "end": 2496372736,
+                "max": 2496372736,
+                "growth": 806912
+              },
+              "pss_bytes": null
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 140380815360,
+                "end": 134034726912,
+                "max": 273860055040,
+                "growth": -6346088448
+              },
+              "pss_bytes": null
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 146439589888,
+              "end": 146093826048,
+              "max": 285917892608,
+              "growth": -345763840
+            },
+            "pss_bytes": null
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "24760": "launcher",
+        "24762": "other",
+        "24763": "other",
+        "24764": "other",
+        "24765": "other",
+        "24766": "other",
+        "24767": "other",
+        "24768": "other",
+        "24769": "other",
+        "24770": "other",
+        "24771": "other",
+        "24772": "other",
+        "24773": "other",
+        "24774": "rust_frontend",
+        "24775": "other",
+        "24776": "other",
+        "24777": "other",
+        "24778": "other",
+        "24779": "other",
+        "24780": "other",
+        "24781": "scheduler",
+        "24782": "other",
+        "24783": "other",
+        "24784": "other",
+        "24785": "other",
+        "24786": "other",
+        "24787": "other",
+        "24788": "other",
+        "24789": "other",
+        "24790": "other",
+        "24792": "other",
+        "24793": "other",
+        "24794": "other",
+        "24796": "other",
+        "24797": "other",
+        "24798": "other",
+        "24799": "other",
+        "24800": "other",
+        "24801": "other",
+        "24802": "other",
+        "24803": "other",
+        "24804": "other",
+        "24805": "other",
+        "24806": "other",
+        "24808": "rust_frontend",
+        "24809": "rust_frontend",
+        "24810": "other",
+        "24811": "other",
+        "24812": "rust_frontend",
+        "24813": "other",
+        "24814": "other",
+        "24816": "other",
+        "24817": "other",
+        "24818": "other",
+        "24819": "other",
+        "24820": "other",
+        "24821": "other",
+        "24824": "other",
+        "24826": "other",
+        "24833": "other",
+        "24834": "other",
+        "24835": "other",
+        "24836": "other",
+        "24837": "other",
+        "24838": "other",
+        "24840": "other",
+        "24841": "other",
+        "24842": "other",
+        "24843": "other",
+        "24844": "other",
+        "24845": "other",
+        "24846": "other",
+        "24847": "other",
+        "24848": "other",
+        "24849": "other",
+        "24850": "other",
+        "24851": "other",
+        "24882": "other",
+        "24883": "other",
+        "24884": "other",
+        "24885": "other",
+        "24886": "other",
+        "24887": "other",
+        "24888": "other",
+        "24889": "other",
+        "24890": "other",
+        "24891": "other",
+        "24892": "other",
+        "24893": "other",
+        "24894": "other",
+        "24895": "other",
+        "24896": "other",
+        "24897": "other",
+        "24898": "other",
+        "24899": "other",
+        "24900": "other",
+        "24901": "other",
+        "24902": "other",
+        "24903": "other",
+        "24904": "other",
+        "24905": "other",
+        "24906": "other",
+        "24907": "other",
+        "24908": "other",
+        "24909": "other",
+        "24910": "other",
+        "24911": "other",
+        "24912": "other",
+        "24913": "other",
+        "24914": "other",
+        "24915": "other",
+        "24916": "other",
+        "24917": "other",
+        "24918": "other",
+        "24919": "other",
+        "24920": "other",
+        "24921": "other",
+        "24922": "other",
+        "24923": "other",
+        "24924": "other",
+        "24925": "other",
+        "24926": "other",
+        "24927": "other",
+        "24928": "other",
+        "24929": "other",
+        "24930": "other",
+        "24931": "other",
+        "24932": "other",
+        "24933": "other",
+        "24934": "other",
+        "24935": "other",
+        "24936": "other",
+        "24937": "other",
+        "24938": "other",
+        "24939": "other",
+        "24940": "other",
+        "24941": "other",
+        "24942": "other",
+        "24943": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 3,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 11,
+      "round": 3,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:39:55Z",
+      "ready_s": 9.655327583,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 116.9996878639995,
+          "e2e_s": {
+            "avg": 67.30355873326553,
+            "max": 116.97055267399992,
+            "p50": 69.1648580860001,
+            "p90": 104.97942668799988,
+            "p99": 116.97055267399992
+          },
+          "num_requests": 64,
+          "num_tokens": 31170,
+          "throughput_req_s": 0.5470100063377403,
+          "throughput_tok_s": 266.41096714917757,
+          "tpot_ms": {
+            "avg": 34.653907975968174,
+            "max": 2663.6043309990782,
+            "p50": 29.65282300101535,
+            "p90": 31.34209500058205,
+            "p99": 210.16407900060585
+          },
+          "ttft_ms": {
+            "avg": 50495.330430296715,
+            "max": 102145.77458999884,
+            "p50": 48941.16210599896,
+            "p90": 91835.85550700082,
+            "p99": 102145.77458999884
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791538810445071616,
+          "end_unix_ns": 1791538927546385408,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 18,
+              "by_generation": {
+                "0": 16,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.003322,
+              "pause_ms": {
+                "p50": 0.047477,
+                "p99": 0.755726,
+                "max": 0.755726
+              }
+            },
+            "tokenizer": {
+              "count": 1,
+              "by_generation": {
+                "0": 1,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": 0.201566,
+              "pause_ms": {
+                "p50": 0.201566,
+                "p99": 0.201566,
+                "max": 0.201566
+              }
+            },
+            "scheduler": {
+              "count": 1,
+              "by_generation": {
+                "0": 1,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": 0.14316500000000001,
+              "pause_ms": {
+                "p50": 0.14316500000000001,
+                "p99": 0.14316500000000001,
+                "max": 0.14316500000000001
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 3042193408,
+                "end": 3043905536,
+                "max": 3043905536,
+                "growth": 1712128
+              },
+              "pss_bytes": {
+                "start": 2029125632,
+                "end": 2031104000,
+                "max": 2031104000,
+                "growth": 1978368
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2496819200,
+                "end": 2496819200,
+                "max": 2496819200,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 2242086912,
+                "end": 2242238464,
+                "max": 2242238464,
+                "growth": 151552
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 139251068928,
+                "end": 139278462976,
+                "max": 139278462976,
+                "growth": 27394048
+              },
+              "pss_bytes": {
+                "start": 107986066432,
+                "end": 108022299648,
+                "max": 108022299648,
+                "growth": 36233216
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 144790081536,
+              "end": 144819187712,
+              "max": 144819187712,
+              "growth": 29106176
+            },
+            "pss_bytes": {
+              "start": 112257278976,
+              "end": 112295642112,
+              "max": 112295642112,
+              "growth": 38363136
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "24945": "api_server",
+        "24948": "other",
+        "24949": "other",
+        "24950": "other",
+        "24951": "other",
+        "24952": "other",
+        "24953": "other",
+        "24954": "other",
+        "24955": "other",
+        "24956": "other",
+        "24957": "other",
+        "24958": "other",
+        "24959": "other",
+        "24960": "other",
+        "24961": "other",
+        "24962": "other",
+        "24963": "other",
+        "24964": "other",
+        "24965": "scheduler",
+        "24966": "tokenizer",
+        "24967": "tokenizer",
+        "24968": "tokenizer",
+        "24969": "other",
+        "24970": "other",
+        "24971": "other",
+        "24972": "other",
+        "24973": "other",
+        "24974": "other",
+        "24975": "other",
+        "24976": "other",
+        "24977": "other",
+        "24978": "other",
+        "24979": "other",
+        "24980": "other",
+        "24981": "other",
+        "24982": "other",
+        "24983": "other",
+        "24984": "other",
+        "24985": "other",
+        "24986": "other",
+        "24987": "other",
+        "24988": "other",
+        "24989": "other",
+        "24990": "other",
+        "24991": "other",
+        "24992": "other",
+        "24993": "other",
+        "24994": "other",
+        "24995": "other",
+        "24996": "other",
+        "24997": "other",
+        "24998": "other",
+        "24999": "other",
+        "25000": "other",
+        "25001": "other",
+        "25002": "other",
+        "25003": "other",
+        "25004": "other",
+        "25005": "other",
+        "25006": "other",
+        "25007": "other",
+        "25008": "other",
+        "25009": "other",
+        "25010": "other",
+        "25011": "other",
+        "25012": "other",
+        "25013": "other",
+        "25014": "other",
+        "25015": "other",
+        "25016": "other",
+        "25017": "other",
+        "25018": "other",
+        "25019": "other",
+        "25020": "other",
+        "25021": "other",
+        "25022": "other",
+        "25023": "other",
+        "25024": "other",
+        "25025": "other",
+        "25026": "other",
+        "25027": "other",
+        "25028": "other",
+        "25029": "other",
+        "25030": "other",
+        "25031": "other",
+        "25032": "other",
+        "25033": "other",
+        "25034": "other",
+        "25035": "other",
+        "25036": "other",
+        "25038": "other",
+        "25039": "other",
+        "25040": "other",
+        "25041": "other",
+        "25042": "other",
+        "25043": "other",
+        "25045": "other",
+        "25046": "other",
+        "25047": "other",
+        "25049": "other",
+        "25051": "other",
+        "25058": "other",
+        "25059": "other",
+        "25060": "other",
+        "25061": "other",
+        "25062": "other",
+        "25063": "other",
+        "25064": "other",
+        "25065": "other",
+        "25066": "other",
+        "25067": "other",
+        "25068": "other",
+        "25069": "other",
+        "25070": "other",
+        "25071": "other",
+        "25072": "other",
+        "25073": "other",
+        "25074": "other",
+        "25077": "other",
+        "25078": "other",
+        "25079": "other",
+        "25080": "other",
+        "25081": "other",
+        "25082": "other",
+        "25083": "other",
+        "25084": "other",
+        "25085": "other",
+        "25086": "other",
+        "25087": "other",
+        "25088": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 7,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 12,
+      "round": 4,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:42:11Z",
+      "ready_s": 9.256957927,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 116.70030088500062,
+          "e2e_s": {
+            "avg": 67.43000645095307,
+            "max": 116.67355650900026,
+            "p50": 66.74423439199927,
+            "p90": 103.14290714399976,
+            "p99": 116.67355650900026
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5484133246842885,
+          "throughput_tok_s": 267.0772891212485,
+          "tpot_ms": {
+            "avg": 35.152642366978114,
+            "max": 2518.3275200015487,
+            "p50": 29.857871000785963,
+            "p90": 31.632817999707186,
+            "p99": 278.85090299969306
+          },
+          "ttft_ms": {
+            "avg": 50380.97490296869,
+            "max": 101376.72769299934,
+            "p50": 50566.420883998944,
+            "p90": 92552.7482260004,
+            "p99": 101376.72769299934
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791538946325030912,
+          "end_unix_ns": 1791539063114067200,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 19,
+              "by_generation": {
+                "0": 17,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.250496,
+              "pause_ms": {
+                "p50": 0.053255,
+                "p99": 0.800393,
+                "max": 0.800393
+              }
+            },
+            "tokenizer": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 1499848704,
+                "end": 1502572544,
+                "max": 1502572544,
+                "growth": 2723840
+              },
+              "pss_bytes": {
+                "start": 1043598336,
+                "end": 1046412288,
+                "max": 1046412288,
+                "growth": 2813952
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2495049728,
+                "end": 2495860736,
+                "max": 2495860736,
+                "growth": 811008
+              },
+              "pss_bytes": {
+                "start": 2264503296,
+                "end": 2265584640,
+                "max": 2265584640,
+                "growth": 1081344
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 100562116608,
+                "end": 100626784256,
+                "max": 100626784256,
+                "growth": 64667648
+              },
+              "pss_bytes": {
+                "start": 83814353920,
+                "end": 83881077760,
+                "max": 83881077760,
+                "growth": 66723840
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 104557015040,
+              "end": 104625217536,
+              "max": 104625217536,
+              "growth": 68202496
+            },
+            "pss_bytes": {
+              "start": 87122455552,
+              "end": 87193074688,
+              "max": 87193074688,
+              "growth": 70619136
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "25119": "api_server",
+        "25122": "other",
+        "25123": "other",
+        "25124": "other",
+        "25125": "other",
+        "25126": "other",
+        "25127": "other",
+        "25128": "other",
+        "25129": "other",
+        "25130": "other",
+        "25131": "other",
+        "25132": "other",
+        "25133": "other",
+        "25134": "other",
+        "25135": "other",
+        "25136": "other",
+        "25137": "other",
+        "25138": "other",
+        "25139": "scheduler",
+        "25140": "tokenizer",
+        "25141": "other",
+        "25142": "other",
+        "25143": "other",
+        "25144": "other",
+        "25145": "other",
+        "25146": "other",
+        "25147": "other",
+        "25148": "other",
+        "25149": "other",
+        "25150": "other",
+        "25151": "other",
+        "25152": "other",
+        "25153": "other",
+        "25154": "other",
+        "25155": "other",
+        "25156": "other",
+        "25157": "other",
+        "25158": "other",
+        "25159": "other",
+        "25160": "other",
+        "25161": "other",
+        "25162": "other",
+        "25163": "other",
+        "25164": "other",
+        "25165": "other",
+        "25166": "other",
+        "25167": "other",
+        "25168": "other",
+        "25169": "other",
+        "25170": "other",
+        "25171": "other",
+        "25172": "other",
+        "25174": "other",
+        "25175": "other",
+        "25176": "other",
+        "25177": "other",
+        "25178": "other",
+        "25179": "other",
+        "25181": "other",
+        "25183": "other",
+        "25185": "other",
+        "25192": "other",
+        "25193": "other",
+        "25194": "other",
+        "25195": "other",
+        "25196": "other",
+        "25197": "other",
+        "25198": "other",
+        "25199": "other",
+        "25200": "other",
+        "25201": "other",
+        "25202": "other",
+        "25203": "other",
+        "25204": "other",
+        "25205": "other",
+        "25206": "other",
+        "25207": "other",
+        "25208": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 5,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 13,
+      "round": 4,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:44:26Z",
+      "ready_s": 8.850634159,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 118.05259038400072,
+          "e2e_s": {
+            "avg": 55.92726472351566,
+            "max": 115.47973288399952,
+            "p50": 53.92791563799983,
+            "p90": 101.11361154899896,
+            "p99": 115.47973288399952
+          },
+          "num_requests": 64,
+          "num_tokens": 31169,
+          "throughput_req_s": 0.5421312636327691,
+          "throughput_tok_s": 264.0263961901528,
+          "tpot_ms": {
+            "avg": 35.56970076508512,
+            "max": 3150.1287120008783,
+            "p50": 29.73147400007292,
+            "p90": 31.63045399924158,
+            "p99": 308.1615609989967
+          },
+          "ttft_ms": {
+            "avg": 38675.404075874925,
+            "max": 101800.28092300016,
+            "p50": 34532.714564000344,
+            "p90": 92221.51022500113,
+            "p99": 101800.28092300016
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791539081941997824,
+          "end_unix_ns": 1791539200135168256,
+          "gc_status": "collected",
+          "gc": {
+            "scheduler": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "launcher": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 642842624,
+                "end": 8866283520,
+                "max": 8866955264,
+                "growth": 8223440896
+              },
+              "pss_bytes": {
+                "start": 639979520,
+                "end": 8867975168,
+                "max": 8886124544,
+                "growth": 8227995648
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 686305280,
+                "end": 688517120,
+                "max": 688517120,
+                "growth": 2211840
+              },
+              "pss_bytes": {
+                "start": 485834752,
+                "end": 488046592,
+                "max": 488046592,
+                "growth": 2211840
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2495533056,
+                "end": 2496610304,
+                "max": 2496610304,
+                "growth": 1077248
+              },
+              "pss_bytes": {
+                "start": 2294290432,
+                "end": 2295760896,
+                "max": 2295760896,
+                "growth": 1470464
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 80671989760,
+                "end": 134021484544,
+                "max": 273652334592,
+                "growth": 53349494784
+              },
+              "pss_bytes": {
+                "start": 72601508864,
+                "end": 125991942144,
+                "max": 266038326272,
+                "growth": 53390433280
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 84496670720,
+              "end": 146072895488,
+              "max": 285702258688,
+              "growth": 61576224768
+            },
+            "pss_bytes": {
+              "start": 76021613568,
+              "end": 137643724800,
+              "max": 277706095616,
+              "growth": 61622111232
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "25241": "launcher",
+        "25243": "other",
+        "25244": "other",
+        "25245": "other",
+        "25246": "other",
+        "25247": "other",
+        "25248": "other",
+        "25249": "other",
+        "25250": "other",
+        "25251": "other",
+        "25252": "other",
+        "25253": "other",
+        "25254": "other",
+        "25255": "rust_frontend",
+        "25256": "other",
+        "25257": "other",
+        "25258": "other",
+        "25259": "other",
+        "25260": "other",
+        "25261": "other",
+        "25262": "other",
+        "25263": "other",
+        "25264": "other",
+        "25265": "other",
+        "25266": "other",
+        "25267": "other",
+        "25268": "scheduler",
+        "25269": "other",
+        "25270": "other",
+        "25274": "other",
+        "25275": "other",
+        "25277": "other",
+        "25278": "other",
+        "25279": "other",
+        "25280": "other",
+        "25281": "other",
+        "25282": "other",
+        "25283": "other",
+        "25284": "other",
+        "25285": "other",
+        "25286": "other",
+        "25287": "other",
+        "25289": "rust_frontend",
+        "25290": "rust_frontend",
+        "25291": "other",
+        "25292": "other",
+        "25293": "rust_frontend",
+        "25294": "other",
+        "25295": "other",
+        "25297": "other",
+        "25298": "other",
+        "25299": "other",
+        "25300": "other",
+        "25301": "other",
+        "25302": "other",
+        "25305": "other",
+        "25307": "other",
+        "25314": "other",
+        "25315": "other",
+        "25316": "other",
+        "25317": "other",
+        "25318": "other",
+        "25319": "other",
+        "25321": "other",
+        "25322": "other",
+        "25323": "other",
+        "25324": "other",
+        "25325": "other",
+        "25326": "other",
+        "25327": "other",
+        "25328": "other",
+        "25329": "other",
+        "25330": "other",
+        "25331": "other",
+        "25332": "other",
+        "25363": "other",
+        "25364": "other",
+        "25365": "other",
+        "25366": "other",
+        "25367": "other",
+        "25368": "other",
+        "25369": "other",
+        "25370": "other",
+        "25371": "other",
+        "25372": "other",
+        "25373": "other",
+        "25374": "other",
+        "25375": "other",
+        "25376": "other",
+        "25377": "other",
+        "25378": "other",
+        "25379": "other",
+        "25380": "other",
+        "25381": "other",
+        "25382": "other",
+        "25383": "other",
+        "25384": "other",
+        "25385": "other",
+        "25386": "other",
+        "25387": "other",
+        "25388": "other",
+        "25389": "other",
+        "25390": "other",
+        "25391": "other",
+        "25392": "other",
+        "25393": "other",
+        "25394": "other",
+        "25395": "other",
+        "25396": "other",
+        "25397": "other",
+        "25398": "other",
+        "25399": "other",
+        "25400": "other",
+        "25401": "other",
+        "25402": "other",
+        "25403": "other",
+        "25404": "other",
+        "25405": "other",
+        "25406": "other",
+        "25407": "other",
+        "25408": "other",
+        "25409": "other",
+        "25410": "other",
+        "25411": "other",
+        "25412": "other",
+        "25413": "other",
+        "25414": "other",
+        "25415": "other",
+        "25416": "other",
+        "25417": "other",
+        "25418": "other",
+        "25419": "other",
+        "25420": "other",
+        "25421": "other",
+        "25422": "other",
+        "25423": "other",
+        "25424": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 3,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    },
+    {
+      "index": 14,
+      "round": 4,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": "Qwen/Qwen3-0.6B",
+      "launched_utc": "2026-10-09T09:46:43Z",
+      "ready_s": 9.858555231,
+      "result": {
+        "model": "Qwen/Qwen3-0.6B",
+        "summary": {
+          "duration_s": 116.55530301999896,
+          "e2e_s": {
+            "avg": 67.24563881557816,
+            "max": 116.51924320899889,
+            "p50": 67.80075962299998,
+            "p90": 103.63895131800018,
+            "p99": 116.51924320899889
+          },
+          "num_requests": 64,
+          "num_tokens": 31168,
+          "throughput_req_s": 0.5490955652958892,
+          "throughput_tok_s": 267.40954029909807,
+          "tpot_ms": {
+            "avg": 35.067742632860906,
+            "max": 2647.8143490003276,
+            "p50": 29.66646400091122,
+            "p90": 31.333343000369496,
+            "p99": 295.96454900092795
+          },
+          "ttft_ms": {
+            "avg": 50237.78363864062,
+            "max": 100275.67956699932,
+            "p50": 50460.7025639998,
+            "p90": 91268.9971180007,
+            "p99": 100275.67956699932
+          }
+        }
+      },
+      "histograms": {},
+      "windows": [
+        {
+          "label": "throughput",
+          "start_unix_ns": 1791539219192952320,
+          "end_unix_ns": 1791539335840155648,
+          "gc_status": "collected",
+          "gc": {
+            "api_server": {
+              "count": 18,
+              "by_generation": {
+                "0": 16,
+                "1": 2,
+                "2": 0
+              },
+              "total_pause_ms": 2.339829,
+              "pause_ms": {
+                "p50": 0.056459,
+                "p99": 0.746603,
+                "max": 0.746603
+              }
+            },
+            "tokenizer": {
+              "count": 1,
+              "by_generation": {
+                "0": 1,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": 0.167626,
+              "pause_ms": {
+                "p50": 0.167626,
+                "p99": 0.167626,
+                "max": 0.167626
+              }
+            },
+            "scheduler": {
+              "count": 1,
+              "by_generation": {
+                "0": 1,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": 0.15186,
+              "pause_ms": {
+                "p50": 0.15186,
+                "p99": 0.15186,
+                "max": 0.15186
+              }
+            },
+            "other": {
+              "count": 0,
+              "by_generation": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "total_pause_ms": -0.0,
+              "pause_ms": {
+                "p50": null,
+                "p99": null,
+                "max": null
+              }
+            }
+          },
+          "memory": {
+            "frontend": {
+              "rss_bytes": {
+                "start": 3051114496,
+                "end": 3053555712,
+                "max": 3053555712,
+                "growth": 2441216
+              },
+              "pss_bytes": {
+                "start": 2042016768,
+                "end": 2044711936,
+                "max": 2044711936,
+                "growth": 2695168
+              }
+            },
+            "launcher": {
+              "rss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              },
+              "pss_bytes": {
+                "start": 0,
+                "end": 0,
+                "max": 0,
+                "growth": 0
+              }
+            },
+            "scheduler": {
+              "rss_bytes": {
+                "start": 2493571072,
+                "end": 2494382080,
+                "max": 2494382080,
+                "growth": 811008
+              },
+              "pss_bytes": {
+                "start": 2239685632,
+                "end": 2240467968,
+                "max": 2240467968,
+                "growth": 782336
+              }
+            },
+            "other": {
+              "rss_bytes": {
+                "start": 139358949376,
+                "end": 139419095040,
+                "max": 139419095040,
+                "growth": 60145664
+              },
+              "pss_bytes": {
+                "start": 108256690176,
+                "end": 108304576512,
+                "max": 108304576512,
+                "growth": 47886336
+              }
+            }
+          },
+          "tree_memory": {
+            "rss_bytes": {
+              "start": 144903634944,
+              "end": 144967032832,
+              "max": 144967032832,
+              "growth": 63397888
+            },
+            "pss_bytes": {
+              "start": 112538392576,
+              "end": 112589756416,
+              "max": 112589756416,
+              "growth": 51363840
+            }
+          },
+          "cooccurrence": null
+        }
+      ],
+      "roles": {
+        "25426": "api_server",
+        "25429": "other",
+        "25430": "other",
+        "25431": "other",
+        "25432": "other",
+        "25433": "other",
+        "25434": "other",
+        "25435": "other",
+        "25436": "other",
+        "25437": "other",
+        "25438": "other",
+        "25439": "other",
+        "25440": "other",
+        "25441": "other",
+        "25442": "other",
+        "25443": "other",
+        "25444": "other",
+        "25445": "other",
+        "25446": "scheduler",
+        "25447": "tokenizer",
+        "25448": "tokenizer",
+        "25449": "tokenizer",
+        "25450": "other",
+        "25451": "other",
+        "25452": "other",
+        "25453": "other",
+        "25454": "other",
+        "25455": "other",
+        "25456": "other",
+        "25457": "other",
+        "25458": "other",
+        "25459": "other",
+        "25460": "other",
+        "25461": "other",
+        "25462": "other",
+        "25463": "other",
+        "25464": "other",
+        "25465": "other",
+        "25466": "other",
+        "25467": "other",
+        "25468": "other",
+        "25469": "other",
+        "25470": "other",
+        "25471": "other",
+        "25472": "other",
+        "25473": "other",
+        "25474": "other",
+        "25475": "other",
+        "25476": "other",
+        "25477": "other",
+        "25478": "other",
+        "25479": "other",
+        "25480": "other",
+        "25481": "other",
+        "25482": "other",
+        "25483": "other",
+        "25484": "other",
+        "25485": "other",
+        "25486": "other",
+        "25487": "other",
+        "25488": "other",
+        "25489": "other",
+        "25490": "other",
+        "25491": "other",
+        "25492": "other",
+        "25493": "other",
+        "25494": "other",
+        "25495": "other",
+        "25496": "other",
+        "25497": "other",
+        "25498": "other",
+        "25499": "other",
+        "25500": "other",
+        "25501": "other",
+        "25502": "other",
+        "25503": "other",
+        "25504": "other",
+        "25505": "other",
+        "25506": "other",
+        "25507": "other",
+        "25508": "other",
+        "25509": "other",
+        "25510": "other",
+        "25511": "other",
+        "25512": "other",
+        "25513": "other",
+        "25514": "other",
+        "25515": "other",
+        "25516": "other",
+        "25517": "other",
+        "25519": "other",
+        "25520": "other",
+        "25521": "other",
+        "25522": "other",
+        "25523": "other",
+        "25524": "other",
+        "25526": "other",
+        "25527": "other",
+        "25528": "other",
+        "25530": "other",
+        "25532": "other",
+        "25539": "other",
+        "25540": "other",
+        "25541": "other",
+        "25542": "other",
+        "25543": "other",
+        "25544": "other",
+        "25545": "other",
+        "25546": "other",
+        "25547": "other",
+        "25548": "other",
+        "25549": "other",
+        "25550": "other",
+        "25551": "other",
+        "25552": "other",
+        "25553": "other",
+        "25554": "other",
+        "25555": "other",
+        "25558": "other",
+        "25559": "other",
+        "25560": "other",
+        "25561": "other",
+        "25562": "other",
+        "25563": "other",
+        "25564": "other",
+        "25565": "other",
+        "25566": "other",
+        "25567": "other",
+        "25568": "other",
+        "25569": "other"
+      },
+      "hook": {
+        "present": true,
+        "files": 7,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": true,
+      "teardown_survivors": []
+    }
+  ],
+  "warnings": [],
+  "interrupted": false
+}
