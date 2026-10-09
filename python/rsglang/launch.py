@@ -67,6 +67,15 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Forwarded to rsg-server's own --abort-timing flag (rust mode). "
                              "Deliberately not forwarded automatically from rest (06-06): "
                              "rsg-server's own default (immediate) applies when omitted.")
+    parser.add_argument("--backend-timeout-ms", type=int, default=None,
+                        help="Forwarded to rsg-server's own --backend-timeout-ms flag (rust "
+                             "mode): milliseconds of backend silence (no token, reset on each "
+                             "one) before a request is force-failed. rsg-server's own default "
+                             "applies when omitted. Workloads with legitimately long per-request "
+                             "queueing delay under GPU memory pressure (e.g. BENCH-06's "
+                             "standard_throughput, long prompts at high concurrency) need this "
+                             "raised, or rsg-server kills requests the backend was still "
+                             "actively working on.")
     return parser
 
 
@@ -154,7 +163,11 @@ def _run_rust_mode(ns: argparse.Namespace, server_args: ServerArgs, rust_bin: Pa
 
     # rsg-server first, so its startup overlaps backend startup (D-10).
     rust = subprocess.Popen(
-        [str(rust_bin), *sockets.rust_cli_args(server_args, abort_timing=ns.abort_timing)],
+        [str(rust_bin), *sockets.rust_cli_args(
+            server_args,
+            abort_timing=ns.abort_timing,
+            backend_timeout_ms=ns.backend_timeout_ms,
+        )],
         stdin=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env={**os.environ, "RUST_LOG": ns.rust_log},
