@@ -14,6 +14,8 @@
 .claude/gsd-file-manifest.json
 .claude/gsd-install-state.json
 .claude/scheduled_tasks.lock
+.agents/
+.planning/*/.cache
 
 # Build and Python environment outputs
 /target/
