@@ -194,6 +194,19 @@ mod tests {
     use super::*;
     use crate::LLAMA_3_2_1B_INSTRUCT;
 
+    /// Serializes every [`EnvGuard`] across this test binary's threads (07-10: `cargo test
+    /// --workspace` runs every `#[test]` fn in this module concurrently by default, and two
+    /// `EnvGuard`s mutating the same process-global `HF_*` env vars at once -- e.g.
+    /// `gated_access_unavailable_with_blank_token_file` and
+    /// `gated_access_unavailable_when_implicit_token_disabled` -- can interleave their
+    /// mutate/restore cycles, intermittently making one see the other's env state and get `Ok(_)`
+    /// instead of the expected `GatedAccessUnavailable`. A `Mutex` held for the `EnvGuard`'s own
+    /// lifetime, not a one-off lock, is the fix: it serializes the whole save-mutate-run-restore
+    /// cycle, not just the mutation. Poisoning (a prior guard's holder panicked mid-test) is
+    /// recovered from via `into_inner`: the lock here only ever protects mutual exclusion, never
+    /// data integrity, so a poisoned `()` is as good as an unpoisoned one.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     /// Isolates every env var `has_gated_credentials`/hf-hub's own token resolution reads, so a
     /// test can assert "no credentials" behavior even on the author's own Mac, where a real
     /// cached token lives at `~/.cache/huggingface/token`. `HF_HOME` is pointed at a fresh empty
@@ -203,10 +216,14 @@ mod tests {
     struct EnvGuard {
         saved: Vec<(&'static str, Option<String>)>,
         _hf_home: tempfile::TempDir,
+        _lock: std::sync::MutexGuard<'static, ()>,
     }
 
     impl EnvGuard {
         fn new() -> Self {
+            let lock = ENV_LOCK
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let hf_home = tempfile::tempdir().expect("tempdir for HF_HOME");
             let keys = [
                 "HF_TOKEN",
@@ -222,6 +239,7 @@ mod tests {
             Self {
                 saved,
                 _hf_home: hf_home,
+                _lock: lock,
             }
         }
     }

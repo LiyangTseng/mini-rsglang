@@ -1,0 +1,1997 @@
+{
+  "schema_version": 1,
+  "generated_by": "crates/rsg-bench report",
+  "sources": [
+    "num_tokenizer_sweep",
+    "s1_cancel",
+    "s2_saturation",
+    "s3_coldstart",
+    "standard_throughput"
+  ],
+  "provenance": {
+    "backend_kinds": [
+      "real",
+      "real",
+      "real",
+      "real",
+      "real"
+    ],
+    "gpus": [
+      "NVIDIA GeForce RTX 3050",
+      "NVIDIA GeForce RTX 3050",
+      "NVIDIA GeForce RTX 3050",
+      "NVIDIA GeForce RTX 3050",
+      "NVIDIA GeForce RTX 3050"
+    ],
+    "comparison_valid": true
+  },
+  "scenarios": {
+    "num_tokenizer_sweep": {
+      "arms": {
+        "python-nt0": {
+          "n_ok": 1,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "peak_rps": {
+              "mean": 72.61595390369087,
+              "ci95_lo": null,
+              "ci95_hi": null,
+              "n": 1,
+              "ci_note": "n<2"
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 87.83333333333333,
+              "total_pause_ms": 48.20677483333335,
+              "p99_pause_ms": 1.4495913333333332,
+              "max_pause_ms": 84.182498
+            },
+            "tokenizer": {
+              "count": 0.16666666666666666,
+              "total_pause_ms": 0.008670833333333332,
+              "p99_pause_ms": 0.052024999999999995,
+              "max_pause_ms": 0.052024999999999995
+            },
+            "scheduler": {
+              "count": 2.6666666666666665,
+              "total_pause_ms": 0.619529,
+              "p99_pause_ms": 0.6465179999999999,
+              "max_pause_ms": 1.449214
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 1493576362.6666667,
+                "pss_bytes_mean": 1086883840.0
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2500242090.6666665,
+                "pss_bytes_mean": 2300801024.0
+              },
+              "other": {
+                "rss_bytes_mean": 100599263232.0,
+                "pss_bytes_mean": 85831174144.0
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 104593081685.33333,
+              "pss_bytes_mean": 89218859008.0
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "spike_overlap_rate_mean": 0.6666666666666666,
+              "nonspike_overlap_rate_mean": 0.34123847167325433
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 0.0,
+              "nonspike_overlap_rate_mean": 0.004940711462450593
+            }
+          }
+        },
+        "python-nt1": {
+          "n_ok": 1,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "peak_rps": {
+              "mean": 72.57540418897156,
+              "ci95_lo": null,
+              "ci95_hi": null,
+              "n": 1,
+              "ci_note": "n<2"
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 90.66666666666667,
+              "total_pause_ms": 45.378564000000004,
+              "p99_pause_ms": 1.0789173333333333,
+              "max_pause_ms": 78.60177
+            },
+            "tokenizer": {
+              "count": 0.3333333333333333,
+              "total_pause_ms": 0.07985166666666667,
+              "p99_pause_ms": 0.23955500000000002,
+              "max_pause_ms": 0.451153
+            },
+            "scheduler": {
+              "count": 3.0,
+              "total_pause_ms": 23.204805833333335,
+              "p99_pause_ms": 22.90115933333333,
+              "max_pause_ms": 134.438067
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 2266935978.6666665,
+                "pss_bytes_mean": 1590834858.6666667
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2494427136.0,
+                "pss_bytes_mean": 2270100821.3333335
+              },
+              "other": {
+                "rss_bytes_mean": 115100654250.66667,
+                "pss_bytes_mean": 94372697770.66667
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 119862017365.33333,
+              "pss_bytes_mean": 98233633450.66667
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "spike_overlap_rate_mean": 0.611111111111111,
+              "nonspike_overlap_rate_mean": 0.3438735177865613
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 0.05555555555555555,
+              "nonspike_overlap_rate_mean": 0.006258234519104084
+            }
+          }
+        },
+        "python-nt2": {
+          "n_ok": 1,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "peak_rps": {
+              "mean": 72.62008127864165,
+              "ci95_lo": null,
+              "ci95_hi": null,
+              "n": 1,
+              "ci_note": "n<2"
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 90.5,
+              "total_pause_ms": 45.43816316666664,
+              "p99_pause_ms": 13.696871666666668,
+              "max_pause_ms": 76.909316
+            },
+            "tokenizer": {
+              "count": 0.16666666666666666,
+              "total_pause_ms": 0.07688033333333334,
+              "p99_pause_ms": 0.461282,
+              "max_pause_ms": 0.461282
+            },
+            "scheduler": {
+              "count": 2.6666666666666665,
+              "total_pause_ms": 0.4670796666666667,
+              "p99_pause_ms": 0.48107824999999993,
+              "max_pause_ms": 0.982961
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 3043033088.0,
+                "pss_bytes_mean": 2079631701.3333333
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2492492458.6666665,
+                "pss_bytes_mean": 2247710037.3333335
+              },
+              "other": {
+                "rss_bytes_mean": 139086165333.33334,
+                "pss_bytes_mean": 109391304704.0
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 144621690880.0,
+              "pss_bytes_mean": 113718646442.66667
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "spike_overlap_rate_mean": 0.638888888888889,
+              "nonspike_overlap_rate_mean": 0.3442028985507246
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 0.0,
+              "nonspike_overlap_rate_mean": 0.00461133069828722
+            }
+          }
+        },
+        "python-nt4": {
+          "n_ok": 1,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "peak_rps": {
+              "mean": 72.55460004493185,
+              "ci95_lo": null,
+              "ci95_hi": null,
+              "n": 1,
+              "ci_note": "n<2"
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 90.66666666666667,
+              "total_pause_ms": 43.35057133333334,
+              "p99_pause_ms": 0.9407848333333334,
+              "max_pause_ms": 72.409373
+            },
+            "tokenizer": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "scheduler": {
+              "count": 2.6666666666666665,
+              "total_pause_ms": 0.4069141666666667,
+              "p99_pause_ms": 0.38213825,
+              "max_pause_ms": 0.664104
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 4584016554.666667,
+                "pss_bytes_mean": 3024723968.0
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2493442048.0,
+                "pss_bytes_mean": 2232142506.6666665
+              },
+              "other": {
+                "rss_bytes_mean": 186953210538.66666,
+                "pss_bytes_mean": 138794927104.0
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 194030669141.33334,
+              "pss_bytes_mean": 144051793578.66666
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "spike_overlap_rate_mean": 0.6666666666666666,
+              "nonspike_overlap_rate_mean": 0.3425559947299078
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 0.1111111111111111,
+              "nonspike_overlap_rate_mean": 0.0036231884057971006
+            }
+          }
+        }
+      },
+      "deltas": {},
+      "extra": {
+        "best": 2,
+        "candidates": [
+          {
+            "k": 0,
+            "peak_rps": 72.61595390369087
+          },
+          {
+            "k": 1,
+            "peak_rps": 72.57540418897156
+          },
+          {
+            "k": 2,
+            "peak_rps": 72.62008127864165
+          },
+          {
+            "k": 4,
+            "peak_rps": 72.55460004493185
+          }
+        ]
+      }
+    },
+    "s1_cancel": {
+      "arms": {
+        "python-best": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "cancelled": {
+              "mean": 578.0,
+              "ci95_lo": 574.0741431508523,
+              "ci95_hi": 581.9258568491477,
+              "n": 5,
+              "ci_note": null
+            },
+            "rps": {
+              "mean": 13.770265389211996,
+              "ci95_lo": 13.643081535852161,
+              "ci95_hi": 13.897449242571831,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p50_ms": {
+              "mean": 54.206999999999994,
+              "ci95_lo": 53.724518741702845,
+              "ci95_hi": 54.68948125829714,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p99_ms": {
+              "mean": 430.84700000000004,
+              "ci95_lo": 188.1665602103823,
+              "ci95_hi": 673.5274397896178,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 4177.0,
+              "total_pause_ms": 1954.505481200001,
+              "p99_pause_ms": 0.8151561999999999,
+              "max_pause_ms": 107.183754
+            },
+            "tokenizer": {
+              "count": 10.8,
+              "total_pause_ms": 3.1068162,
+              "p99_pause_ms": 1.1022738,
+              "max_pause_ms": 1.405189
+            },
+            "scheduler": {
+              "count": 10.0,
+              "total_pause_ms": 1.6366425999999996,
+              "p99_pause_ms": 0.35044260000000005,
+              "max_pause_ms": 0.6656080000000001
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 3040792576.0,
+                "pss_bytes_mean": 2079087411.2
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2494917017.6,
+                "pss_bytes_mean": 2250084556.8
+              },
+              "other": {
+                "rss_bytes_mean": 139075356262.4,
+                "pss_bytes_mean": 109385146368.0
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 144611065856.0,
+              "pss_bytes_mean": 113714318336.0
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "spike_overlap_rate_mean": 1.0,
+              "nonspike_overlap_rate_mean": 0.9514481181453649
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 1.0,
+              "nonspike_overlap_rate_mean": 0.030333873268695282
+            }
+          }
+        },
+        "python-default": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "cancelled": {
+              "mean": 576.6,
+              "ci95_lo": 569.2239846420985,
+              "ci95_hi": 583.9760153579016,
+              "n": 5,
+              "ci_note": null
+            },
+            "rps": {
+              "mean": 13.733201276946238,
+              "ci95_lo": 13.573740904872714,
+              "ci95_hi": 13.892661649019761,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p50_ms": {
+              "mean": 54.0022,
+              "ci95_lo": 52.88432772101969,
+              "ci95_hi": 55.12007227898032,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p99_ms": {
+              "mean": 409.2406,
+              "ci95_lo": 255.58885126063782,
+              "ci95_hi": 562.8923487393621,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 4173.0,
+              "total_pause_ms": 1950.787003199998,
+              "p99_pause_ms": 0.7984652,
+              "max_pause_ms": 115.209512
+            },
+            "tokenizer": {
+              "count": 9.6,
+              "total_pause_ms": 3.3370028000000005,
+              "p99_pause_ms": 1.3630928,
+              "max_pause_ms": 3.185279
+            },
+            "scheduler": {
+              "count": 10.0,
+              "total_pause_ms": 1.560178,
+              "p99_pause_ms": 0.302045,
+              "max_pause_ms": 0.44361
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 1496502272.0,
+                "pss_bytes_mean": 1093529190.4
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2491630387.2,
+                "pss_bytes_mean": 2292522803.2
+              },
+              "other": {
+                "rss_bytes_mean": 100416714342.4,
+                "pss_bytes_mean": 85748067123.2
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 104404847001.6,
+              "pss_bytes_mean": 89134119116.8
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "spike_overlap_rate_mean": 1.0,
+              "nonspike_overlap_rate_mean": 0.9586120115550747
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 1.0,
+              "nonspike_overlap_rate_mean": 0.028978217288063306
+            }
+          }
+        },
+        "rust": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "cancelled": {
+              "mean": 559.2,
+              "ci95_lo": 551.9930848319132,
+              "ci95_hi": 566.4069151680869,
+              "n": 5,
+              "ci_note": null
+            },
+            "rps": {
+              "mean": 13.336426828659176,
+              "ci95_lo": 13.14895868945948,
+              "ci95_hi": 13.523894967858872,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p50_ms": {
+              "mean": 74.9814,
+              "ci95_lo": 73.82235513982687,
+              "ci95_hi": 76.14044486017312,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p99_ms": {
+              "mean": 4687.4614,
+              "ci95_lo": 4394.936744043887,
+              "ci95_hi": 4979.986055956113,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "scheduler": {
+              "count": 9.2,
+              "total_pause_ms": 20.512436200000003,
+              "p99_pause_ms": 19.170852999999997,
+              "max_pause_ms": 94.53854
+            },
+            "launcher": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 31409464934.4,
+                "pss_bytes_mean": null
+              },
+              "launcher": {
+                "rss_bytes_mean": 687107276.8,
+                "pss_bytes_mean": null
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2494065049.6,
+                "pss_bytes_mean": null
+              },
+              "other": {
+                "rss_bytes_mean": 1280859684044.8,
+                "pss_bytes_mean": null
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 1315449638912.0,
+              "pss_bytes_mean": null
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 1.0,
+              "nonspike_overlap_rate_mean": 0.03881992116081609
+            }
+          }
+        }
+      },
+      "deltas": {
+        "rust_vs_python-best": {
+          "cancelled": {
+            "diff": -18.799999999999955,
+            "ci95_lo": -26.034186247256795,
+            "ci95_hi": -11.565813752743114,
+            "pct": -3.252595155709334,
+            "pct_lo": -4.504184471843736,
+            "pct_hi": -2.0010058395749333
+          },
+          "rps": {
+            "diff": -0.4338385605528199,
+            "ci95_lo": -0.6268376048699711,
+            "ci95_hi": -0.2408395162356687,
+            "pct": -3.150546109973312,
+            "pct_lo": -4.552109833417248,
+            "pct_hi": -1.7489823865293765
+          },
+          "ttft_p50_ms": {
+            "diff": 20.7744,
+            "ci95_lo": 19.611654740072375,
+            "ci95_hi": 21.937145259927625,
+            "pct": 38.324201671370865,
+            "pct_lo": 36.17919224467758,
+            "pct_hi": 40.46921109806414
+          },
+          "ttft_p99_ms": {
+            "diff": 4256.6144,
+            "ci95_lo": 3932.8029451400853,
+            "ci95_hi": 4580.4258548599155,
+            "pct": 987.964265737025,
+            "pct_lo": 912.8073179435124,
+            "pct_hi": 1063.1212135305375
+          }
+        },
+        "rust_vs_python-default": {
+          "cancelled": {
+            "diff": -17.399999999999977,
+            "ci95_lo": -26.185585068736152,
+            "ci95_hi": -8.614414931263804,
+            "pct": -3.01768990634755,
+            "pct_lo": -4.541377916881053,
+            "pct_hi": -1.4940018958140484
+          },
+          "rps": {
+            "diff": -0.39677444828706143,
+            "ci95_lo": -0.6064497757470436,
+            "ci95_hi": -0.18709912082707922,
+            "pct": -2.8891621136662575,
+            "pct_lo": -4.415938887934917,
+            "pct_hi": -1.3623853393975975
+          },
+          "ttft_p50_ms": {
+            "diff": 20.97919999999999,
+            "ci95_lo": 19.607323859584977,
+            "ci95_hi": 22.351076140415007,
+            "pct": 38.848787641984934,
+            "pct_lo": 36.308379768944555,
+            "pct_hi": 41.38919551502532
+          },
+          "ttft_p99_ms": {
+            "diff": 4278.2208,
+            "ci95_lo": 3986.9579289192366,
+            "ci95_hi": 4569.483671080763,
+            "pct": 1045.4047814415287,
+            "pct_lo": 974.2332331931966,
+            "pct_hi": 1116.5763296898606
+          }
+        }
+      },
+      "extra": null
+    },
+    "s2_saturation": {
+      "arms": {
+        "python-best": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "peak_rps": {
+              "mean": 72.5631961351442,
+              "ci95_lo": 72.42903888965185,
+              "ci95_hi": 72.69735338063654,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 91.06666666666666,
+              "total_pause_ms": 45.03258156666666,
+              "p99_pause_ms": 3.3429696666666664,
+              "max_pause_ms": 89.86016
+            },
+            "tokenizer": {
+              "count": 0.23333333333333334,
+              "total_pause_ms": 0.04085186666666666,
+              "p99_pause_ms": 0.17507942857142855,
+              "max_pause_ms": 0.279501
+            },
+            "scheduler": {
+              "count": 2.7,
+              "total_pause_ms": 0.48158003333333327,
+              "p99_pause_ms": 0.46245042857142865,
+              "max_pause_ms": 0.962916
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 3037392622.9333334,
+                "pss_bytes_mean": 2074314513.0666666
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2493399722.6666665,
+                "pss_bytes_mean": 2249860539.733333
+              },
+              "other": {
+                "rss_bytes_mean": 138997629201.06668,
+                "pss_bytes_mean": 109303034811.73334
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 144528421546.66666,
+              "pss_bytes_mean": 113627208226.13333
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "spike_overlap_rate_mean": 0.6333333333333333,
+              "nonspike_overlap_rate_mean": 0.3430171277997365
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 0.0,
+              "nonspike_overlap_rate_mean": 0.004150197628458498
+            }
+          }
+        },
+        "python-default": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "peak_rps": {
+              "mean": 72.56523760528407,
+              "ci95_lo": 72.48894257339352,
+              "ci95_hi": 72.64153263717462,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 92.06666666666666,
+              "total_pause_ms": 48.946127833333335,
+              "p99_pause_ms": 3.4605861333333325,
+              "max_pause_ms": 94.01149
+            },
+            "tokenizer": {
+              "count": 0.16666666666666666,
+              "total_pause_ms": 0.016869266666666667,
+              "p99_pause_ms": 0.1012156,
+              "max_pause_ms": 0.215255
+            },
+            "scheduler": {
+              "count": 2.7,
+              "total_pause_ms": 3.891702533333332,
+              "p99_pause_ms": 5.333002523809524,
+              "max_pause_ms": 101.991814
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 1493114743.4666667,
+                "pss_bytes_mean": 1093682722.1333334
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2496773324.8,
+                "pss_bytes_mean": 2292436582.4
+              },
+              "other": {
+                "rss_bytes_mean": 100471130385.06667,
+                "pss_bytes_mean": 85752791176.53334
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 104461018453.33333,
+              "pss_bytes_mean": 89138910481.06667
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "spike_overlap_rate_mean": 0.6222222222222221,
+              "nonspike_overlap_rate_mean": 0.3451910408432148
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 0.027777777777777776,
+              "nonspike_overlap_rate_mean": 0.004479578392621871
+            }
+          }
+        },
+        "rust": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "peak_rps": {
+              "mean": 72.34365206944108,
+              "ci95_lo": 72.24513421719259,
+              "ci95_hi": 72.44216992168957,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "scheduler": {
+              "count": 2.8,
+              "total_pause_ms": 12.754115699999998,
+              "p99_pause_ms": 15.61115720833333,
+              "max_pause_ms": 96.790197
+            },
+            "launcher": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 6084904686.933333,
+                "pss_bytes_mean": 6248028023.466666
+              },
+              "launcher": {
+                "rss_bytes_mean": 685214242.1333333,
+                "pss_bytes_mean": 533902370.1333333
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2493513454.9333334,
+                "pss_bytes_mean": 2342347093.3333335
+              },
+              "other": {
+                "rss_bytes_mean": 146599929856.0,
+                "pss_bytes_mean": 145131085994.66666
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 155863467758.93332,
+              "pss_bytes_mean": 154241458517.33334
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 0.055555555555555566,
+              "nonspike_overlap_rate_mean": 0.009354413702239788
+            }
+          }
+        }
+      },
+      "deltas": {
+        "rust_vs_python-best": {
+          "peak_rps": {
+            "diff": -0.21954406570311846,
+            "ci95_lo": -0.3613460810073722,
+            "ci95_hi": -0.0777420503988647,
+            "pct": -0.3025556720161996,
+            "pct_lo": -0.49797431790957614,
+            "pct_hi": -0.10713702612282297
+          }
+        },
+        "rust_vs_python-default": {
+          "peak_rps": {
+            "diff": -0.22158553584299057,
+            "ci95_lo": -0.32774317499721545,
+            "ci95_hi": -0.11542789668876569,
+            "pct": -0.30536044965262416,
+            "pct_lo": -0.4516531411086426,
+            "pct_hi": -0.15906775819660574
+          }
+        }
+      },
+      "extra": {
+        "curve": [
+          {
+            "arms": {
+              "python-best": {
+                "achieved_rps": {
+                  "ci95_hi": 4.857424838274055,
+                  "ci95_lo": 4.856939058173147,
+                  "ci_note": null,
+                  "mean": 4.857181948223601,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 452.2468125969721,
+                  "ci95_lo": 232.90958740302784,
+                  "ci_note": null,
+                  "mean": 342.5782,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 44.98724736543235,
+                  "ci95_lo": 40.02835263456765,
+                  "ci_note": null,
+                  "mean": 42.5078,
+                  "n": 5
+                }
+              },
+              "python-default": {
+                "achieved_rps": {
+                  "ci95_hi": 4.857398045526228,
+                  "ci95_lo": 4.8570751876069895,
+                  "ci_note": null,
+                  "mean": 4.857236616566609,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 432.1512438259637,
+                  "ci95_lo": 244.81315617403635,
+                  "ci_note": null,
+                  "mean": 338.48220000000003,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 45.23112275766741,
+                  "ci95_lo": 39.47727724233259,
+                  "ci_note": null,
+                  "mean": 42.3542,
+                  "n": 5
+                }
+              },
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 4.85621290392062,
+                  "ci95_lo": 4.855750515625686,
+                  "ci_note": null,
+                  "mean": 4.855981709773153,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 342.76463175567045,
+                  "ci95_lo": 313.8221682443295,
+                  "ci_note": null,
+                  "mean": 328.29339999999996,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 81.94073052740646,
+                  "ci95_lo": 72.88606947259353,
+                  "ci_note": null,
+                  "mean": 77.4134,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=5"
+          },
+          {
+            "arms": {
+              "python-best": {
+                "achieved_rps": {
+                  "ci95_hi": 10.275749313562473,
+                  "ci95_lo": 10.260069042385998,
+                  "ci_note": null,
+                  "mean": 10.267909177974236,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 563.5545374107363,
+                  "ci95_lo": 247.34906258926364,
+                  "ci_note": null,
+                  "mean": 405.4518,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 66.47549665970413,
+                  "ci95_lo": 37.75290334029586,
+                  "ci_note": null,
+                  "mean": 52.1142,
+                  "n": 5
+                }
+              },
+              "python-default": {
+                "achieved_rps": {
+                  "ci95_hi": 10.271718527635961,
+                  "ci95_lo": 10.270324071107737,
+                  "ci_note": null,
+                  "mean": 10.27102129937185,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 362.4364077283237,
+                  "ci95_lo": 325.38239227167634,
+                  "ci_note": null,
+                  "mean": 343.9094,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 61.161348374448245,
+                  "ci95_lo": 40.73745162555176,
+                  "ci_note": null,
+                  "mean": 50.949400000000004,
+                  "n": 5
+                }
+              },
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 10.268780722822775,
+                  "ci95_lo": 10.260159833317605,
+                  "ci_note": null,
+                  "mean": 10.26447027807019,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 493.3526838740963,
+                  "ci95_lo": 308.4373161259039,
+                  "ci_note": null,
+                  "mean": 400.8950000000001,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 89.69312255454615,
+                  "ci95_lo": 74.83607744545385,
+                  "ci_note": null,
+                  "mean": 82.2646,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=10"
+          },
+          {
+            "arms": {
+              "python-best": {
+                "achieved_rps": {
+                  "ci95_hi": 19.769891064135127,
+                  "ci95_lo": 19.76652457883611,
+                  "ci_note": null,
+                  "mean": 19.768207821485618,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 602.4815056067928,
+                  "ci95_lo": 352.2940943932071,
+                  "ci_note": null,
+                  "mean": 477.38779999999997,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 60.905604775000725,
+                  "ci95_lo": 46.43319522499927,
+                  "ci_note": null,
+                  "mean": 53.669399999999996,
+                  "n": 5
+                }
+              },
+              "python-default": {
+                "achieved_rps": {
+                  "ci95_hi": 19.77058582514968,
+                  "ci95_lo": 19.76741537262957,
+                  "ci_note": null,
+                  "mean": 19.769000598889626,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 539.8134073546084,
+                  "ci95_lo": 344.4085926453916,
+                  "ci_note": null,
+                  "mean": 442.111,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 75.86510185440915,
+                  "ci95_lo": 48.44649814559085,
+                  "ci_note": null,
+                  "mean": 62.1558,
+                  "n": 5
+                }
+              },
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 19.758221610417497,
+                  "ci95_lo": 19.749016482961675,
+                  "ci_note": null,
+                  "mean": 19.753619046689586,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 485.2849121479406,
+                  "ci95_lo": 396.27468785205934,
+                  "ci_note": null,
+                  "mean": 440.77979999999997,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 93.52096468998123,
+                  "ci95_lo": 82.04183531001875,
+                  "ci_note": null,
+                  "mean": 87.78139999999999,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=20"
+          },
+          {
+            "arms": {
+              "python-best": {
+                "achieved_rps": {
+                  "ci95_hi": 36.48821929574041,
+                  "ci95_lo": 36.446808057107404,
+                  "ci_note": null,
+                  "mean": 36.467513676423906,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 688.5125494289384,
+                  "ci95_lo": 561.1750505710615,
+                  "ci_note": null,
+                  "mean": 624.8438,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 210.07826773836206,
+                  "ci95_lo": 50.28453226163798,
+                  "ci_note": null,
+                  "mean": 130.18140000000002,
+                  "n": 5
+                }
+              },
+              "python-default": {
+                "achieved_rps": {
+                  "ci95_hi": 36.49348592902623,
+                  "ci95_lo": 36.43514645129746,
+                  "ci_note": null,
+                  "mean": 36.464316190161846,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 855.2751959254981,
+                  "ci95_lo": 520.1596040745021,
+                  "ci_note": null,
+                  "mean": 687.7174000000001,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 148.27393375689047,
+                  "ci95_lo": 15.88406624310953,
+                  "ci_note": null,
+                  "mean": 82.079,
+                  "n": 5
+                }
+              },
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 36.4248351521661,
+                  "ci95_lo": 36.41038881700784,
+                  "ci_note": null,
+                  "mean": 36.41761198458697,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 854.1322838768638,
+                  "ci95_lo": 541.9873161231362,
+                  "ci_note": null,
+                  "mean": 698.0598,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 410.1666261622747,
+                  "ci95_lo": 116.6537738377252,
+                  "ci_note": null,
+                  "mean": 263.4102,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=40"
+          },
+          {
+            "arms": {
+              "python-best": {
+                "achieved_rps": {
+                  "ci95_hi": 61.2162910266744,
+                  "ci95_lo": 60.93182075460753,
+                  "ci_note": null,
+                  "mean": 61.07405589064096,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 1257.9144922002179,
+                  "ci95_lo": 806.6723077997821,
+                  "ci_note": null,
+                  "mean": 1032.2934,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 188.51223764178255,
+                  "ci95_lo": 63.62016235821747,
+                  "ci_note": null,
+                  "mean": 126.06620000000001,
+                  "n": 5
+                }
+              },
+              "python-default": {
+                "achieved_rps": {
+                  "ci95_hi": 61.2293496942572,
+                  "ci95_lo": 61.07666860404937,
+                  "ci_note": null,
+                  "mean": 61.153009149153284,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 1047.8104844749207,
+                  "ci95_lo": 811.3619155250796,
+                  "ci_note": null,
+                  "mean": 929.5862000000001,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 137.94873894267573,
+                  "ci95_lo": 75.78366105732428,
+                  "ci_note": null,
+                  "mean": 106.8662,
+                  "n": 5
+                }
+              },
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 60.96808597634554,
+                  "ci95_lo": 60.851874037001586,
+                  "ci_note": null,
+                  "mean": 60.909980006673564,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 2835.795840540907,
+                  "ci95_lo": 524.9701594590931,
+                  "ci_note": null,
+                  "mean": 1680.3830000000003,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 2110.0354882774095,
+                  "ci95_lo": -77.60228827740946,
+                  "ci_note": null,
+                  "mean": 1016.2166000000001,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=60"
+          },
+          {
+            "arms": {
+              "python-best": {
+                "achieved_rps": {
+                  "ci95_hi": 72.69735338063654,
+                  "ci95_lo": 72.42903888965185,
+                  "ci_note": null,
+                  "mean": 72.5631961351442,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 1342.5976580390195,
+                  "ci95_lo": 1177.2595419609804,
+                  "ci_note": null,
+                  "mean": 1259.9286,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 249.773311922009,
+                  "ci95_lo": 68.86788807799105,
+                  "ci_note": null,
+                  "mean": 159.3206,
+                  "n": 5
+                }
+              },
+              "python-default": {
+                "achieved_rps": {
+                  "ci95_hi": 72.64153263717462,
+                  "ci95_lo": 72.48894257339352,
+                  "ci_note": null,
+                  "mean": 72.56523760528407,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 1529.175970229186,
+                  "ci95_lo": 980.0316297708137,
+                  "ci_note": null,
+                  "mean": 1254.6037999999999,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 205.54082327638696,
+                  "ci95_lo": 54.373976723613055,
+                  "ci_note": null,
+                  "mean": 129.9574,
+                  "n": 5
+                }
+              },
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 72.44216992168957,
+                  "ci95_lo": 72.24513421719259,
+                  "ci_note": null,
+                  "mean": 72.34365206944108,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 1712.34586828683,
+                  "ci95_lo": 997.1561317131701,
+                  "ci_note": null,
+                  "mean": 1354.751,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 717.0499461843522,
+                  "ci95_lo": 29.981653815647803,
+                  "ci_note": null,
+                  "mean": 373.5158,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=80"
+          }
+        ]
+      }
+    },
+    "s3_coldstart": {
+      "arms": {
+        "python-best": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "e2e_ready_s": {
+              "mean": 10.740703473933333,
+              "ci95_lo": 9.460276335398415,
+              "ci95_hi": 12.021130612468252,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_pss_bytes": {
+              "mean": 2062224247.0,
+              "ci95_lo": 2059431741.5971203,
+              "ci95_hi": 2065016752.4028797,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_rss_bytes": {
+              "mean": 3027679914.2,
+              "ci95_lo": 3024239911.041028,
+              "ci95_hi": 3031119917.3589716,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_tail_s": {
+              "mean": 10.7365138736,
+              "ci95_lo": 9.457708970085159,
+              "ci95_hi": 12.01531877711484,
+              "n": 5,
+              "ci_note": null
+            },
+            "tree_pss_bytes": {
+              "mean": 100445097915.6,
+              "ci95_lo": 100375362124.39922,
+              "ci95_hi": 100514833706.8008,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {},
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 3027679914.6666665,
+                "pss_bytes_mean": 2062224247.4666667
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2485717674.6666665,
+                "pss_bytes_mean": 2244002065.0666666
+              },
+              "other": {
+                "rss_bytes_mean": 120059567581.86667,
+                "pss_bytes_mean": 96138871603.2
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 125572965171.2,
+              "pss_bytes_mean": 100445097915.73334
+            }
+          },
+          "cooccurrence": {}
+        },
+        "python-default": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "e2e_ready_s": {
+              "mean": 9.673254650866669,
+              "ci95_lo": 9.155849754458057,
+              "ci95_hi": 10.190659547275281,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_pss_bytes": {
+              "mean": 1080388880.8,
+              "ci95_lo": 1076095206.1998034,
+              "ci95_hi": 1084682555.4001966,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_rss_bytes": {
+              "mean": 1480413729.8,
+              "ci95_lo": 1479721065.6668394,
+              "ci95_hi": 1481106393.9331605,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_tail_s": {
+              "mean": 9.669248935466667,
+              "ci95_lo": 9.152126773521326,
+              "ci95_hi": 10.186371097412009,
+              "n": 5,
+              "ci_note": null
+            },
+            "tree_pss_bytes": {
+              "mean": 81801585663.8,
+              "ci95_lo": 81733052442.2364,
+              "ci95_hi": 81870118885.3636,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {},
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 1480413730.1333334,
+                "pss_bytes_mean": 1080388881.0666666
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2486011494.4,
+                "pss_bytes_mean": 2285216085.3333335
+              },
+              "other": {
+                "rss_bytes_mean": 90666989158.4,
+                "pss_bytes_mean": 78435980697.6
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 94633414382.93333,
+              "pss_bytes_mean": 81801585664.0
+            }
+          },
+          "cooccurrence": {}
+        },
+        "rust": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "e2e_ready_s": {
+              "mean": 9.130622172799999,
+              "ci95_lo": 8.632534491934386,
+              "ci95_hi": 9.628709853665612,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_pss_bytes": {
+              "mean": 485426790.2,
+              "ci95_lo": 483060661.9416414,
+              "ci95_hi": 487792918.4583586,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_rss_bytes": {
+              "mean": 490622156.4,
+              "ci95_lo": 487842257.5373397,
+              "ci95_hi": 493402055.26266026,
+              "n": 5,
+              "ci_note": null
+            },
+            "frontend_tail_s": {
+              "mean": 9.126794798333332,
+              "ci95_lo": 8.629659262407886,
+              "ci95_hi": 9.623930334258779,
+              "n": 5,
+              "ci_note": null
+            },
+            "tree_pss_bytes": {
+              "mean": 75103199777.8,
+              "ci95_lo": 75060138690.02098,
+              "ci95_hi": 75146260865.57903,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 490622156.8,
+                "pss_bytes_mean": 485426790.4
+              },
+              "launcher": {
+                "rss_bytes_mean": 684439688.5333333,
+                "pss_bytes_mean": 533147511.46666664
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2487063347.2,
+                "pss_bytes_mean": 2336927334.4
+              },
+              "other": {
+                "rss_bytes_mean": 77796959027.2,
+                "pss_bytes_mean": 71747698141.86667
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 81459084219.73334,
+              "pss_bytes_mean": 75103199778.13333
+            }
+          },
+          "cooccurrence": {}
+        }
+      },
+      "deltas": {
+        "rust_vs_python-best": {
+          "e2e_ready_s": {
+            "diff": -1.6100813011333344,
+            "ci95_lo": -2.8825170821890516,
+            "ci95_hi": -0.33764552007761717,
+            "pct": -14.990464125937828,
+            "pct_lo": -26.837321123189433,
+            "pct_hi": -3.1436071286862237
+          },
+          "frontend_pss_bytes": {
+            "diff": -1576797456.8,
+            "ci95_lo": -1579915698.5249372,
+            "ci95_hi": -1573679215.0750628,
+            "pct": -76.46100850059494,
+            "pct_lo": -76.61221619439804,
+            "pct_hi": -76.30980080679183
+          },
+          "frontend_rss_bytes": {
+            "diff": -2537057757.7999997,
+            "ci95_lo": -2540825770.082732,
+            "ci95_hi": -2533289745.517267,
+            "pct": -83.79544171433206,
+            "pct_lo": -83.9198938489537,
+            "pct_hi": -83.67098957971042
+          },
+          "frontend_tail_s": {
+            "diff": -1.6097190752666677,
+            "ci95_lo": -2.8804349642413944,
+            "ci95_hi": -0.33900318629194115,
+            "pct": -14.992939926476543,
+            "pct_lo": -26.828400709508628,
+            "pct_hi": -3.1574791434444625
+          },
+          "tree_pss_bytes": {
+            "diff": -25341898137.800003,
+            "ci95_lo": -25414144020.82916,
+            "ci95_hi": -25269652254.770847,
+            "pct": -25.229601706490232,
+            "pct_lo": -25.30152744953631,
+            "pct_hi": -25.157675963444156
+          }
+        },
+        "rust_vs_python-default": {
+          "e2e_ready_s": {
+            "diff": -0.54263247806667,
+            "ci95_lo": -1.1544923909292728,
+            "ci95_hi": 0.06922743479593263,
+            "pct": -5.609616387159344,
+            "pct_lo": -11.934890919322969,
+            "pct_hi": 0.7156581450042798
+          },
+          "frontend_pss_bytes": {
+            "diff": -594962090.5999999,
+            "ci95_lo": -599283539.5174707,
+            "ci95_hi": -590640641.6825291,
+            "pct": -55.069253411738735,
+            "pct_lo": -55.469243544390864,
+            "pct_hi": -54.6692632790866
+          },
+          "frontend_rss_bytes": {
+            "diff": -989791573.4,
+            "ci95_lo": -992656468.0382,
+            "ci95_hi": -986926678.7617999,
+            "pct": -66.85911873660604,
+            "pct_lo": -67.05263860071774,
+            "pct_hi": -66.66559887249431
+          },
+          "frontend_tail_s": {
+            "diff": -0.5424541371333351,
+            "ci95_lo": -1.1535780853240034,
+            "ci95_hi": 0.06866981105733327,
+            "pct": -5.61009589011222,
+            "pct_lo": -11.93037942267362,
+            "pct_hi": 0.7101876424491812
+          },
+          "tree_pss_bytes": {
+            "diff": -6698385886.0,
+            "ci95_lo": -6769731994.08784,
+            "ci95_hi": -6627039777.91216,
+            "pct": -8.188577069312563,
+            "pct_lo": -8.275795559649742,
+            "pct_hi": -8.101358578975384
+          }
+        }
+      },
+      "extra": null
+    },
+    "standard_throughput": {
+      "arms": {
+        "python-best": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "throughput_req_s": {
+              "mean": 0.5486437300471739,
+              "ci95_lo": 0.5473721410840903,
+              "ci95_hi": 0.5499153190102576,
+              "n": 5,
+              "ci_note": null
+            },
+            "throughput_tok_s": {
+              "mean": 267.19291534551337,
+              "ci95_lo": 266.58209866209944,
+              "ci95_hi": 267.8037320289273,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p99_ms": {
+              "mean": 100664.70386359942,
+              "ci95_lo": 99628.83307009452,
+              "ci95_hi": 101700.57465710433,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 18.0,
+              "total_pause_ms": 2.3599655999999998,
+              "p99_pause_ms": 0.844686,
+              "max_pause_ms": 0.96511
+            },
+            "tokenizer": {
+              "count": 1.0,
+              "total_pause_ms": 0.1956042,
+              "p99_pause_ms": 0.1956042,
+              "max_pause_ms": 0.293169
+            },
+            "scheduler": {
+              "count": 0.4,
+              "total_pause_ms": 0.059004999999999995,
+              "p99_pause_ms": 0.1475125,
+              "max_pause_ms": 0.15186
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 3047106969.6,
+                "pss_bytes_mean": 2036448460.8
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2495787008.0,
+                "pss_bytes_mean": 2242030387.2
+              },
+              "other": {
+                "rss_bytes_mean": 139307932876.8,
+                "pss_bytes_mean": 108143028019.2
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 144850826854.4,
+              "pss_bytes_mean": 112421506867.2
+            }
+          },
+          "cooccurrence": {}
+        },
+        "python-default": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "throughput_req_s": {
+              "mean": 0.5419681993753803,
+              "ci95_lo": 0.5280025341055959,
+              "ci95_hi": 0.5559338646451647,
+              "n": 5,
+              "ci_note": null
+            },
+            "throughput_tok_s": {
+              "mean": 263.9385130958102,
+              "ci95_lo": 257.1372341094252,
+              "ci95_hi": 270.7397920821952,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p99_ms": {
+              "mean": 102672.68369119958,
+              "ci95_lo": 99910.81878308905,
+              "ci95_hi": 105434.5485993101,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "api_server": {
+              "count": 18.4,
+              "total_pause_ms": 2.355325,
+              "p99_pause_ms": 0.8507203999999999,
+              "max_pause_ms": 1.091275
+            },
+            "tokenizer": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "scheduler": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 1498284851.2,
+                "pss_bytes_mean": 1046046924.8
+              },
+              "launcher": {
+                "rss_bytes_mean": 0.0,
+                "pss_bytes_mean": 0.0
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2495223398.4,
+                "pss_bytes_mean": 2266530406.4
+              },
+              "other": {
+                "rss_bytes_mean": 100547188326.4,
+                "pss_bytes_mean": 83952961331.2
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 104540696576.0,
+              "pss_bytes_mean": 87265538662.4
+            }
+          },
+          "cooccurrence": {}
+        },
+        "rust": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "throughput_req_s": {
+              "mean": 0.540084091725894,
+              "ci95_lo": 0.5281425997096064,
+              "ci95_hi": 0.5520255837421816,
+              "n": 5,
+              "ci_note": null
+            },
+            "throughput_tok_s": {
+              "mean": 263.03102610608505,
+              "ci95_lo": 257.21981741295275,
+              "ci95_hi": 268.84223479921735,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p99_ms": {
+              "mean": 101945.6258538001,
+              "ci95_lo": 99624.30339198747,
+              "ci95_hi": 104266.94831561272,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "scheduler": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "launcher": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 8872778137.6,
+                "pss_bytes_mean": null
+              },
+              "launcher": {
+                "rss_bytes_mean": 687338291.2,
+                "pss_bytes_mean": null
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2496271155.2,
+                "pss_bytes_mean": null
+              },
+              "other": {
+                "rss_bytes_mean": 273715949568.0,
+                "pss_bytes_mean": null
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 285768278016.0,
+              "pss_bytes_mean": null
+            }
+          },
+          "cooccurrence": {}
+        }
+      },
+      "deltas": {
+        "rust_vs_python-best": {
+          "throughput_req_s": {
+            "diff": -0.008559638321279928,
+            "ci95_lo": -0.020568642029585464,
+            "ci95_hi": 0.003449365387025609,
+            "pct": -1.560145109203006,
+            "pct_lo": -3.748997920347493,
+            "pct_hi": 0.6287077019414808
+          },
+          "throughput_tok_s": {
+            "diff": -4.161889239428319,
+            "ci95_lo": -10.005111252656391,
+            "ci95_hi": 1.6813327737997534,
+            "pct": -1.5576345780150957,
+            "pct_lo": -3.7445271480041113,
+            "pct_hi": 0.62925799197392
+          },
+          "ttft_p99_ms": {
+            "diff": 1280.9219902006735,
+            "ci95_lo": -1073.322248862824,
+            "ci95_hi": 3635.166229264171,
+            "pct": 1.2724638736694855,
+            "pct_lo": -1.0662349439950416,
+            "pct_hi": 3.6111626913340125
+          }
+        },
+        "rust_vs_python-default": {
+          "throughput_req_s": {
+            "diff": -0.0018841076494863218,
+            "ci95_lo": -0.01753856473546159,
+            "ci95_hi": 0.013770349436488947,
+            "pct": -0.347641734636416,
+            "pct_lo": -3.2360874227814156,
+            "pct_hi": 2.5408039535085836
+          },
+          "throughput_tok_s": {
+            "diff": -0.9074869897251574,
+            "ci95_lo": -8.528828508586543,
+            "ci95_hi": 6.713854529136227,
+            "pct": -0.34382515044166284,
+            "pct_lo": -3.231369461223933,
+            "pct_hi": 2.5437191603406073
+          },
+          "ttft_p99_ms": {
+            "diff": -727.0578373994795,
+            "ci95_lo": -3800.7312655531364,
+            "ci95_hi": 2346.6155907541774,
+            "pct": -0.7081317165003627,
+            "pct_lo": -3.701794020485811,
+            "pct_hi": 2.2855305874850855
+          }
+        }
+      },
+      "extra": null
+    }
+  },
+  "summary": [
+    "D-10: Python's default --num-tokenizer is 0; this sweep's best-performing candidate is 2.",
+    "REGRESSION: Rust frontend standard throughput is 1.56% lower than python-best (95% CI [-0.63%, 3.74%]); ±2% is a reference target, not a gate.",
+    "REGRESSION: Rust frontend standard throughput is 0.34% lower than python-default (95% CI [-2.54%, 3.23%]); ±2% is a reference target, not a gate."
+  ]
+}

@@ -27,9 +27,12 @@ from typing import Mapping
 
 PROFILE_DIR_ENV = "RSGLANG_PROFILE_DIR"
 INTERVAL_ENV = "RSGLANG_PROFILE_INTERVAL_S"
+PROFILE_MODE_ENV = "RSGLANG_PROFILE_MODE"
 DEFAULT_INTERVAL_S = 1.0
 THREAD_NAME = "rsglang-profile-hook"
 TOP_ALLOC_SITES = 10
+MODE_FULL = "full"
+MODE_GC_ONLY = "gc_only"
 
 # The directory containing the rsglang package (python/), computed from this
 # module's own path (python/rsglang/profiling/hook.py -> parents[2] == python/),
@@ -68,6 +71,7 @@ except Exception as exc:  # never raise into the host process
 _installed = False
 _gc_start_t: float | None = None
 _gc_pending: collections.deque = collections.deque()
+_last_proc_name: str | None = None
 
 
 def _gc_callback(phase: str, info: dict) -> None:
@@ -101,6 +105,24 @@ def _interval_from_env(value: str | None) -> float:
     if parsed <= 0:
         return DEFAULT_INTERVAL_S
     return parsed
+
+
+def _mode_from_env(value: str | None) -> str:
+    """The pure parser behind PROFILE_MODE_ENV.
+
+    Unset, empty and "full" give MODE_FULL. "gc_only" gives MODE_GC_ONLY.
+    Anything else gives MODE_FULL after one stderr warning naming the bad
+    value -- the hook must never raise into the host process over a typo.
+    """
+    if value is None or value == "" or value == MODE_FULL:
+        return MODE_FULL
+    if value == MODE_GC_ONLY:
+        return MODE_GC_ONLY
+    print(
+        f"rsglang profile hook: unknown {PROFILE_MODE_ENV}={value!r}, falling back to {MODE_FULL!r}",
+        file=sys.stderr,
+    )
+    return MODE_FULL
 
 
 _TAG_RE = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -182,20 +204,58 @@ def _serve_snapshot_requests(hook_file: Path, profile_dir: Path) -> None:
         )
 
 
-def _flush_loop(hook_file: Path, interval: float, profile_dir: Path) -> None:
+def _append_proc_record_if_changed(hook_file: Path) -> None:
+    """Append a "proc" record when the current process's mp name has changed.
+
+    Reads multiprocessing from sys.modules instead of importing it: importing
+    from the hook thread during interpreter startup risks import-lock
+    contention with the main thread. When multiprocessing hasn't been
+    imported in this process yet, the name is "MainProcess" -- the same
+    default multiprocessing.current_process().name has before any mp.Process
+    is created.
+    """
+    global _last_proc_name
+    mp_module = sys.modules.get("multiprocessing")
+    if mp_module is not None:
+        name = mp_module.current_process().name
+    else:
+        name = "MainProcess"
+    if name == _last_proc_name:
+        return
+    _last_proc_name = name
+    _append_records(
+        hook_file,
+        [
+            {
+                "kind": "proc",
+                "pid": os.getpid(),
+                "name": name,
+                "t": time.perf_counter(),
+                "wall": time.time(),
+            }
+        ],
+    )
+
+
+def _flush_loop(hook_file: Path, interval: float, profile_dir: Path, mode: str) -> None:
     while True:
         time.sleep(interval)
         try:
             _drain(hook_file)
-            _append_mem_record(hook_file)
-            _serve_snapshot_requests(hook_file, profile_dir)
+            if mode == MODE_GC_ONLY:
+                _append_proc_record_if_changed(hook_file)
+            else:
+                _append_mem_record(hook_file)
+                _serve_snapshot_requests(hook_file, profile_dir)
         except Exception:
             pass  # the hook thread must never raise into the host process
 
 
-def _final_flush(hook_file: Path) -> None:
+def _final_flush(hook_file: Path, mode: str) -> None:
     try:
         _drain(hook_file)
+        if mode == MODE_GC_ONLY:
+            _append_proc_record_if_changed(hook_file)
     except Exception:
         pass
 
@@ -261,18 +321,19 @@ def install() -> bool:
 
     gc.callbacks.append(_gc_callback)
 
-    if not tracemalloc.is_tracing():
+    mode = _mode_from_env(os.environ.get(PROFILE_MODE_ENV))
+    if mode != MODE_GC_ONLY and not tracemalloc.is_tracing():
         tracemalloc.start(1)
 
     interval = _interval_from_env(os.environ.get(INTERVAL_ENV))
     thread = threading.Thread(
         target=_flush_loop,
-        args=(hook_file, interval, Path(profile_dir)),
+        args=(hook_file, interval, Path(profile_dir), mode),
         name=THREAD_NAME,
         daemon=True,
     )
     thread.start()
-    atexit.register(_final_flush, hook_file)
+    atexit.register(_final_flush, hook_file, mode)
 
     _installed = True
     return True
@@ -293,11 +354,18 @@ def hook_env(
     shim_dir: Path,
     profile_dir: Path,
     interval_s: float,
+    mode: str | None = None,
 ) -> dict[str, str]:
-    """base_env plus the hook's env vars and PYTHONPATH (shim_dir, then rsglang's parent dir)."""
+    """base_env plus the hook's env vars and PYTHONPATH (shim_dir, then rsglang's parent dir).
+
+    mode=None leaves RSGLANG_PROFILE_MODE untouched (backward compatible with
+    every Phase 2 caller). Passing a mode (e.g. "gc_only") sets it.
+    """
     env = dict(base_env)
     env[PROFILE_DIR_ENV] = str(profile_dir)
     env[INTERVAL_ENV] = repr(float(interval_s))
+    if mode is not None:
+        env[PROFILE_MODE_ENV] = mode
     parts = [str(shim_dir), str(_RSGLANG_PARENT_DIR)]
     existing = base_env.get("PYTHONPATH")
     if existing:

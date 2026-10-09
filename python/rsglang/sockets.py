@@ -46,13 +46,18 @@ def rust_endpoints(server_args: ServerArgs) -> Dict[str, str]:
     }
 
 
-def rust_cli_args(server_args: ServerArgs, *, abort_timing: "str | None" = None) -> List[str]:
+def rust_cli_args(
+    server_args: ServerArgs,
+    *,
+    abort_timing: "str | None" = None,
+    backend_timeout_ms: "int | None" = None,
+) -> List[str]:
     """The static rsg-server CLI (D-11). Forwards the upstream --host/--port the
-    user asked for (plan 05-08). --backend-timeout-ms is rsg-server's own flag
-    with its own default, left unforwarded. --abort-timing is rsg-server's own
-    flag too (D-01); Phase 6 (06-06) forwards it deliberately here, from the
-    launcher's own --abort-timing option, once it decides the benchmark
-    setting -- omitted (None) leaves rsg-server's own default (immediate)."""
+    user asked for (plan 05-08). --abort-timing and --backend-timeout-ms are
+    both rsg-server's own flags with their own defaults (D-01); both are
+    forwarded only when the launcher's own matching option is given --
+    omitted (None) leaves rsg-server's own default (abort-timing: immediate;
+    backend-timeout-ms: see rsg-server's own DEFAULT_BACKEND_TIMEOUT_MS)."""
     ep = rust_endpoints(server_args)
     args = [
         "--backend-addr", ep["backend_addr"],
@@ -66,4 +71,6 @@ def rust_cli_args(server_args: ServerArgs, *, abort_timing: "str | None" = None)
     ]
     if abort_timing is not None:
         args += ["--abort-timing", abort_timing]
+    if backend_timeout_ms is not None:
+        args += ["--backend-timeout-ms", str(backend_timeout_ms)]
     return args

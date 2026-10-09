@@ -67,6 +67,17 @@ def test_rust_cli_args_exact():
     ]
 
 
+def test_rust_cli_args_forwards_backend_timeout_ms_when_given():
+    server_args = _server_args()
+    args = sockets.rust_cli_args(server_args, backend_timeout_ms=180000)
+    assert args[-2:] == ["--backend-timeout-ms", "180000"]
+
+
+def test_rust_cli_args_omits_backend_timeout_ms_by_default():
+    server_args = _server_args()
+    assert "--backend-timeout-ms" not in sockets.rust_cli_args(server_args)
+
+
 def test_run_socket_paths_lists_five_files():
     assert sockets.run_socket_paths(SUFFIX) == [Path(f"/tmp/minisgl_{i}.rsg=test") for i in range(5)]
 

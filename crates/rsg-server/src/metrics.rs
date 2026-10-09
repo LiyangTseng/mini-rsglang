@@ -45,6 +45,7 @@ pub struct ServerMetrics {
     requests_failed_total: Counter,
     late_tokens_dropped_total: Counter,
     requests_active: Gauge,
+    writer_queue_depth: Gauge,
     ttft_seconds: Histogram,
     handle: PrometheusHandle,
 }
@@ -106,6 +107,11 @@ impl ServerMetrics {
             None,
             "Time to first token, in seconds, measured from Received to the first Decoding transition.".into(),
         );
+        recorder.describe_gauge(
+            KeyName::from_const_str("rsg_writer_queue_depth"),
+            None,
+            "Messages enqueued on the single tx-zmq writer's inbox but not yet sent to the scheduler.".into(),
+        );
 
         let requests_total =
             recorder.register_counter(&Key::from_name("rsg_requests_total"), &META);
@@ -119,6 +125,8 @@ impl ServerMetrics {
             recorder.register_counter(&Key::from_name("rsg_late_tokens_dropped_total"), &META);
         let requests_active =
             recorder.register_gauge(&Key::from_name("rsg_requests_active"), &META);
+        let writer_queue_depth =
+            recorder.register_gauge(&Key::from_name("rsg_writer_queue_depth"), &META);
         let ttft_seconds = recorder.register_histogram(&Key::from_name("rsg_ttft_seconds"), &META);
 
         requests_total.increment(0);
@@ -127,6 +135,7 @@ impl ServerMetrics {
         requests_failed_total.increment(0);
         late_tokens_dropped_total.increment(0);
         requests_active.set(0.0);
+        writer_queue_depth.set(0.0);
 
         let handle = recorder.handle();
 
@@ -137,6 +146,7 @@ impl ServerMetrics {
             requests_failed_total,
             late_tokens_dropped_total,
             requests_active,
+            writer_queue_depth,
             ttft_seconds,
             handle,
         }
@@ -173,11 +183,19 @@ impl ServerMetrics {
     /// Renders the current Prometheus text exposition. When `dispatch` is
     /// `Some`, first sets `rsg_late_tokens_dropped_total` to the
     /// dispatcher's own `unknown_uid + closed_route` sum (the single source
-    /// of truth for that count), then renders.
-    pub fn render(&self, dispatch: Option<DispatchStatsSnapshot>) -> String {
+    /// of truth for that count). When `writer_queue_depth` is `Some`, sets
+    /// `rsg_writer_queue_depth` to it. Then renders.
+    pub fn render(
+        &self,
+        dispatch: Option<DispatchStatsSnapshot>,
+        writer_queue_depth: Option<usize>,
+    ) -> String {
         if let Some(d) = dispatch {
             self.late_tokens_dropped_total
                 .absolute(d.unknown_uid + d.closed_route);
+        }
+        if let Some(depth) = writer_queue_depth {
+            self.writer_queue_depth.set(depth as f64);
         }
         self.handle.render()
     }
@@ -190,7 +208,7 @@ mod tests {
     #[test]
     fn fresh_metrics_render_every_series_at_zero() {
         let metrics = ServerMetrics::new();
-        let text = metrics.render(None);
+        let text = metrics.render(None, None);
         for name in [
             "rsg_requests_total",
             "rsg_requests_finished_total",
@@ -198,6 +216,7 @@ mod tests {
             "rsg_requests_failed_total",
             "rsg_late_tokens_dropped_total",
             "rsg_requests_active",
+            "rsg_writer_queue_depth",
         ] {
             assert!(
                 text.contains(&format!("{name} 0")),
@@ -214,7 +233,7 @@ mod tests {
         let metrics = ServerMetrics::new();
         metrics.record_received();
         metrics.record_terminal(LifecycleState::Finished);
-        let text = metrics.render(None);
+        let text = metrics.render(None, None);
         assert!(text.contains("rsg_requests_total 1"), "{text}");
         assert!(text.contains("rsg_requests_finished_total 1"), "{text}");
         assert!(text.contains("rsg_requests_cancelled_total 0"), "{text}");
@@ -230,7 +249,14 @@ mod tests {
             closed_route: 1,
             malformed_frames: 0,
         };
-        let text = metrics.render(Some(dispatch));
+        let text = metrics.render(Some(dispatch), None);
         assert!(text.contains("rsg_late_tokens_dropped_total 3"), "{text}");
+    }
+
+    #[test]
+    fn render_sets_writer_queue_depth_when_given() {
+        let metrics = ServerMetrics::new();
+        let text = metrics.render(None, Some(7));
+        assert!(text.contains("rsg_writer_queue_depth 7"), "{text}");
     }
 }

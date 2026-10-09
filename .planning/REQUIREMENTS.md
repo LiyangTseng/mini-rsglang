@@ -49,13 +49,13 @@
 ### Benchmarks
 
 - [x] **BENCH-01**: Profile the Python frontend on the GPU machine and quantify its host-side overhead in the three scenarios — GC pauses (count, duration, correlation with P99 spikes), memory allocation and resident growth, GIL contention between tokenize/detokenize/HTTP handling, serialization and IPC cost — as input for benchmark design and attribution; also record the scheduler's time share spent in the radix cache for v2 evaluation
-- [ ] **BENCH-02**: A Rust load generator: open-loop, supports mid-stream cancellation, records TTFT, P99 and RPS
-- [ ] **BENCH-03**: Scenario 1: 128 concurrent agents with random cancellations, P99 TTFT, Python vs Rust frontend
-- [ ] **BENCH-04**: Scenario 2: 32-token short-prompt saturation, RPS-vs-latency curve, Python vs Rust frontend
-- [ ] **BENCH-05**: Scenario 3: frontend cold-start time and frontend memory; end-to-end startup reported separately
-- [ ] **BENCH-06**: Standard inference throughput shows no regression versus the Python frontend
-- [ ] **BENCH-07**: The Python frontend is reported at both its default and its best `--num-tokenizer` setting; runs alternate A/B, results carry confidence intervals and a reproducible run manifest
-- [ ] **BENCH-08**: Every scenario report shows frontend memory usage and Python GC pause counts alongside TTFT/P99/RPS, so P99 spikes can be compared against GC pauses
+- [x] **BENCH-02**: A Rust load generator: open-loop, supports mid-stream cancellation, records TTFT, P99 and RPS
+- [x] **BENCH-03**: Scenario 1: 128 concurrent agents with random cancellations, P99 TTFT, Python vs Rust frontend
+- [x] **BENCH-04**: Scenario 2: 32-token short-prompt saturation, RPS-vs-latency curve, Python vs Rust frontend
+- [x] **BENCH-05**: Scenario 3: frontend cold-start time and frontend memory; end-to-end startup reported separately
+- [x] **BENCH-06**: Standard inference throughput shows no regression versus the Python frontend
+- [x] **BENCH-07**: The Python frontend is reported at both its default and its best `--num-tokenizer` setting; runs alternate A/B, results carry confidence intervals and a reproducible run manifest
+- [x] **BENCH-08**: Every scenario report shows frontend memory usage and Python GC pause counts alongside TTFT/P99/RPS, so P99 spikes can be compared against GC pauses
 
 ## v2 Requirements
 
@@ -112,13 +112,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-02 | Phase 5 | Complete |
 | PAR-01 | Phase 6 | Complete |
 | PAR-02 | Phase 6 | Complete |
-| BENCH-02 | Phase 7 | Pending |
-| BENCH-03 | Phase 7 | Pending |
-| BENCH-04 | Phase 7 | Pending |
-| BENCH-05 | Phase 7 | Pending |
-| BENCH-06 | Phase 7 | Pending |
-| BENCH-07 | Phase 7 | Pending |
-| BENCH-08 | Phase 7 | Pending |
+| BENCH-02 | Phase 7 | Complete |
+| BENCH-03 | Phase 7 | Complete |
+| BENCH-04 | Phase 7 | Complete |
+| BENCH-05 | Phase 7 | Complete |
+| BENCH-06 | Phase 7 | Complete |
+| BENCH-07 | Phase 7 | Complete |
+| BENCH-08 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 28 total
