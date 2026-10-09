@@ -60,7 +60,7 @@ Three frontends were benchmarked against the *same* backend process:
 
 ### Cold start & memory — Rust wins
 
-<img src="docs/benchmarks/plots/s3_coldstart_memory.svg" alt="S3: cold start and frontend memory bar charts, Rust lowest on both" width="100%">
+<img src="docs/benchmarks/plots/s3_coldstart_memory.svg" alt="Bar charts comparing end-to-end cold start time and frontend memory across Python (default), Python (tuned), and Rust — Rust is lowest on both" width="100%">
 
 | | python-default | python-best | **Rust** |
 |---|---|---|---|
@@ -69,17 +69,20 @@ Three frontends were benchmarked against the *same* backend process:
 
 ### Tail latency under load — Rust loses
 
-128 concurrent agents with random requests and mid-stream cancellations
-(S1), and a steadily increasing request-rate ramp (S2). P50 is the typical
-case; **P99 is the worst 1% of requests** — the users most likely to notice
+Two separate load tests tell the same story. P50 is the typical case;
+**P99 is the worst 1% of requests** — the users most likely to notice
 something is wrong.
 
-<img src="docs/benchmarks/plots/s2_saturation_p99.svg" alt="S2: P99 TTFT vs request rate, Rust spikes to 1016ms at rate=60" width="100%">
+**128 concurrent agents, random requests with mid-stream cancellations:**
 
-| S1 (128 concurrent, cancellations) | python-default | python-best | **Rust** |
+| | python-default | python-best | **Rust** |
 |---|---|---|---|
 | P50 time-to-first-token | 54.0 ms | 54.2 ms | 75.0 ms |
 | **P99 time-to-first-token** | 409 ms | 431 ms | **4687 ms (~10×)** |
+
+**Steadily increasing request rate, until the server saturates:**
+
+<img src="docs/benchmarks/plots/s2_saturation_p99.svg" alt="P99 time-to-first-token rising with request rate; Rust spikes to 1016ms at 60 requests/sec while Python stays under 160ms across the whole ramp" width="100%">
 
 Once the backend scheduler is saturated rather than under cancellation
 churn, raw throughput (GPU-bound workload) is statistically tied — every
