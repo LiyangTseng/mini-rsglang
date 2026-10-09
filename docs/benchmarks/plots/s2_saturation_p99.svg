@@ -1,0 +1,52 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='760' height='420' viewBox='0 0 760 420'>
+<rect x='0' y='0' width='760' height='420' fill='#ffffff'/>
+<text x='380.0' y='24.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='15' text-anchor='middle' font-weight='600' fill='#1f2937'>S2 — Saturation ramp: P99 time-to-first-token (log scale)</text>
+<rect x='208.5' y='39.0' width='14' height='14' fill='#2563eb' rx='2'/>
+<text x='228.5' y='51.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12.5' text-anchor='start' font-weight='normal' fill='#1f2937'>Python (default)</text>
+<rect x='366.5' y='39.0' width='14' height='14' fill='#0891b2' rx='2'/>
+<text x='386.5' y='51.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12.5' text-anchor='start' font-weight='normal' fill='#1f2937'>Python (best)</text>
+<rect x='503.5' y='39.0' width='14' height='14' fill='#ea580c' rx='2'/>
+<text x='523.5' y='51.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12.5' text-anchor='start' font-weight='normal' fill='#1f2937'>Rust</text>
+<line x1='60' y1='324.1' x2='730' y2='324.1' stroke='#e5e7eb' stroke-width='1'/>
+<text x='50.0' y='328.1' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='end' font-weight='normal' fill='#1f2937'>50</text>
+<line x1='60' y1='275.4' x2='730' y2='275.4' stroke='#e5e7eb' stroke-width='1'/>
+<text x='50.0' y='279.4' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='end' font-weight='normal' fill='#1f2937'>100</text>
+<line x1='60' y1='226.6' x2='730' y2='226.6' stroke='#e5e7eb' stroke-width='1'/>
+<text x='50.0' y='230.6' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='end' font-weight='normal' fill='#1f2937'>200</text>
+<line x1='60' y1='162.2' x2='730' y2='162.2' stroke='#e5e7eb' stroke-width='1'/>
+<text x='50.0' y='166.2' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='end' font-weight='normal' fill='#1f2937'>500</text>
+<line x1='60' y1='113.5' x2='730' y2='113.5' stroke='#e5e7eb' stroke-width='1'/>
+<text x='50.0' y='117.5' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='end' font-weight='normal' fill='#1f2937'>1000</text>
+<line x1='60' y1='85' x2='60' y2='360' stroke='#9ca3af' stroke-width='1'/>
+<line x1='60' y1='360' x2='730' y2='360' stroke='#9ca3af' stroke-width='1'/>
+<text x='60.0' y='382.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='middle' font-weight='normal' fill='#1f2937'>5</text>
+<text x='194.0' y='382.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='middle' font-weight='normal' fill='#1f2937'>10</text>
+<text x='328.0' y='382.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='middle' font-weight='normal' fill='#1f2937'>20</text>
+<text x='462.0' y='382.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='middle' font-weight='normal' fill='#1f2937'>40</text>
+<text x='596.0' y='382.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='middle' font-weight='normal' fill='#1f2937'>60</text>
+<text x='730.0' y='382.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='middle' font-weight='normal' fill='#1f2937'>80</text>
+<text x='395.0' y='402.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='13' text-anchor='middle' font-weight='500' fill='#1f2937'>Requests/sec</text>
+<text transform='rotate(-90 16 222.5)' x='16.0' y='222.5' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='13' text-anchor='middle' font-weight='500' fill='#1f2937'>P99 TTFT (ms)</text>
+<polyline points='60.0,335.8 194.0,322.8 328.0,308.8 462.0,289.2 596.0,270.7 730.0,256.9' fill='none' stroke='#2563eb' stroke-width='2.5'/>
+<circle cx='60.0' cy='335.8' r='4' fill='#2563eb'/>
+<circle cx='194.0' cy='322.8' r='4' fill='#2563eb'/>
+<circle cx='328.0' cy='308.8' r='4' fill='#2563eb'/>
+<circle cx='462.0' cy='289.2' r='4' fill='#2563eb'/>
+<circle cx='596.0' cy='270.7' r='4' fill='#2563eb'/>
+<circle cx='730.0' cy='256.9' r='4' fill='#2563eb'/>
+<polyline points='60.0,335.5 194.0,321.2 328.0,319.1 462.0,256.8 596.0,259.1 730.0,242.6' fill='none' stroke='#0891b2' stroke-width='2.5'/>
+<circle cx='60.0' cy='335.5' r='4' fill='#0891b2'/>
+<circle cx='194.0' cy='321.2' r='4' fill='#0891b2'/>
+<circle cx='328.0' cy='319.1' r='4' fill='#0891b2'/>
+<circle cx='462.0' cy='256.8' r='4' fill='#0891b2'/>
+<circle cx='596.0' cy='259.1' r='4' fill='#0891b2'/>
+<circle cx='730.0' cy='242.6' r='4' fill='#0891b2'/>
+<polyline points='60.0,293.4 194.0,289.1 328.0,284.5 462.0,207.3 596.0,112.4 730.0,182.7' fill='none' stroke='#ea580c' stroke-width='2.5'/>
+<circle cx='60.0' cy='293.4' r='4' fill='#ea580c'/>
+<circle cx='194.0' cy='289.1' r='4' fill='#ea580c'/>
+<circle cx='328.0' cy='284.5' r='4' fill='#ea580c'/>
+<circle cx='462.0' cy='207.3' r='4' fill='#ea580c'/>
+<circle cx='596.0' cy='112.4' r='4' fill='#ea580c'/>
+<circle cx='730.0' cy='182.7' r='4' fill='#ea580c'/>
+<text x='586.0' y='132.4' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='end' font-weight='600' fill='#ea580c'>1016ms (~8× Python)</text>
+</svg>

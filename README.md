@@ -36,10 +36,80 @@ benchmark harness built for exactly three host-overhead-bound scenarios where
 a frontend rewrite should matter most — concurrent load with cancellations,
 short-prompt RPS saturation, and cold start / host RAM.
 
-**The honest result so far is not "Rust wins."** See
-[`docs/benchmarks/FINDINGS.md`](docs/benchmarks/FINDINGS.md) for the real
-numbers, where the Rust frontend actually loses on tail latency under load,
-why, and how that lines up with SGLang's own production migration notes.
+**The honest result so far is not "Rust wins."** See below for the numbers,
+or [`docs/benchmarks/FINDINGS.md`](docs/benchmarks/FINDINGS.md) for the full
+write-up.
+
+## Results
+
+Holding the GPU backend completely unmodified and identical for both
+frontends, the outcome is a split: Rust wins decisively on cold start and
+memory, loses decisively on tail latency under load, and roughly ties on raw
+throughput. Full methodology, statistical significance (Welch's 95% CI), and
+root-cause investigation: **[docs/benchmarks/FINDINGS.md](docs/benchmarks/FINDINGS.md)**.
+
+Three frontends were benchmarked against the *same* backend process:
+
+- **Rust** — this project's frontend.
+- **python-default** — Python's out-of-the-box setting (`--num-tokenizer=0`:
+  one process does both tokenize and detokenize).
+- **python-best** — Python tuned by sweeping `--num-tokenizer` for its
+  highest peak RPS (`--num-tokenizer=2`: separate tokenizer processes).
+  Included so Rust is measured against Python's *best* case, not just its
+  defaults.
+
+### Cold start & memory — Rust wins
+
+<img src="docs/benchmarks/plots/s3_coldstart_memory.svg" alt="S3: cold start and frontend memory bar charts, Rust lowest on both" width="100%">
+
+| | python-default | python-best | **Rust** |
+|---|---|---|---|
+| End-to-end cold start | 9.67s | 10.74s | **9.13s** |
+| Frontend memory (RSS) | 1.48 GB | 3.03 GB | **490 MB** |
+
+### Tail latency under load — Rust loses
+
+128 concurrent agents with random requests and mid-stream cancellations
+(S1), and a steadily increasing request-rate ramp (S2). P50 is the typical
+case; **P99 is the worst 1% of requests** — the users most likely to notice
+something is wrong.
+
+<img src="docs/benchmarks/plots/s2_saturation_p99.svg" alt="S2: P99 TTFT vs request rate, Rust spikes to 1016ms at rate=60" width="100%">
+
+| S1 (128 concurrent, cancellations) | python-default | python-best | **Rust** |
+|---|---|---|---|
+| P50 time-to-first-token | 54.0 ms | 54.2 ms | 75.0 ms |
+| **P99 time-to-first-token** | 409 ms | 431 ms | **4687 ms (~10×)** |
+
+Once the backend scheduler is saturated rather than under cancellation
+churn, raw throughput (GPU-bound workload) is statistically tied — every
+confidence interval includes zero, the expected result when the backend,
+not the frontend, is the bottleneck.
+
+### Why tail latency regresses: a root cause, not a bug
+
+Every request funnels through one ZMQ socket to the same, unmodified Python
+scheduler. Under concurrent load, that transport is usually instant but
+occasionally stalls for over a second — a standalone micro-benchmark
+(`crates/zmq-vs-channel-spike/`) reproduces this exact pattern, and it's
+independently corroborated by SGLang's own production Rust-migration RFC,
+which abandoned ZMQ for the same reason. Removing that bottleneck means
+patching the Python backend, which is outside this project's "frozen
+backend, fair comparison" constraint — see
+[FINDINGS.md § Root cause investigation](docs/benchmarks/FINDINGS.md#root-cause-investigation).
+
+### Future work
+
+- **Confirm the queue-depth hypothesis with live data** — correlate the
+  `rsg_writer_queue_depth` metric (exposed on `/metrics`) against TTFT
+  spikes in a real run.
+- **In-process, zero-copy IPC** — remove the ZMQ hop entirely, the
+  architecturally complete fix; requires patching the vendored backend, so
+  it's a deliberate scope decision, not an oversight.
+- **Rust radix-tree KV cache** — follow SGLang's own
+  `UnifiedTreeCoreInterface` pattern
+  ([sgl-project/sglang#20415](https://github.com/sgl-project/sglang/issues/20415))
+  if the backend-frozen constraint is ever revisited.
 
 ## Running it
 
