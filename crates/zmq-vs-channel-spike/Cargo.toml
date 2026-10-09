@@ -1,0 +1,23 @@
+[package]
+name = "zmq-vs-channel-spike"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# Throwaway, standalone spike crate (not part of the production workspace's
+# dependency graph -- no other crate depends on this one). Measures the raw
+# enqueue latency of one ZMQ PUSH send vs one tokio::sync::mpsc send, under
+# the same backpressure conditions, using the real wire-format message sizes
+# from rsg-wire. See README.md in this crate for what it answers and what it
+# cannot answer.
+
+[[bin]]
+name = "zmq-vs-channel-spike"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+hdrhistogram.workspace = true
+rsg-wire.workspace = true
+zmq.workspace = true

@@ -4328,3 +4328,13 @@ dependencies = [
  "system-deps",
  "zeromq-src",
 ]
+
+[[package]]
+name = "zmq-vs-channel-spike"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hdrhistogram",
+ "rsg-wire",
+ "zmq",
+]
