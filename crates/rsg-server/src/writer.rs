@@ -117,6 +117,17 @@ impl WriterHandle {
             .await
             .map_err(|_| WriterClosed)
     }
+
+    /// The single writer's current inbox depth: how many enqueued messages
+    /// the `tx-zmq` thread has not yet drained into a frame on the wire.
+    /// `Sender::capacity()` reports remaining permits, so depth is the
+    /// fixed capacity minus whatever is still free -- a point-in-time
+    /// snapshot, racing the writer thread like any other observer of a
+    /// concurrent queue, but exact at the instant it is read (no polling
+    /// or sampling error of its own).
+    pub fn queue_depth(&self) -> usize {
+        WRITER_QUEUE_CAPACITY - self.tx.capacity()
+    }
 }
 
 /// Spawns the `tx-zmq` thread owning `sink`, and returns a handle plus its

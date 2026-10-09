@@ -196,6 +196,14 @@ impl Engine {
         self.dispatch.stats()
     }
 
+    /// The single writer's (`tx-zmq`) current queue depth (BENCH follow-up:
+    /// corroborates whether the ZMQ backend-send hop itself is a source of
+    /// backpressure under load, independent of anything else in the
+    /// request path).
+    pub fn writer_queue_depth(&self) -> usize {
+        self.writer.queue_depth()
+    }
+
     pub fn registry(&self) -> &RegistryHandle {
         &self.registry
     }

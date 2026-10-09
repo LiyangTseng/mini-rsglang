@@ -43,7 +43,9 @@ pub async fn ready(State(state): State<AppState>) -> Response {
 /// `rsg_late_tokens_dropped_total`; while unset, that series simply stays
 /// at whatever `ServerMetrics::new()` initialized it to (0).
 pub async fn metrics(State(state): State<AppState>) -> Response {
-    let dispatch = state.engine().ok().map(|e| e.dispatch_stats());
-    let body = state.metrics().render(dispatch);
+    let engine = state.engine().ok();
+    let dispatch = engine.as_ref().map(|e| e.dispatch_stats());
+    let writer_queue_depth = engine.as_ref().map(|e| e.writer_queue_depth());
+    let body = state.metrics().render(dispatch, writer_queue_depth);
     ([(CONTENT_TYPE, METRICS_CONTENT_TYPE)], body).into_response()
 }
