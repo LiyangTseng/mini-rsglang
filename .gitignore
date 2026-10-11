@@ -3,7 +3,8 @@
 .claude/memory/
 .claude/worktrees/
 
-# GSD tooling install — per-machine, not part of the project source
+# Legacy GSD tooling install (GSD is retired for this repo). Kept ignored so
+# a leftover per-machine install can never be committed.
 .claude/gsd-core/
 .claude/hooks/
 .claude/commands/

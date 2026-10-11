@@ -151,7 +151,8 @@ write-up.
 | `crates/rsg-wire/` | msgpack wire types, byte-for-byte matched to upstream |
 | `crates/rsg-bench/` | The benchmark harness (this project's other real deliverable) |
 | `docs/benchmarks/` | Every measured result, baseline through final findings |
-| `.planning/` | [GSD](https://github.com) phase plans, verification reports, decisions |
+| `.planning/` | Read-only archive of the Phase 1–7 plans, verification reports, and decisions |
+| `docs/plans/` | Plans for work after Phase 7 |
 
 ## License
 
