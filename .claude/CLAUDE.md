@@ -54,3 +54,17 @@ under `docs/plans/`.
 `.planning/STATE.md` is still read by `python/tests/test_parity_report.py`,
 and requirement IDs such as `BENCH-01` or `PAR-02` in code comments refer to
 `.planning/REQUIREMENTS.md`, so do not move or delete `.planning/`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `LiyangTseng/mini-rsglang` (via `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
