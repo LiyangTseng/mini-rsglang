@@ -54,7 +54,21 @@ order, on this branch.
 | 5 | [#18](https://github.com/LiyangTseng/mini-rsglang/issues/18) GPU before/after, FINDINGS v2, README | yes |
 | 6 | *(conditional)* If the target is still unmet after #18, open a follow-up `diagnosing-bugs` round | yes |
 
-After #18, run `/code-review` over the branch before marking the PR ready.
+### Fix-decision gate (after #16)
+
+Once #16 names the root cause, the agent does **not** start #17 on its own.
+It posts the fix options on #17, then waits for the maintainer to choose. Each
+option lists:
+
+- what changes
+- the expected effect, backed by the #16 data
+- the risks (e.g. the decoder-before-submit ordering, parity)
+- the effort
+
+Fixes have real trade-offs (share vs. pool, which pool implementation), so
+the choice and its reasoning are recorded on #17.
+
+After #18, run `code-review` over the branch before marking the PR ready.
 
 ### Checkpoint
 
