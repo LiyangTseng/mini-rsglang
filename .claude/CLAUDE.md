@@ -11,7 +11,7 @@ mini-sglang with its Python frontend replaced by an optimized Rust frontend. The
 - **Architecture**: Rust owns ingress, lifecycle FSM, tokenization, detokenization; Python/CUDA owns scheduler, weights, batching loop, kernels, KV cache (including the radix cache)
 - **Fair comparison**: both frontends run against the same vendored backend; backend changes must apply to both modes; the Python frontend stays frozen
 - **IPC**: the existing ZMQ + MessagePack wire format; Rust must match it byte-for-byte (an extra key crashes the scheduler)
-- **Environment**: must be developable and testable without a GPU (mock backend) — dev machine is a Mac
+- **Environment**: must be developable and testable without a GPU (mock backend) — the primary dev machine is a Mac. This is a design constraint, not a workflow rule: on the Windows GPU box, the execution workflow in the root `claude.md` (and `CLAUDE.local.md`) wins
 - **Verification**: performance claims are measured on Linux on identical hardware; projections stay projections until measured
 - **License**: mini-sglang is MIT; keep its copyright notice and LICENSE
 
