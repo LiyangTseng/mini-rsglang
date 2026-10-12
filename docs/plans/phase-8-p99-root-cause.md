@@ -54,6 +54,22 @@ order, on this branch.
 | 5 | [#18](https://github.com/LiyangTseng/mini-rsglang/issues/18) GPU before/after, FINDINGS v2, README | yes |
 | 6 | *(conditional)* If the target is still unmet after #18, open a follow-up `diagnosing-bugs` round | yes |
 
+### Feedback loop (#14)
+
+`scripts/p8_ttft_loop.sh` runs S1-lite (128 agents, 10 s, 25% cancellations,
+real Qwen3-0.6B tokenizer) against the release Rust frontend on the mock
+stack. No GPU is needed and a round takes about 16 s. Every request gets the
+mock's fixed 20 ms prefill delay with no queueing, so any tail above that is
+added outside the backend model. The script prints TTFT P50/P99 and the
+first-wave vs. rest split, and exits 1 (RED) when P99/P50 > `--max-ratio`
+(default 10) in any round.
+
+    scripts/p8_ttft_loop.sh            # one round
+    scripts/p8_ttft_loop.sh --runs 5   # reproduction rate
+
+Calibration (2026-10-11): RED in 5/5 rounds, P99/P50 = 44–54. The same load
+with arrivals spread over 5 s (`--think-max-s 5`) is GREEN (P99 106 ms).
+
 ### Fix-decision gate (after #16)
 
 Once #16 names the root cause, the agent does **not** start #17 on its own.

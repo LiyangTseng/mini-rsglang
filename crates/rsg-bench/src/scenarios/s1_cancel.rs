@@ -21,6 +21,10 @@ pub struct S1Args {
     pub max_tokens: u32,
     #[arg(long, default_value_t = 0.5)]
     pub think_max_s: f64,
+    /// Also write one JSON line per request (send offset, TTFT, outcome) to
+    /// `<trial_dir>/requests.jsonl`, for locating the tail within a run.
+    #[arg(long)]
+    pub requests_jsonl: bool,
 }
 
 /// A [`TrialRunner`] over [`loadgen::run_agents`].
@@ -60,6 +64,9 @@ impl TrialRunner for S1Runner {
         let result = loadgen::run_agents(ctx.client, &ctx.base_url, &model, &params).await;
         let histograms = loadgen::histograms(&result);
         let summary = loadgen::summarize(&result);
+        if self.args.requests_jsonl {
+            write_requests_jsonl(&ctx.trial_dir.join("requests.jsonl"), &result)?;
+        }
 
         Ok(TrialMeasurement {
             windows: vec![MeasuredWindow {
@@ -72,4 +79,25 @@ impl TrialRunner for S1Runner {
             result: serde_json::to_value(summary)?,
         })
     }
+}
+
+/// One line per request: `{"send_ms", "ttft_ms", "outcome"}`, where
+/// `send_ms` is the send time relative to the window start and `ttft_ms` is
+/// `null` when no token arrived.
+fn write_requests_jsonl(
+    path: &std::path::Path,
+    result: &loadgen::LoadResult,
+) -> anyhow::Result<()> {
+    use std::io::Write;
+    let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
+    for r in &result.records {
+        let line = serde_json::json!({
+            "send_ms": r.t_send_unix_ns.saturating_sub(result.window_start_unix_ns) as f64 / 1e6,
+            "ttft_ms": r.ttft.map(|d| d.as_secs_f64() * 1e3),
+            "outcome": r.outcome,
+        });
+        writeln!(out, "{line}")?;
+    }
+    out.flush()?;
+    Ok(())
 }
