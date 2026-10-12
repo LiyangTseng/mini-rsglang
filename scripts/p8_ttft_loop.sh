@@ -15,8 +15,9 @@ Usage: scripts/p8_ttft_loop.sh [--agents 128] [--duration-s 10] [--runs 1]
                                [--max-ratio 10] [--port 31011] [--no-build]
 
 Prints, per round: TTFT P50/P99, the TTFT of the first wave (requests sent
-in the first --think-max-s, one per agent) vs the rest, then RED or GREEN,
-followed by the server's per-stage P50/P99/max (rsg_stage_*_seconds).
+in the first 0.5 s, the S1 think-time bound, one per agent) vs the rest,
+then RED or GREEN, followed by the server's per-stage count/mean/P50/P99
+(rsg_stage_*_seconds).
 Exits 0 only if every round is GREEN (P99/P50 <= --max-ratio), 1 if any
 round is RED, 2 on bad usage or a harness failure.
 

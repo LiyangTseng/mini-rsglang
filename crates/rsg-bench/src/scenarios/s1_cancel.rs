@@ -72,15 +72,12 @@ impl TrialRunner for S1Runner {
             write_requests_jsonl(&ctx.trial_dir.join("requests.jsonl"), &result)?;
         }
         if self.args.save_server_metrics {
-            let text = ctx
-                .client
-                .get(format!("{}/metrics", ctx.base_url))
-                .send()
-                .await?
-                .error_for_status()?
-                .text()
-                .await?;
-            std::fs::write(ctx.trial_dir.join("server-metrics.prom"), text)?;
+            // Best effort: the measured window above is already complete, and
+            // a frontend without `/metrics` (the Python arms) must not fail it.
+            match scrape_metrics(ctx.client, &ctx.base_url).await {
+                Ok(text) => std::fs::write(ctx.trial_dir.join("server-metrics.prom"), text)?,
+                Err(e) => tracing::warn!("could not save server metrics: {e:#}"),
+            }
         }
 
         Ok(TrialMeasurement {
@@ -94,6 +91,16 @@ impl TrialRunner for S1Runner {
             result: serde_json::to_value(summary)?,
         })
     }
+}
+
+async fn scrape_metrics(client: &reqwest::Client, base_url: &str) -> anyhow::Result<String> {
+    Ok(client
+        .get(format!("{base_url}/metrics"))
+        .send()
+        .await?
+        .error_for_status()?
+        .text()
+        .await?)
 }
 
 /// One line per request: `{"send_ms", "ttft_ms", "outcome"}`, where

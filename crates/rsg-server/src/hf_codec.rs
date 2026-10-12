@@ -230,7 +230,7 @@ mod tests {
 
     /// Phase 8 (#16/#17) regression: building a per-request decoder must not
     /// copy the tokenizer. A deep clone of Qwen3-0.6B's tokenizer costs
-    /// 15-18 ms (seconds each under a burst), so 1,000 builds took ~15 s;
+    /// 15-18 ms (seconds each under a burst), so 1,000 builds took ~24 s;
     /// sharing it makes each build a refcount bump.
     #[test]
     fn decoder_build_does_not_copy_the_tokenizer() {
