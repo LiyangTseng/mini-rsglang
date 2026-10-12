@@ -56,7 +56,7 @@ order, on this branch.
 
 ### Feedback loop (#14)
 
-`scripts/p8_ttft_loop.sh` runs S1-lite (128 agents, 10 s, 25% cancellations,
+`scripts/ttft_tail_loop.sh` runs S1-lite (128 agents, 10 s, 25% cancellations,
 real Qwen3-0.6B tokenizer) against the release Rust frontend on the mock
 stack. No GPU is needed and a round takes about 16 s. Every request gets the
 mock's fixed 20 ms prefill delay with no queueing, so any tail above that is
@@ -66,8 +66,8 @@ first-wave vs. rest split, and exits 1 (RED) when P99/P50 > `--max-ratio`
 mean/P50/P99 from the server's `rsg_stage_*_seconds` histograms, scraped at
 the end of the round.
 
-    scripts/p8_ttft_loop.sh            # one round
-    scripts/p8_ttft_loop.sh --runs 5   # reproduction rate
+    scripts/ttft_tail_loop.sh            # one round
+    scripts/ttft_tail_loop.sh --runs 5   # reproduction rate
 
 Calibration (2026-10-11): RED in 5/5 rounds, P99/P50 = 44–54. The same load
 with arrivals spread over 5 s (`--think-max-s 5`) is GREEN (P99 106 ms).
@@ -103,7 +103,7 @@ Regression checks:
 - `cargo test -p rsg-server --lib hf_codec` (needs the HF cache):
   `decoder_build_does_not_copy_the_tokenizer` (1,000 builds < 1 s; 24.2 s
   before the fix) and `decoders_sharing_a_tokenizer_keep_independent_state`.
-- Manual scenario step: `scripts/p8_ttft_loop.sh --runs 5` must be GREEN
+- Manual scenario step: `scripts/ttft_tail_loop.sh --runs 5` must be GREEN
   5/5. After the fix: P99 60–121 ms, P99/P50 2.8–5.0, frontend RSS ~130 MiB.
 
 ### Fix-decision gate (after #16)

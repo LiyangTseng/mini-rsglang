@@ -6,12 +6,12 @@
 # non-zero when TTFT P99/P50 exceeds --max-ratio in any round. The mock gives
 # every request a fixed prefill delay with no queueing, so any tail above it
 # is added outside the backend model. No GPU needed. Writes only under
-# target/rsg-bench/p8-loop/<run>.
+# target/rsg-bench/ttft-tail-loop/<run>.
 set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/p8_ttft_loop.sh [--agents 128] [--duration-s 10] [--runs 1]
+Usage: scripts/ttft_tail_loop.sh [--agents 128] [--duration-s 10] [--runs 1]
                                [--max-ratio 10] [--port 31011] [--no-build]
 
 Prints, per round: TTFT P50/P99, the TTFT of the first wave (requests sent
@@ -57,7 +57,7 @@ if [ "$BUILD" = 1 ]; then
   cargo build --release -p rsg-bench -p rsg-server >/dev/null
 fi
 
-OUT="target/rsg-bench/p8-loop/$(date -u +%Y%m%dT%H%M%SZ)"
+OUT="target/rsg-bench/ttft-tail-loop/$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$OUT/work"
 
 STACK="target/release/rsg-mock-stack --rsg-server-bin target/release/rsg-server --mock-scheduler-bin target/release/mock-scheduler --port {port} --prefill-delay-ms 20 --decode-delay-ms 5 --rsg-server-arg=--port={port}"

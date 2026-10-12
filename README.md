@@ -49,7 +49,7 @@ The GPU backend is completely unmodified and identical for both frontends.
 
 Full methodology, statistical significance (Welch's 95% CI), and the history
 of how these numbers were reached: **[docs/benchmarks/FINDINGS.md](docs/benchmarks/FINDINGS.md)**.
-Full tables: [`phase8-benchmarks.md`](docs/benchmarks/phase8-benchmarks.md).
+Full tables: [`tokenizer-clone-fix-after.md`](docs/benchmarks/tokenizer-clone-fix-after.md).
 
 Three frontends were benchmarked against the *same* backend process:
 

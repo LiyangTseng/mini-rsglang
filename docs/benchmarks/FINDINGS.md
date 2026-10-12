@@ -14,7 +14,7 @@ Every request deep-cloned the whole Hugging Face tokenizer (~15–30 MiB of
 small allocations) before it could be submitted. Under a burst of 128
 concurrent requests, those clones each took seconds. Sharing one
 `Arc<Tokenizer>` removed the tail: P99 went from 4868 ms to 302 ms on the
-same box. See [v2: the actual root cause (Phase 8)](#v2-the-actual-root-cause-phase-8).
+same box. See [v2: the actual root cause (per-request tokenizer clone)](#v2-the-actual-root-cause-per-request-tokenizer-clone).
 
 The v1 sections are kept as written, labelled as superseded, because the
 wrong turn is part of the record.
@@ -86,7 +86,7 @@ pass in CI with a mock backend):
 ## Result
 
 These are the Phase 7 numbers, measured before the Phase 8 fix. The current
-numbers are in [v2](#v2-the-actual-root-cause-phase-8).
+numbers are in [v2](#v2-the-actual-root-cause-per-request-tokenizer-clone).
 
 **Cold start & host RAM (S3): Rust wins, clearly.** Frontend RSS: **490 MB**
 (Rust) vs. 1.48 GB (Python, default `--num-tokenizer`) vs. 3.03 GB (Python,
@@ -124,7 +124,7 @@ smooth across the whole ramp.
 > **Superseded by Phase 8.** The ZMQ explanation below was tested in Phase 8
 > and rejected: the tail reproduces on a mock backend, and the submit, writer
 > queue and ZMQ send stages all have small tails. The actual cause is a
-> per-request tokenizer clone. See [v2](#v2-the-actual-root-cause-phase-8).
+> per-request tokenizer clone. See [v2](#v2-the-actual-root-cause-per-request-tokenizer-clone).
 
 Reading `rsg-server`'s request-lifecycle code (`engine.rs`, `dispatch.rs`,
 `writer.rs`) found a well-engineered implementation — Drop-based
@@ -177,14 +177,14 @@ the literal same process — rules that fix out. The measured regression is
 likely the honest cost of that constraint, not a defect to be optimized
 away within it.
 
-## v2: the actual root cause (Phase 8)
+## v2: the actual root cause (per-request tokenizer clone)
 
-Plan: [`docs/plans/phase-8-p99-root-cause.md`](../plans/phase-8-p99-root-cause.md).
+Plan: [`docs/plans/p99-ttft-root-cause.md`](../plans/p99-ttft-root-cause.md).
 Issues #14–#18 hold the commands and raw outputs for each step.
 
 ### Feedback loop (#14)
 
-`scripts/p8_ttft_loop.sh` runs a 10 s, 128-agent S1 round on the mock
+`scripts/ttft_tail_loop.sh` runs a 10 s, 128-agent S1 round on the mock
 backend (`rsg-mock-stack`, no GPU). It goes RED when TTFT P99/P50 exceeds
 10. Before the fix it was RED in every round (P99/P50 44–56), so the tail
 **reproduces without the real scheduler and without CUDA**.
@@ -259,21 +259,24 @@ The mock loop is GREEN 5/5 (P99 60–121 ms, frontend RSS ~130 MiB).
 Same GPU box (RTX 3050 8 GB, WSL2) and the Phase 7 methodology: 5 rounds
 per arm, Welch's 95% CI, Qwen3-0.6B.
 - **After:** all three arms on the fixed build, in
-  [`phase8-benchmarks.md`](phase8-benchmarks.md).
+  [`tokenizer-clone-fix-after.md`](tokenizer-clone-fix-after.md).
 - **Before:** the Rust arm only, on the pre-fix `rsg-server` (built from
-  `fc491b1`) in the same session, in [`phase8-before-fix.md`](phase8-before-fix.md).
+  `fc491b1`) in the same session, in [`tokenizer-clone-fix-before.md`](tokenizer-clone-fix-before.md).
+
+The directories were renamed after the runs, so each manifest's recorded
+`--out` argument still shows the old `phase8-*` path.
 
 ```bash
 COMMON=(--backend-kind real --model-arg Qwen/Qwen3-0.6B --port 31031
         --python .venv/bin/python --runs 5 --python-best-num-tokenizer 2)
 PY_T="{python} -m rsglang.launch --frontend python --model {model} --port {port} --num-tokenizer {num_tokenizer}"
 RS_T="{python} -m rsglang.launch --frontend rust --model {model} --port {port}"
-OUT=docs/benchmarks/phase8-benchmarks
+OUT=docs/benchmarks/tokenizer-clone-fix-after
 target/release/rsg-bench s1 "${COMMON[@]}" --python-cmd "$PY_T" --rust-cmd "$RS_T" --out $OUT/s1_cancel.manifest.json
 target/release/rsg-bench s2 --mode open "${COMMON[@]}" --python-cmd "$PY_T" --rust-cmd "$RS_T" --out $OUT/s2_saturation.manifest.json
 target/release/rsg-bench s3 "${COMMON[@]}" --python-cmd "$PY_T" --rust-cmd "$RS_T" --out $OUT/s3_coldstart.manifest.json
 # Before: s1 and s2 again with --arms rust, "--rust-bin <pre-fix rsg-server>"
-# appended to RS_T, and output under docs/benchmarks/phase8-before-fix/.
+# appended to RS_T, and output under docs/benchmarks/tokenizer-clone-fix-before/.
 target/release/rsg-bench report --manifests-dir $OUT --out-json $OUT.json --out-md $OUT.md
 ```
 
