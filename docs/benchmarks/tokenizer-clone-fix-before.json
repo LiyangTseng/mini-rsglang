@@ -1,0 +1,366 @@
+{
+  "schema_version": 1,
+  "generated_by": "crates/rsg-bench report",
+  "sources": [
+    "s1_cancel",
+    "s2_saturation"
+  ],
+  "provenance": {
+    "backend_kinds": [
+      "real",
+      "real"
+    ],
+    "gpus": [
+      "NVIDIA GeForce RTX 3050",
+      "NVIDIA GeForce RTX 3050"
+    ],
+    "comparison_valid": true
+  },
+  "scenarios": {
+    "s1_cancel": {
+      "arms": {
+        "rust": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "cancelled": {
+              "mean": 562.6,
+              "ci95_lo": 560.7172251966845,
+              "ci95_hi": 564.4827748033156,
+              "n": 5,
+              "ci_note": null
+            },
+            "rps": {
+              "mean": 13.443950768562626,
+              "ci95_lo": 13.414862477222764,
+              "ci95_hi": 13.473039059902488,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p50_ms": {
+              "mean": 69.2214,
+              "ci95_lo": 68.69857254938235,
+              "ci95_hi": 69.74422745061766,
+              "n": 5,
+              "ci_note": null
+            },
+            "ttft_p99_ms": {
+              "mean": 4867.6854,
+              "ci95_lo": 4492.06988044888,
+              "ci95_hi": 5243.30091955112,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "scheduler": {
+              "count": 9.0,
+              "total_pause_ms": 1.4012645999999997,
+              "p99_pause_ms": 0.3233342,
+              "max_pause_ms": 0.724563
+            },
+            "launcher": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 8180721254.4,
+                "pss_bytes_mean": 8198736691.2
+              },
+              "launcher": {
+                "rss_bytes_mean": 688265625.6,
+                "pss_bytes_mean": 537294438.4
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2497721139.2,
+                "pss_bytes_mean": 2346987520.0
+              },
+              "other": {
+                "rss_bytes_mean": 15690137.6,
+                "pss_bytes_mean": 10443161.6
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 11382000844.8,
+              "pss_bytes_mean": 11093023539.2
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 1.0,
+              "nonspike_overlap_rate_mean": 0.0341359980955841
+            }
+          }
+        }
+      },
+      "deltas": {},
+      "extra": null
+    },
+    "s2_saturation": {
+      "arms": {
+        "rust": {
+          "n_ok": 5,
+          "n_failed": 0,
+          "failed_trials": [],
+          "metrics": {
+            "peak_rps": {
+              "mean": 72.48048355829182,
+              "ci95_lo": 72.28473157970416,
+              "ci95_hi": 72.67623553687949,
+              "n": 5,
+              "ci_note": null
+            }
+          },
+          "gc": {
+            "scheduler": {
+              "count": 2.8333333333333335,
+              "total_pause_ms": 15.040775900000003,
+              "p99_pause_ms": 17.73617576000001,
+              "max_pause_ms": 88.981502
+            },
+            "launcher": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            },
+            "rust_frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "other": {
+              "count": 0.0,
+              "total_pause_ms": -0.0,
+              "p99_pause_ms": null,
+              "max_pause_ms": null
+            }
+          },
+          "memory": {
+            "by_group": {
+              "frontend": {
+                "rss_bytes_mean": 1492276019.2,
+                "pss_bytes_mean": 1493418666.6666667
+              },
+              "launcher": {
+                "rss_bytes_mean": 688611737.6,
+                "pss_bytes_mean": 539258470.4
+              },
+              "scheduler": {
+                "rss_bytes_mean": 2497804697.6,
+                "pss_bytes_mean": 2348676983.4666667
+              },
+              "other": {
+                "rss_bytes_mean": 15657369.6,
+                "pss_bytes_mean": 10422476.8
+              }
+            },
+            "tree": {
+              "rss_bytes_mean": 4694270498.133333,
+              "pss_bytes_mean": 4391694404.266666
+            }
+          },
+          "cooccurrence": {
+            "frontend": {
+              "not_applicable": "Rust frontend has no garbage collector"
+            },
+            "scheduler": {
+              "spike_overlap_rate_mean": 0.06666666666666667,
+              "nonspike_overlap_rate_mean": 0.007905138339920948
+            }
+          }
+        }
+      },
+      "deltas": {},
+      "extra": {
+        "curve": [
+          {
+            "arms": {
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 4.8565853323583275,
+                  "ci95_lo": 4.856356146466264,
+                  "ci_note": null,
+                  "mean": 4.856470739412296,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 313.03199092532765,
+                  "ci95_lo": 306.89560907467234,
+                  "ci_note": null,
+                  "mean": 309.9638,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 76.91468848035865,
+                  "ci95_lo": 73.43211151964132,
+                  "ci_note": null,
+                  "mean": 75.17339999999999,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=5"
+          },
+          {
+            "arms": {
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 10.26945444894326,
+                  "ci95_lo": 10.266786460225461,
+                  "ci_note": null,
+                  "mean": 10.268120454584361,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 379.67564896168966,
+                  "ci95_lo": 342.7543510383104,
+                  "ci_note": null,
+                  "mean": 361.21500000000003,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 79.49739557341682,
+                  "ci95_lo": 76.99340442658315,
+                  "ci_note": null,
+                  "mean": 78.24539999999999,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=10"
+          },
+          {
+            "arms": {
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 19.75958649343662,
+                  "ci95_lo": 19.752424203331298,
+                  "ci_note": null,
+                  "mean": 19.756005348383958,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 397.3508133205559,
+                  "ci95_lo": 380.0679866794441,
+                  "ci_note": null,
+                  "mean": 388.7094,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 83.02446357492593,
+                  "ci95_lo": 78.79113642507406,
+                  "ci_note": null,
+                  "mean": 80.9078,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=20"
+          },
+          {
+            "arms": {
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 36.45556339133441,
+                  "ci95_lo": 36.43703327172288,
+                  "ci_note": null,
+                  "mean": 36.446298331528645,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 729.3812865763401,
+                  "ci95_lo": 491.9415134236598,
+                  "ci_note": null,
+                  "mean": 610.6614,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 322.84179197943325,
+                  "ci95_lo": 132.47780802056673,
+                  "ci_note": null,
+                  "mean": 227.6598,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=40"
+          },
+          {
+            "arms": {
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 61.11687820515328,
+                  "ci95_lo": 60.9197434894019,
+                  "ci_note": null,
+                  "mean": 61.01831084727759,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 1770.9903887494052,
+                  "ci95_lo": 845.9420112505944,
+                  "ci_note": null,
+                  "mean": 1308.4661999999998,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 1042.5054272742536,
+                  "ci95_lo": 300.87817272574625,
+                  "ci_note": null,
+                  "mean": 671.6918,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=60"
+          },
+          {
+            "arms": {
+              "rust": {
+                "achieved_rps": {
+                  "ci95_hi": 72.67623553687949,
+                  "ci95_lo": 72.28473157970416,
+                  "ci_note": null,
+                  "mean": 72.48048355829182,
+                  "n": 5
+                },
+                "e2e_p99_ms": {
+                  "ci95_hi": 1316.4563569792851,
+                  "ci95_lo": 992.6616430207147,
+                  "ci_note": null,
+                  "mean": 1154.559,
+                  "n": 5
+                },
+                "ttft_p99_ms": {
+                  "ci95_hi": 410.38212780533263,
+                  "ci95_lo": 154.30067219466738,
+                  "ci_note": null,
+                  "mean": 282.3414,
+                  "n": 5
+                }
+              }
+            },
+            "label": "rate=80"
+          }
+        ]
+      }
+    }
+  },
+  "summary": []
+}

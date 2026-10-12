@@ -6,6 +6,7 @@
 //! on. No tokenization, template or detokenization logic is reimplemented
 //! here -- every call below delegates straight into `rsg_tokenizer`.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -77,6 +78,9 @@ fn load_model_assets_with_retry(spec: ModelSpec) -> Result<ModelAssets, Tokenize
 /// resolved EOS/clean-up settings onto [`TextCodec`].
 pub struct HfCodec {
     assets: ModelAssets,
+    /// One copy of the tokenizer, shared by every per-request decoder (see
+    /// [`HfCodec::decoder`]).
+    shared_tokenizer: Arc<tokenizers::Tokenizer>,
     env: minijinja::Environment<'static>,
     eos_token_id: u32,
     clean_up_tokenization_spaces: bool,
@@ -128,6 +132,7 @@ impl HfCodec {
             .unwrap_or(false);
 
         Ok(HfCodec {
+            shared_tokenizer: Arc::new(assets.tokenizer.clone()),
             assets,
             env: template::build_environment(None),
             eos_token_id,
@@ -164,10 +169,13 @@ impl TextCodec for HfCodec {
             .collect()
     }
 
+    /// Shares the tokenizer (an `Arc` refcount bump) instead of deep-cloning
+    /// it: a clone copies ~15-30 MiB of vocab/merges, and a burst of
+    /// concurrent clones took seconds each (Phase 8, #16).
     fn decoder(&self) -> Box<dyn IncrementalDecoder> {
         Box::new(HfDecoder {
             detokenizer: Detokenizer::new(
-                self.assets.tokenizer.clone(),
+                Arc::clone(&self.shared_tokenizer),
                 self.eos_token_id,
                 self.clean_up_tokenization_spaces,
             ),
@@ -218,6 +226,49 @@ mod tests {
             streamed.push_str(&chunk);
         }
         assert_eq!(streamed, "Hello world");
+    }
+
+    /// Phase 8 (#16/#17) regression: building a per-request decoder must not
+    /// copy the tokenizer. A deep clone of Qwen3-0.6B's tokenizer costs
+    /// 15-18 ms (seconds each under a burst), so 1,000 builds took ~24 s;
+    /// sharing it makes each build a refcount bump.
+    #[test]
+    fn decoder_build_does_not_copy_the_tokenizer() {
+        let codec = HfCodec::load(QWEN3).expect("load Qwen3-0.6B (network/HF cache required)");
+        let start = std::time::Instant::now();
+        for _ in 0..1_000 {
+            drop(codec.decoder());
+        }
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "1,000 decoder builds took {elapsed:?}; is the tokenizer being cloned per request?"
+        );
+    }
+
+    /// Decoders built from one codec share the tokenizer but must keep
+    /// independent per-request state: interleaving two streams yields the
+    /// same text as decoding each one alone.
+    #[test]
+    fn decoders_sharing_a_tokenizer_keep_independent_state() {
+        let codec = HfCodec::load(QWEN3).expect("load Qwen3-0.6B (network/HF cache required)");
+        let texts = ["Hello world, 你好世界", "The quick brown fox jumps"];
+        let ids: Vec<Vec<i32>> = texts
+            .iter()
+            .map(|t| codec.encode(&Prompt::Text(t.to_string())).expect("encode"))
+            .collect();
+        let mut decoders = [codec.decoder(), codec.decoder()];
+        let mut out = [String::new(), String::new()];
+        let longest = ids.iter().map(Vec::len).max().unwrap();
+        for i in 0..longest {
+            for (k, stream) in ids.iter().enumerate() {
+                if let Some(&id) = stream.get(i) {
+                    let finished = i == stream.len() - 1;
+                    out[k].push_str(&decoders[k].step(i64::from(id), finished).expect("step"));
+                }
+            }
+        }
+        assert_eq!(out, texts.map(str::to_string));
     }
 
     #[test]

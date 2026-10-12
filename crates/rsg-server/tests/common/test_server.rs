@@ -131,7 +131,14 @@ impl TestServer {
             backend_timeout: Duration::from_millis(config.backend_timeout_ms),
         };
         let codec: Arc<dyn TextCodec> = Arc::new(ByteCodec);
-        let engine = Engine::new(writer, dispatch, codec, registry, engine_config);
+        let engine = Engine::new(
+            writer,
+            dispatch,
+            codec,
+            registry,
+            engine_config,
+            metrics.stages(),
+        );
 
         let state = AppState::new("test-model", metrics);
         state.set_engine(Arc::clone(&engine));

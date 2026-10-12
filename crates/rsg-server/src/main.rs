@@ -22,7 +22,7 @@ use rsg_server::hf_codec::HfCodec;
 use rsg_server::http::{self, AppState};
 use rsg_server::metrics::ServerMetrics;
 use rsg_server::transport::{Endpoint, Role, ZmqTransport};
-use rsg_server::writer::spawn_writer;
+use rsg_server::writer::spawn_writer_with_stages;
 
 /// SIGINT or SIGTERM.
 const EXIT_OK: i32 = 0;
@@ -209,7 +209,8 @@ async fn main() {
     tracing::info!("sockets ready");
 
     let (backend_tx, detok_rx) = transport.split();
-    let (writer, _writer_join) = match spawn_writer(backend_tx) {
+    let metrics = ServerMetrics::new();
+    let (writer, _writer_join) = match spawn_writer_with_stages(backend_tx, metrics.stages()) {
         Ok(w) => w,
         Err(e) => {
             tracing::error!("failed to spawn tx-zmq writer: {e}");
@@ -224,7 +225,6 @@ async fn main() {
         }
     };
 
-    let metrics = ServerMetrics::new();
     let state = AppState::new(cli.model.clone(), metrics.clone());
 
     let listener = match tokio::net::TcpListener::bind((cli.host.as_str(), cli.port)).await {
@@ -291,8 +291,9 @@ async fn main() {
         abort_timing: cli.abort_timing,
         backend_timeout: Duration::from_millis(cli.backend_timeout_ms),
     };
+    let stages = metrics.stages();
     let registry = spawn_registry(metrics);
-    let engine = Engine::new(writer, dispatch, codec, registry, engine_config);
+    let engine = Engine::new(writer, dispatch, codec, registry, engine_config, stages);
     state.set_engine(engine);
     tracing::info!(
         abort_timing = ?cli.abort_timing,

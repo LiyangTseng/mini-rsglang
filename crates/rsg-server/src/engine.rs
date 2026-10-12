@@ -26,6 +26,7 @@ use crate::codec::{CodecError, Prompt, TextCodec};
 use crate::dispatch::{DispatchHandle, DispatchStatsSnapshot, UidEvent, UidStream};
 use crate::fsm::RegistryHandle;
 use crate::fsm::state::LifecycleState;
+use crate::metrics::StageMetrics;
 use crate::writer::{Submitted, WriterClosed, WriterHandle};
 
 /// Default backend-unresponsive timeout (LIFE-04), in milliseconds. A
@@ -171,6 +172,7 @@ pub struct Engine {
     codec: Arc<dyn TextCodec>,
     registry: RegistryHandle,
     config: EngineConfig,
+    stages: StageMetrics,
     next_uid: AtomicI64,
 }
 
@@ -181,6 +183,7 @@ impl Engine {
         codec: Arc<dyn TextCodec>,
         registry: RegistryHandle,
         config: EngineConfig,
+        stages: StageMetrics,
     ) -> Arc<Engine> {
         Arc::new(Engine {
             writer,
@@ -188,6 +191,7 @@ impl Engine {
             codec,
             registry,
             config,
+            stages,
             next_uid: AtomicI64::new(0),
         })
     }
@@ -227,7 +231,16 @@ impl Engine {
         };
 
         let engine = Arc::clone(self);
-        tokio::spawn(drive_request(engine, uid, prompt, params, tx, driver_token));
+        let started = Instant::now();
+        tokio::spawn(drive_request(
+            engine,
+            uid,
+            prompt,
+            params,
+            tx,
+            driver_token,
+            started,
+        ));
 
         ActiveRequest {
             uid,
@@ -352,12 +365,18 @@ async fn drive_request(
     params: SamplingParams,
     tx: mpsc::UnboundedSender<RequestEvent>,
     cancel: CancellationToken,
+    started: Instant,
 ) {
     let config = &engine.config;
+    let stages = &engine.stages;
+    stages.spawn_delay.record(started.elapsed());
     engine.registry.report(uid, LifecycleState::Received);
     engine.registry.report(uid, LifecycleState::Tokenizing);
 
-    let input_ids = match engine.codec.encode(&prompt) {
+    let encode_start = Instant::now();
+    let encoded = engine.codec.encode(&prompt);
+    stages.encode.record(encode_start.elapsed());
+    let input_ids = match encoded {
         Ok(ids) => ids,
         Err(CodecError(msg)) => {
             tracing::warn!(uid, "codec encode failed");
@@ -429,8 +448,22 @@ async fn drive_request(
     // clone to tokio's dedicated blocking pool, so the ordering guarantee
     // above still holds (this `.await` completes before register/submit)
     // but no async worker thread is blocked while it runs.
+    //
+    // Since Phase 8 (#17), `HfCodec::decoder()` shares one `Arc<Tokenizer>`
+    // instead of cloning it, so the build itself is cheap. The hop is kept
+    // anyway (panic -> Rejected path, guard against a heavy future codec);
+    // whether to drop it is a separate follow-up decision.
     let codec_for_decoder = engine.codec.clone();
-    let mut decoder = match tokio::task::spawn_blocking(move || codec_for_decoder.decoder()).await {
+    let (queue_hist, build_hist) = (stages.decoder_queue.clone(), stages.decoder_build.clone());
+    let queued_at = Instant::now();
+    let built = tokio::task::spawn_blocking(move || {
+        queue_hist.record(queued_at.elapsed());
+        let build_start = Instant::now();
+        let decoder = codec_for_decoder.decoder();
+        build_hist.record(build_start.elapsed());
+        decoder
+    });
+    let mut decoder = match built.await {
         Ok(decoder) => decoder,
         Err(join_err) => {
             tracing::warn!(uid, %join_err, "decoder construction panicked");
@@ -454,6 +487,7 @@ async fn drive_request(
     // Do not race the submit await itself against cancellation: tokio's
     // bounded send either enqueues or not, and checking right after keeps
     // the ticket logic simple (CONTEXT D-01).
+    let submit_start = Instant::now();
     let submitted = match engine
         .writer
         .submit(uid, Tensor::from_i32_slice(&input_ids), params)
@@ -473,6 +507,8 @@ async fn drive_request(
             return;
         }
     };
+    let submitted_at = Instant::now();
+    stages.submit_enqueue.record(submitted_at - submit_start);
     engine.registry.report(uid, LifecycleState::Submitted);
 
     if cancel.is_cancelled() {
@@ -519,6 +555,7 @@ async fn drive_request(
                     Some(UidEvent::Token(reply)) => {
                         sleep.as_mut().reset(Instant::now() + config.backend_timeout);
                         if !reported_decoding {
+                            stages.backend_wait.record(submitted_at.elapsed());
                             engine.registry.report(uid, LifecycleState::Decoding);
                             reported_decoding = true;
                         }

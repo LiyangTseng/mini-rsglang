@@ -1,0 +1,2164 @@
+{
+  "schema_version": 1,
+  "generated_by": "crates/rsg-bench",
+  "meta": {
+    "created_utc": "2026-10-12T08:47:03Z",
+    "platform": "linux",
+    "python": "Python 3.12.3",
+    "git_commit": "d8c710394f0705bbee95cf9a4f28ad08d5c6aa8b",
+    "git_dirty": false,
+    "upstream_sha": "9a91cfafe754aa85daee49998176275667eb58f2",
+    "model": "Qwen/Qwen3-0.6B",
+    "gpu": "NVIDIA GeForce RTX 3050",
+    "arch": "x86_64",
+    "os_long": "Linux (Ubuntu 24.04)",
+    "kernel": "5.15.167.4-microsoft-standard-WSL2",
+    "cpu_brand": "12th Gen Intel(R) Core(TM) i5-12600K",
+    "cpu_count": 12,
+    "total_memory_bytes": 16646324224,
+    "gpu_driver": "610.47",
+    "torch_cuda": "12.8",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "harness_profile": "release",
+    "env": {},
+    "backend_kind": "real"
+  },
+  "session": {
+    "scenario": "s3_coldstart",
+    "seed": 42,
+    "runs": 5,
+    "schedule": [
+      "python-default",
+      "rust",
+      "python-best",
+      "python-default",
+      "rust",
+      "python-best",
+      "python-default",
+      "rust",
+      "python-best",
+      "python-default",
+      "rust",
+      "python-best",
+      "python-default",
+      "rust",
+      "python-best"
+    ],
+    "arms": [
+      {
+        "id": "python-default",
+        "kind": "python",
+        "num_tokenizer": 0,
+        "also_best": false,
+        "argv": [
+          ".venv/bin/python",
+          "-m",
+          "rsglang.launch",
+          "--frontend",
+          "python",
+          "--model",
+          "Qwen/Qwen3-0.6B",
+          "--port",
+          "31031",
+          "--num-tokenizer",
+          "<redacted>"
+        ]
+      },
+      {
+        "id": "rust",
+        "kind": "rust",
+        "num_tokenizer": null,
+        "also_best": false,
+        "argv": [
+          ".venv/bin/python",
+          "-m",
+          "rsglang.launch",
+          "--frontend",
+          "rust",
+          "--model",
+          "Qwen/Qwen3-0.6B",
+          "--port",
+          "31031"
+        ]
+      },
+      {
+        "id": "python-best",
+        "kind": "python",
+        "num_tokenizer": 2,
+        "also_best": false,
+        "argv": [
+          ".venv/bin/python",
+          "-m",
+          "rsglang.launch",
+          "--frontend",
+          "python",
+          "--model",
+          "Qwen/Qwen3-0.6B",
+          "--port",
+          "31031",
+          "--num-tokenizer",
+          "<redacted>"
+        ]
+      }
+    ],
+    "harness_argv": [
+      "target/release/rsg-bench",
+      "s3",
+      "--backend-kind",
+      "real",
+      "--model-arg",
+      "Qwen/Qwen3-0.6B",
+      "--port",
+      "31031",
+      "--python",
+      ".venv/bin/python",
+      "--runs",
+      "5",
+      "--python-best-num-tokenizer",
+      "<redacted>",
+      "--python-cmd",
+      "{python} -m rsglang.launch --frontend python --model {model} --port {port} --num-tokenizer <redacted>",
+      "--rust-cmd",
+      "{python} -m rsglang.launch --frontend rust --model {model} --port {port}",
+      "--out",
+      "docs/benchmarks/phase8-benchmarks/s3_coldstart.manifest.json"
+    ],
+    "workload": {
+      "hyperfine": "hyperfine",
+      "hyperfine_runs": 3,
+      "hyperfine_warmup": 1
+    }
+  },
+  "trials": [
+    {
+      "index": 0,
+      "round": 0,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:47:04Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.823376329179998,
+          "mean_s": 8.760520377179999,
+          "median_s": 8.76295581018,
+          "min_s": 8.695228992179999,
+          "runs": 3,
+          "stddev_s": 0.06410837305275334,
+          "times_s": [
+            8.695228992179999,
+            8.76295581018,
+            8.823376329179998
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.757135026333334,
+          "frontend_pss_bytes": 1083141461,
+          "frontend_rss_bytes": 1487020032,
+          "frontend_tail_s": 8.753701565333335,
+          "tree_pss_bytes": 3383630848,
+          "tree_rss_bytes": 3990108842
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.002875386,
+            "e2e_ready_s": 8.69172281,
+            "frontend_tail_s": 8.688847424,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1078764544,
+                  "rss_bytes": 1485266944
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10022912,
+                  "rss_bytes": 15642624
+                },
+                "scheduler": {
+                  "pss_bytes": 2282403840,
+                  "rss_bytes": 2483847168
+                }
+              },
+              "tree": {
+                "pss_bytes": 3371191296,
+                "rss_bytes": 3984756736
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.004566286,
+            "e2e_ready_s": 8.759337959,
+            "frontend_tail_s": 8.754771673,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1089908736,
+                  "rss_bytes": 1490944000
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10043392,
+                  "rss_bytes": 15654912
+                },
+                "scheduler": {
+                  "pss_bytes": 2292362240,
+                  "rss_bytes": 2487959552
+                }
+              },
+              "tree": {
+                "pss_bytes": 3392314368,
+                "rss_bytes": 3994558464
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.002858711,
+            "e2e_ready_s": 8.82034431,
+            "frontend_tail_s": 8.817485599,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1080751104,
+                  "rss_bytes": 1484849152
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10028032,
+                  "rss_bytes": 15671296
+                },
+                "scheduler": {
+                  "pss_bytes": 2296607744,
+                  "rss_bytes": 2490490880
+                }
+              },
+              "tree": {
+                "pss_bytes": 3387386880,
+                "rss_bytes": 3991011328
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 1,
+      "round": 0,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:47:44Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.26654508226,
+          "mean_s": 8.23086771626,
+          "median_s": 8.264490326259999,
+          "min_s": 8.161567740259999,
+          "runs": 3,
+          "stddev_s": 0.06002433265564368,
+          "times_s": [
+            8.264490326259999,
+            8.161567740259999,
+            8.26654508226
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.227516057999999,
+          "frontend_pss_bytes": 121974784,
+          "frontend_rss_bytes": 123263658,
+          "frontend_tail_s": 8.224241358666667,
+          "tree_pss_bytes": 3004438186,
+          "tree_rss_bytes": 3307801258
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.002752208,
+            "e2e_ready_s": 8.261256645,
+            "frontend_tail_s": 8.258504437,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 122065920,
+                  "rss_bytes": 123256832
+                },
+                "launcher": {
+                  "pss_bytes": 530235392,
+                  "rss_bytes": 681861120
+                },
+                "other": {
+                  "pss_bytes": 10435584,
+                  "rss_bytes": 15687680
+                },
+                "scheduler": {
+                  "pss_bytes": 2334189568,
+                  "rss_bytes": 2484486144
+                }
+              },
+              "tree": {
+                "pss_bytes": 2996926464,
+                "rss_bytes": 3305291776
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.002791082,
+            "e2e_ready_s": 8.158284108,
+            "frontend_tail_s": 8.155493026,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 121996288,
+                  "rss_bytes": 123392000
+                },
+                "launcher": {
+                  "pss_bytes": 536479744,
+                  "rss_bytes": 685416448
+                },
+                "other": {
+                  "pss_bytes": 10423296,
+                  "rss_bytes": 15650816
+                },
+                "scheduler": {
+                  "pss_bytes": 2336629760,
+                  "rss_bytes": 2484117504
+                }
+              },
+              "tree": {
+                "pss_bytes": 3005529088,
+                "rss_bytes": 3308576768
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004280808,
+            "e2e_ready_s": 8.263007421,
+            "frontend_tail_s": 8.258726612999999,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 121862144,
+                  "rss_bytes": 123142144
+                },
+                "launcher": {
+                  "pss_bytes": 537109504,
+                  "rss_bytes": 683831296
+                },
+                "other": {
+                  "pss_bytes": 10412032,
+                  "rss_bytes": 15671296
+                },
+                "scheduler": {
+                  "pss_bytes": 2341475328,
+                  "rss_bytes": 2486890496
+                }
+              },
+              "tree": {
+                "pss_bytes": 3010859008,
+                "rss_bytes": 3309535232
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 2,
+      "round": 0,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:48:22Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 9.15213631982,
+          "mean_s": 9.07744608582,
+          "median_s": 9.04773149482,
+          "min_s": 9.03247044282,
+          "runs": 3,
+          "stddev_s": 0.06513215963153554,
+          "times_s": [
+            9.04773149482,
+            9.15213631982,
+            9.03247044282
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 9.074022422333334,
+          "frontend_pss_bytes": 2052357120,
+          "frontend_rss_bytes": 3020735829,
+          "frontend_tail_s": 9.070264796333333,
+          "tree_pss_bytes": 4311213056,
+          "tree_rss_bytes": 5525960021
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.002778392,
+            "e2e_ready_s": 9.04431667,
+            "frontend_tail_s": 9.041538278,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2051466240,
+                  "rss_bytes": 3025498112
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9627648,
+                  "rss_bytes": 15646720
+                },
+                "scheduler": {
+                  "pss_bytes": 2249164800,
+                  "rss_bytes": 2488582144
+                }
+              },
+              "tree": {
+                "pss_bytes": 4310258688,
+                "rss_bytes": 5529726976
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.004256162,
+            "e2e_ready_s": 9.148740186,
+            "frontend_tail_s": 9.144484024,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2051085312,
+                  "rss_bytes": 3014680576
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9666560,
+                  "rss_bytes": 15749120
+                },
+                "scheduler": {
+                  "pss_bytes": 2249372672,
+                  "rss_bytes": 2490994688
+                }
+              },
+              "tree": {
+                "pss_bytes": 4310124544,
+                "rss_bytes": 5521424384
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004238324,
+            "e2e_ready_s": 9.029010411,
+            "frontend_tail_s": 9.024772087,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2054519808,
+                  "rss_bytes": 3022028800
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9640960,
+                  "rss_bytes": 15708160
+                },
+                "scheduler": {
+                  "pss_bytes": 2249095168,
+                  "rss_bytes": 2488991744
+                }
+              },
+              "tree": {
+                "pss_bytes": 4313255936,
+                "rss_bytes": 5526728704
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 3,
+      "round": 1,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:49:04Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.7878054145,
+          "mean_s": 8.724280308166668,
+          "median_s": 8.6928771315,
+          "min_s": 8.6921583785,
+          "runs": 3,
+          "stddev_s": 0.055015529648133846,
+          "times_s": [
+            8.6928771315,
+            8.6921583785,
+            8.7878054145
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.720737884333333,
+          "frontend_pss_bytes": 1076339712,
+          "frontend_rss_bytes": 1477611520,
+          "frontend_tail_s": 8.716227174000002,
+          "tree_pss_bytes": 3371311445,
+          "tree_rss_bytes": 3979076949
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.005160216,
+            "e2e_ready_s": 8.689658788,
+            "frontend_tail_s": 8.684498571999999,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1068987392,
+                  "rss_bytes": 1475887104
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10024960,
+                  "rss_bytes": 15650816
+                },
+                "scheduler": {
+                  "pss_bytes": 2285776896,
+                  "rss_bytes": 2485768192
+                }
+              },
+              "tree": {
+                "pss_bytes": 3364789248,
+                "rss_bytes": 3977306112
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.004214429,
+            "e2e_ready_s": 8.688890686,
+            "frontend_tail_s": 8.684676257000001,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1078423552,
+                  "rss_bytes": 1478336512
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10036224,
+                  "rss_bytes": 15646720
+                },
+                "scheduler": {
+                  "pss_bytes": 2281856000,
+                  "rss_bytes": 2484756480
+                }
+              },
+              "tree": {
+                "pss_bytes": 3370315776,
+                "rss_bytes": 3978739712
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004157486,
+            "e2e_ready_s": 8.783664179,
+            "frontend_tail_s": 8.779506693,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1081608192,
+                  "rss_bytes": 1478610944
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10057728,
+                  "rss_bytes": 15675392
+                },
+                "scheduler": {
+                  "pss_bytes": 2287163392,
+                  "rss_bytes": 2486898688
+                }
+              },
+              "tree": {
+                "pss_bytes": 3378829312,
+                "rss_bytes": 3981185024
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 4,
+      "round": 1,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:49:45Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.33719278974,
+          "mean_s": 8.23290642674,
+          "median_s": 8.29200018474,
+          "min_s": 8.06952630574,
+          "runs": 3,
+          "stddev_s": 0.14328430074558887,
+          "times_s": [
+            8.33719278974,
+            8.06952630574,
+            8.29200018474
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.229469801999999,
+          "frontend_pss_bytes": 120703658,
+          "frontend_rss_bytes": 121977514,
+          "frontend_tail_s": 8.225716073333333,
+          "tree_pss_bytes": 3008244736,
+          "tree_rss_bytes": 3310459562
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.00422593,
+            "e2e_ready_s": 8.333602094,
+            "frontend_tail_s": 8.329376164,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 120372224,
+                  "rss_bytes": 121434112
+                },
+                "launcher": {
+                  "pss_bytes": 530297856,
+                  "rss_bytes": 681889792
+                },
+                "other": {
+                  "pss_bytes": 10411008,
+                  "rss_bytes": 15663104
+                },
+                "scheduler": {
+                  "pss_bytes": 2340580352,
+                  "rss_bytes": 2490810368
+                }
+              },
+              "tree": {
+                "pss_bytes": 3001661440,
+                "rss_bytes": 3309797376
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.00279096,
+            "e2e_ready_s": 8.066185026,
+            "frontend_tail_s": 8.063394065999999,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 119657472,
+                  "rss_bytes": 121040896
+                },
+                "launcher": {
+                  "pss_bytes": 539345920,
+                  "rss_bytes": 686821376
+                },
+                "other": {
+                  "pss_bytes": 10397696,
+                  "rss_bytes": 15646720
+                },
+                "scheduler": {
+                  "pss_bytes": 2338712576,
+                  "rss_bytes": 2484764672
+                }
+              },
+              "tree": {
+                "pss_bytes": 3008113664,
+                "rss_bytes": 3308273664
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004244296,
+            "e2e_ready_s": 8.288622286,
+            "frontend_tail_s": 8.284377990000001,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 122081280,
+                  "rss_bytes": 123457536
+                },
+                "launcher": {
+                  "pss_bytes": 536891392,
+                  "rss_bytes": 683376640
+                },
+                "other": {
+                  "pss_bytes": 10414080,
+                  "rss_bytes": 15757312
+                },
+                "scheduler": {
+                  "pss_bytes": 2345572352,
+                  "rss_bytes": 2490716160
+                }
+              },
+              "tree": {
+                "pss_bytes": 3014959104,
+                "rss_bytes": 3313307648
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 5,
+      "round": 1,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:50:22Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 9.20188362414,
+          "mean_s": 9.16294255614,
+          "median_s": 9.17844618614,
+          "min_s": 9.10849785814,
+          "runs": 3,
+          "stddev_s": 0.04858494859763058,
+          "times_s": [
+            9.10849785814,
+            9.20188362414,
+            9.17844618614
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 9.159869780333333,
+          "frontend_pss_bytes": 2066999637,
+          "frontend_rss_bytes": 3029884928,
+          "frontend_tail_s": 9.156583509999999,
+          "tree_pss_bytes": 4321538048,
+          "tree_rss_bytes": 5532869973
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.002725049,
+            "e2e_ready_s": 9.105475004,
+            "frontend_tail_s": 9.102749955,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2061249536,
+                  "rss_bytes": 3023454208
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9624576,
+                  "rss_bytes": 15593472
+                },
+                "scheduler": {
+                  "pss_bytes": 2250699776,
+                  "rss_bytes": 2492772352
+                }
+              },
+              "tree": {
+                "pss_bytes": 4321573888,
+                "rss_bytes": 5531820032
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.002845566,
+            "e2e_ready_s": 9.19868457,
+            "frontend_tail_s": 9.195839004,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2066081792,
+                  "rss_bytes": 3032006656
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9656320,
+                  "rss_bytes": 15753216
+                },
+                "scheduler": {
+                  "pss_bytes": 2242252800,
+                  "rss_bytes": 2483703808
+                }
+              },
+              "tree": {
+                "pss_bytes": 4317990912,
+                "rss_bytes": 5531463680
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004288196,
+            "e2e_ready_s": 9.175449767,
+            "frontend_tail_s": 9.171161571,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2073667584,
+                  "rss_bytes": 3034193920
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9635840,
+                  "rss_bytes": 15708160
+                },
+                "scheduler": {
+                  "pss_bytes": 2241745920,
+                  "rss_bytes": 2485424128
+                }
+              },
+              "tree": {
+                "pss_bytes": 4325049344,
+                "rss_bytes": 5535326208
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 6,
+      "round": 2,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:51:05Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.93894471894,
+          "mean_s": 8.831643708273333,
+          "median_s": 8.87970123194,
+          "min_s": 8.67628517394,
+          "runs": 3,
+          "stddev_s": 0.13776666262427545,
+          "times_s": [
+            8.93894471894,
+            8.87970123194,
+            8.67628517394
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.827725942666667,
+          "frontend_pss_bytes": 1084015616,
+          "frontend_rss_bytes": 1483650389,
+          "frontend_tail_s": 8.824433315666667,
+          "tree_pss_bytes": 3385815040,
+          "tree_rss_bytes": 3988424021
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.00315754,
+            "e2e_ready_s": 8.935152707,
+            "frontend_tail_s": 8.931995167,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1089538048,
+                  "rss_bytes": 1484009472
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10043392,
+                  "rss_bytes": 15691776
+                },
+                "scheduler": {
+                  "pss_bytes": 2289092608,
+                  "rss_bytes": 2488586240
+                }
+              },
+              "tree": {
+                "pss_bytes": 3388674048,
+                "rss_bytes": 3988287488
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.002779727,
+            "e2e_ready_s": 8.876547592,
+            "frontend_tail_s": 8.873767865,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1083833344,
+                  "rss_bytes": 1486077952
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10022912,
+                  "rss_bytes": 15626240
+                },
+                "scheduler": {
+                  "pss_bytes": 2287556608,
+                  "rss_bytes": 2484387840
+                }
+              },
+              "tree": {
+                "pss_bytes": 3381412864,
+                "rss_bytes": 3986092032
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.003940614,
+            "e2e_ready_s": 8.671477529,
+            "frontend_tail_s": 8.667536915000001,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1078675456,
+                  "rss_bytes": 1480863744
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10030080,
+                  "rss_bytes": 15593472
+                },
+                "scheduler": {
+                  "pss_bytes": 2298652672,
+                  "rss_bytes": 2494435328
+                }
+              },
+              "tree": {
+                "pss_bytes": 3387358208,
+                "rss_bytes": 3990892544
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 7,
+      "round": 2,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:51:45Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.280857489399999,
+          "mean_s": 8.167974174066666,
+          "median_s": 8.225311551399999,
+          "min_s": 7.9977534814,
+          "runs": 3,
+          "stddev_s": 0.15000883629311504,
+          "times_s": [
+            8.280857489399999,
+            8.225311551399999,
+            7.9977534814
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.163968791,
+          "frontend_pss_bytes": 121388373,
+          "frontend_rss_bytes": 122676565,
+          "frontend_tail_s": 8.159753103666667,
+          "tree_pss_bytes": 3003979093,
+          "tree_rss_bytes": 3307386197
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.004163145,
+            "e2e_ready_s": 8.276382535,
+            "frontend_tail_s": 8.27221939,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 122171392,
+                  "rss_bytes": 123441152
+                },
+                "launcher": {
+                  "pss_bytes": 531590144,
+                  "rss_bytes": 686202880
+                },
+                "other": {
+                  "pss_bytes": 10430464,
+                  "rss_bytes": 15691776
+                },
+                "scheduler": {
+                  "pss_bytes": 2332492800,
+                  "rss_bytes": 2485657600
+                }
+              },
+              "tree": {
+                "pss_bytes": 2996684800,
+                "rss_bytes": 3310993408
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.00429222,
+            "e2e_ready_s": 8.221629063,
+            "frontend_tail_s": 8.217336843,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 120119296,
+                  "rss_bytes": 121339904
+                },
+                "launcher": {
+                  "pss_bytes": 537909248,
+                  "rss_bytes": 684195840
+                },
+                "other": {
+                  "pss_bytes": 10396672,
+                  "rss_bytes": 15687680
+                },
+                "scheduler": {
+                  "pss_bytes": 2337180672,
+                  "rss_bytes": 2481958912
+                }
+              },
+              "tree": {
+                "pss_bytes": 3005605888,
+                "rss_bytes": 3303182336
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004191697,
+            "e2e_ready_s": 7.993894775,
+            "frontend_tail_s": 7.989703078,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 121874432,
+                  "rss_bytes": 123248640
+                },
+                "launcher": {
+                  "pss_bytes": 537241600,
+                  "rss_bytes": 683851776
+                },
+                "other": {
+                  "pss_bytes": 10422272,
+                  "rss_bytes": 15646720
+                },
+                "scheduler": {
+                  "pss_bytes": 2340108288,
+                  "rss_bytes": 2485235712
+                }
+              },
+              "tree": {
+                "pss_bytes": 3009646592,
+                "rss_bytes": 3307982848
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 8,
+      "round": 2,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:52:23Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 9.11939761098,
+          "mean_s": 9.09104599098,
+          "median_s": 9.08413987098,
+          "min_s": 9.06960049098,
+          "runs": 3,
+          "stddev_s": 0.025606818626381235,
+          "times_s": [
+            9.08413987098,
+            9.06960049098,
+            9.11939761098
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 9.087498017666666,
+          "frontend_pss_bytes": 2060925610,
+          "frontend_rss_bytes": 3025316522,
+          "frontend_tail_s": 9.083721669333334,
+          "tree_pss_bytes": 4312590336,
+          "tree_rss_bytes": 5525741568
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.00291832,
+            "e2e_ready_s": 9.080483639,
+            "frontend_tail_s": 9.077565319,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2062444544,
+                  "rss_bytes": 3027791872
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9640960,
+                  "rss_bytes": 15749120
+                },
+                "scheduler": {
+                  "pss_bytes": 2239155200,
+                  "rss_bytes": 2483077120
+                }
+              },
+              "tree": {
+                "pss_bytes": 4311240704,
+                "rss_bytes": 5526618112
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.004293936,
+            "e2e_ready_s": 9.066291683,
+            "frontend_tail_s": 9.061997747,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2061731840,
+                  "rss_bytes": 3025346560
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9650176,
+                  "rss_bytes": 15757312
+                },
+                "scheduler": {
+                  "pss_bytes": 2239479808,
+                  "rss_bytes": 2482446336
+                }
+              },
+              "tree": {
+                "pss_bytes": 4310861824,
+                "rss_bytes": 5523550208
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004116789,
+            "e2e_ready_s": 9.115718731,
+            "frontend_tail_s": 9.111601942,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2058600448,
+                  "rss_bytes": 3022811136
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9619456,
+                  "rss_bytes": 15659008
+                },
+                "scheduler": {
+                  "pss_bytes": 2247448576,
+                  "rss_bytes": 2488586240
+                }
+              },
+              "tree": {
+                "pss_bytes": 4315668480,
+                "rss_bytes": 5527056384
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 9,
+      "round": 3,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:53:05Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.77245679702,
+          "mean_s": 8.730831638353331,
+          "median_s": 8.73022191602,
+          "min_s": 8.68981620202,
+          "runs": 3,
+          "stddev_s": 0.04132367126092944,
+          "times_s": [
+            8.77245679702,
+            8.73022191602,
+            8.68981620202
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.727163691666668,
+          "frontend_pss_bytes": 1076233898,
+          "frontend_rss_bytes": 1481048064,
+          "frontend_tail_s": 8.723528879,
+          "tree_pss_bytes": 3374674602,
+          "tree_rss_bytes": 3985708373
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.003744936,
+            "e2e_ready_s": 8.769128135,
+            "frontend_tail_s": 8.765383199,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1076149248,
+                  "rss_bytes": 1482547200
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10010624,
+                  "rss_bytes": 15609856
+                },
+                "scheduler": {
+                  "pss_bytes": 2289528832,
+                  "rss_bytes": 2492825600
+                }
+              },
+              "tree": {
+                "pss_bytes": 3375688704,
+                "rss_bytes": 3990982656
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.004238481,
+            "e2e_ready_s": 8.726236596,
+            "frontend_tail_s": 8.721998115,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1076809728,
+                  "rss_bytes": 1480413184
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10098688,
+                  "rss_bytes": 15724544
+                },
+                "scheduler": {
+                  "pss_bytes": 2292238336,
+                  "rss_bytes": 2489266176
+                }
+              },
+              "tree": {
+                "pss_bytes": 3379146752,
+                "rss_bytes": 3985403904
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.002921021,
+            "e2e_ready_s": 8.686126344,
+            "frontend_tail_s": 8.683205323,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1075742720,
+                  "rss_bytes": 1480183808
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10037248,
+                  "rss_bytes": 15683584
+                },
+                "scheduler": {
+                  "pss_bytes": 2283408384,
+                  "rss_bytes": 2484871168
+                }
+              },
+              "tree": {
+                "pss_bytes": 3369188352,
+                "rss_bytes": 3980738560
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 10,
+      "round": 3,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:53:45Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.326743749959999,
+          "mean_s": 8.160846394626665,
+          "median_s": 8.098537321959999,
+          "min_s": 8.05725811196,
+          "runs": 3,
+          "stddev_s": 0.14514628026408952,
+          "times_s": [
+            8.098537321959999,
+            8.326743749959999,
+            8.05725811196
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.157447179666667,
+          "frontend_pss_bytes": 121228288,
+          "frontend_rss_bytes": 122522282,
+          "frontend_tail_s": 8.154209100000001,
+          "tree_pss_bytes": 2998336512,
+          "tree_rss_bytes": 3307357525
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.003992228,
+            "e2e_ready_s": 8.095272409,
+            "frontend_tail_s": 8.091280181,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 121801728,
+                  "rss_bytes": 123142144
+                },
+                "launcher": {
+                  "pss_bytes": 533139456,
+                  "rss_bytes": 685674496
+                },
+                "other": {
+                  "pss_bytes": 10412032,
+                  "rss_bytes": 15724544
+                },
+                "scheduler": {
+                  "pss_bytes": 2335293440,
+                  "rss_bytes": 2486341632
+                }
+              },
+              "tree": {
+                "pss_bytes": 3000646656,
+                "rss_bytes": 3310882816
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.002810306,
+            "e2e_ready_s": 8.323397192,
+            "frontend_tail_s": 8.320586886,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 119721984,
+                  "rss_bytes": 121049088
+                },
+                "launcher": {
+                  "pss_bytes": 530955264,
+                  "rss_bytes": 682491904
+                },
+                "other": {
+                  "pss_bytes": 10401792,
+                  "rss_bytes": 15646720
+                },
+                "scheduler": {
+                  "pss_bytes": 2337255424,
+                  "rss_bytes": 2487504896
+                }
+              },
+              "tree": {
+                "pss_bytes": 2998334464,
+                "rss_bytes": 3306692608
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.002911705,
+            "e2e_ready_s": 8.053671938,
+            "frontend_tail_s": 8.050760233,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 122161152,
+                  "rss_bytes": 123375616
+                },
+                "launcher": {
+                  "pss_bytes": 530349056,
+                  "rss_bytes": 682024960
+                },
+                "other": {
+                  "pss_bytes": 10400768,
+                  "rss_bytes": 15712256
+                },
+                "scheduler": {
+                  "pss_bytes": 2333117440,
+                  "rss_bytes": 2483384320
+                }
+              },
+              "tree": {
+                "pss_bytes": 2996028416,
+                "rss_bytes": 3304497152
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 11,
+      "round": 3,
+      "arm": "python-best",
+      "status": "failed",
+      "error": "run_trial failed: hyperfine exited Some(1); last stderr:\nError: The conclusion command terminated with a non-zero exit code. Append ' || true' to the command if you are sure that this can be ignored.",
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:54:22Z",
+      "ready_s": null,
+      "result": null,
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 12,
+      "round": 4,
+      "arm": "python-default",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:55:53Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 10.20956061522,
+          "mean_s": 9.319752578886666,
+          "median_s": 8.98979816722,
+          "min_s": 8.759898954219999,
+          "runs": 3,
+          "stddev_s": 0.7791226913503685,
+          "times_s": [
+            10.20956061522,
+            8.759898954219999,
+            8.98979816722
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 9.316111986000001,
+          "frontend_pss_bytes": 1078324224,
+          "frontend_rss_bytes": 1481854976,
+          "frontend_tail_s": 9.311830109333334,
+          "tree_pss_bytes": 3376290474,
+          "tree_rss_bytes": 3984519168
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.004219937,
+            "e2e_ready_s": 10.20593877,
+            "frontend_tail_s": 10.201718833,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1079585792,
+                  "rss_bytes": 1483952128
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10015744,
+                  "rss_bytes": 15519744
+                },
+                "scheduler": {
+                  "pss_bytes": 2280690688,
+                  "rss_bytes": 2483089408
+                }
+              },
+              "tree": {
+                "pss_bytes": 3370292224,
+                "rss_bytes": 3982561280
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.004341218,
+            "e2e_ready_s": 8.756022251,
+            "frontend_tail_s": 8.751681032999999,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1077266432,
+                  "rss_bytes": 1481367552
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10021888,
+                  "rss_bytes": 15671296
+                },
+                "scheduler": {
+                  "pss_bytes": 2297639936,
+                  "rss_bytes": 2491383808
+                }
+              },
+              "tree": {
+                "pss_bytes": 3384928256,
+                "rss_bytes": 3988422656
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004284475,
+            "e2e_ready_s": 8.986374937,
+            "frontend_tail_s": 8.982090462,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 1078120448,
+                  "rss_bytes": 1480245248
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 10017792,
+                  "rss_bytes": 15667200
+                },
+                "scheduler": {
+                  "pss_bytes": 2285512704,
+                  "rss_bytes": 2486661120
+                }
+              },
+              "tree": {
+                "pss_bytes": 3373650944,
+                "rss_bytes": 3982573568
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 13,
+      "round": 4,
+      "arm": "rust",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:56:35Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 8.35946718562,
+          "mean_s": 8.328063805953333,
+          "median_s": 8.33591121862,
+          "min_s": 8.28881301362,
+          "runs": 3,
+          "stddev_s": 0.03597484425848276,
+          "times_s": [
+            8.33591121862,
+            8.35946718562,
+            8.28881301362
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 8.324498388,
+          "frontend_pss_bytes": 121530709,
+          "frontend_rss_bytes": 122743466,
+          "frontend_tail_s": 8.320100810666666,
+          "tree_pss_bytes": 3007863808,
+          "tree_rss_bytes": 3309972138
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.004318937,
+            "e2e_ready_s": 8.331810521,
+            "frontend_tail_s": 8.327491583999999,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 122322944,
+                  "rss_bytes": 123547648
+                },
+                "launcher": {
+                  "pss_bytes": 540036096,
+                  "rss_bytes": 686575616
+                },
+                "other": {
+                  "pss_bytes": 10466304,
+                  "rss_bytes": 15753216
+                },
+                "scheduler": {
+                  "pss_bytes": 2335938560,
+                  "rss_bytes": 2480926720
+                }
+              },
+              "tree": {
+                "pss_bytes": 3008763904,
+                "rss_bytes": 3306803200
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.004549656,
+            "e2e_ready_s": 8.356076301,
+            "frontend_tail_s": 8.351526645,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 122403840,
+                  "rss_bytes": 123576320
+                },
+                "launcher": {
+                  "pss_bytes": 535156736,
+                  "rss_bytes": 684105728
+                },
+                "other": {
+                  "pss_bytes": 10406912,
+                  "rss_bytes": 15667200
+                },
+                "scheduler": {
+                  "pss_bytes": 2340489216,
+                  "rss_bytes": 2487975936
+                }
+              },
+              "tree": {
+                "pss_bytes": 3008456704,
+                "rss_bytes": 3311325184
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.004324139,
+            "e2e_ready_s": 8.285608342,
+            "frontend_tail_s": 8.281284203,
+            "gc_boot": {
+              "rust_frontend": {
+                "not_applicable": "Rust frontend has no garbage collector"
+              }
+            },
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 119865344,
+                  "rss_bytes": 121106432
+                },
+                "launcher": {
+                  "pss_bytes": 538220544,
+                  "rss_bytes": 688373760
+                },
+                "other": {
+                  "pss_bytes": 10411008,
+                  "rss_bytes": 15712256
+                },
+                "scheduler": {
+                  "pss_bytes": 2337873920,
+                  "rss_bytes": 2486595584
+                }
+              },
+              "tree": {
+                "pss_bytes": 3006370816,
+                "rss_bytes": 3311788032
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    },
+    {
+      "index": 14,
+      "round": 4,
+      "arm": "python-best",
+      "status": "ok",
+      "error": null,
+      "model_id": null,
+      "launched_utc": "2026-10-12T08:57:13Z",
+      "ready_s": null,
+      "result": {
+        "hyperfine": {
+          "max_s": 10.98784728644,
+          "mean_s": 9.79477123944,
+          "median_s": 9.20946381444,
+          "min_s": 9.18700261744,
+          "runs": 3,
+          "stddev_s": 1.0332951982790437,
+          "times_s": [
+            9.20946381444,
+            10.98784728644,
+            9.18700261744
+          ]
+        },
+        "means": {
+          "e2e_ready_s": 9.790398207666668,
+          "frontend_pss_bytes": 2063640917,
+          "frontend_rss_bytes": 3026741930,
+          "frontend_tail_s": 9.786608725666667,
+          "tree_pss_bytes": 4318953130,
+          "tree_rss_bytes": 5529448448
+        },
+        "runs": [
+          {
+            "backend_ready_s": 0.002754456,
+            "e2e_ready_s": 9.204877387,
+            "frontend_tail_s": 9.202122931,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2065370112,
+                  "rss_bytes": 3027288064
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9616384,
+                  "rss_bytes": 15646720
+                },
+                "scheduler": {
+                  "pss_bytes": 2246542336,
+                  "rss_bytes": 2489499648
+                }
+              },
+              "tree": {
+                "pss_bytes": 4321528832,
+                "rss_bytes": 5532434432
+              }
+            },
+            "run": 1
+          },
+          {
+            "backend_ready_s": 0.005704893,
+            "e2e_ready_s": 10.982799576,
+            "frontend_tail_s": 10.977094683,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2064731136,
+                  "rss_bytes": 3029839872
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9625600,
+                  "rss_bytes": 15663104
+                },
+                "scheduler": {
+                  "pss_bytes": 2245193728,
+                  "rss_bytes": 2483564544
+                }
+              },
+              "tree": {
+                "pss_bytes": 4319550464,
+                "rss_bytes": 5529067520
+              }
+            },
+            "run": 2
+          },
+          {
+            "backend_ready_s": 0.002909097,
+            "e2e_ready_s": 9.18351766,
+            "frontend_tail_s": 9.180608563,
+            "gc_boot": {},
+            "memory_at_ready": {
+              "groups": {
+                "frontend": {
+                  "pss_bytes": 2060821504,
+                  "rss_bytes": 3023097856
+                },
+                "launcher": {
+                  "pss_bytes": 0,
+                  "rss_bytes": 0
+                },
+                "other": {
+                  "pss_bytes": 9629696,
+                  "rss_bytes": 15667200
+                },
+                "scheduler": {
+                  "pss_bytes": 2245328896,
+                  "rss_bytes": 2488078336
+                }
+              },
+              "tree": {
+                "pss_bytes": 4315780096,
+                "rss_bytes": 5526843392
+              }
+            },
+            "run": 3
+          }
+        ]
+      },
+      "histograms": {},
+      "windows": [],
+      "roles": {},
+      "hook": {
+        "present": false,
+        "files": 0,
+        "malformed_lines": 0,
+        "mem_records": 0
+      },
+      "teardown_graceful": null,
+      "teardown_survivors": []
+    }
+  ],
+  "warnings": [],
+  "interrupted": false
+}

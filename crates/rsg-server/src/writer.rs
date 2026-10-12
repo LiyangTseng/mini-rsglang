@@ -14,9 +14,12 @@
 //! (`scheduler/io.py:124-130`, `tokenizer/server.py:99-108`; RESEARCH.md
 //! Pitfall 3: never wrap a lone message in a one-element batch).
 
+use std::time::Instant;
+
 use anyhow::Context as _;
 use rsg_wire::{BackendMsg, SamplingParams, Tensor};
 
+use crate::metrics::StageMetrics;
 use crate::transport::BackendSink;
 
 /// Bound on the writer's inbox (Claude's discretion, CONTEXT D-01).
@@ -63,10 +66,19 @@ pub struct WriterClosed;
 /// A cheap, cloneable handle onto the single writer's inbox.
 #[derive(Clone)]
 pub struct WriterHandle {
-    tx: tokio::sync::mpsc::Sender<BackendMsg>,
+    tx: tokio::sync::mpsc::Sender<(BackendMsg, Instant)>,
 }
 
 impl WriterHandle {
+    /// Enqueues `msg`, stamped with its enqueue time for the writer-queue
+    /// stage histogram.
+    async fn send(&self, msg: BackendMsg) -> Result<(), WriterClosed> {
+        self.tx
+            .send((msg, Instant::now()))
+            .await
+            .map_err(|_| WriterClosed)
+    }
+
     /// Enqueues a `UserMsg`. Returns once the enqueue has completed — the
     /// ordering point described in the module doc.
     pub async fn submit(
@@ -75,14 +87,12 @@ impl WriterHandle {
         input_ids: Tensor,
         sampling_params: SamplingParams,
     ) -> Result<Submitted, WriterClosed> {
-        self.tx
-            .send(BackendMsg::UserMsg {
-                uid,
-                input_ids,
-                sampling_params,
-            })
-            .await
-            .map_err(|_| WriterClosed)?;
+        self.send(BackendMsg::UserMsg {
+            uid,
+            input_ids,
+            sampling_params,
+        })
+        .await?;
         Ok(Submitted { uid })
     }
 
@@ -104,18 +114,13 @@ impl WriterHandle {
     /// during tokenization) needs no abort at all — the caller simply
     /// never calls `submit` for it; there is no ticket to abort with.
     pub async fn abort(&self, ticket: &Submitted) -> Result<(), WriterClosed> {
-        self.tx
-            .send(BackendMsg::AbortBackendMsg { uid: ticket.uid() })
+        self.send(BackendMsg::AbortBackendMsg { uid: ticket.uid() })
             .await
-            .map_err(|_| WriterClosed)
     }
 
     /// Enqueues an `ExitMsg`.
     pub async fn exit(&self) -> Result<(), WriterClosed> {
-        self.tx
-            .send(BackendMsg::ExitMsg {})
-            .await
-            .map_err(|_| WriterClosed)
+        self.send(BackendMsg::ExitMsg {}).await
     }
 
     /// The single writer's current inbox depth: how many enqueued messages
@@ -138,17 +143,28 @@ impl WriterHandle {
 pub fn spawn_writer<S: BackendSink + 'static>(
     sink: S,
 ) -> std::io::Result<(WriterHandle, std::thread::JoinHandle<anyhow::Result<()>>)> {
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<BackendMsg>(WRITER_QUEUE_CAPACITY);
+    spawn_writer_with_stages(sink, StageMetrics::noop())
+}
+
+/// [`spawn_writer`], recording the writer-queue and ZMQ-send stage
+/// histograms into `stages`.
+pub fn spawn_writer_with_stages<S: BackendSink + 'static>(
+    sink: S,
+    stages: StageMetrics,
+) -> std::io::Result<(WriterHandle, std::thread::JoinHandle<anyhow::Result<()>>)> {
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<(BackendMsg, Instant)>(WRITER_QUEUE_CAPACITY);
     let join = std::thread::Builder::new()
         .name("tx-zmq".to_owned())
         .spawn(move || -> anyhow::Result<()> {
             loop {
-                let Some(first) = rx.blocking_recv() else {
+                let Some((first, enqueued_at)) = rx.blocking_recv() else {
                     // Every WriterHandle was dropped: a clean shutdown.
                     return Ok(());
                 };
+                stages.writer_queue.record(enqueued_at.elapsed());
                 let mut pending = vec![first];
-                while let Ok(msg) = rx.try_recv() {
+                while let Ok((msg, enqueued_at)) = rx.try_recv() {
+                    stages.writer_queue.record(enqueued_at.elapsed());
                     pending.push(msg);
                 }
                 let msg = if pending.len() == 1 {
@@ -157,10 +173,12 @@ pub fn spawn_writer<S: BackendSink + 'static>(
                     BackendMsg::BatchBackendMsg { data: pending }
                 };
                 let bytes = rsg_wire::encode_backend(&msg).context("encode BackendMsg")?;
+                let send_start = Instant::now();
                 if let Err(e) = sink.send_backend(&bytes).context("send on backend socket") {
                     tracing::error!("tx-zmq: {e:#}");
                     return Err(e);
                 }
+                stages.zmq_send.record(send_start.elapsed());
             }
         })?;
     Ok((WriterHandle { tx }, join))

@@ -1,17 +1,23 @@
 # Findings: does a drop-in Rust frontend rewrite actually help?
 
-**TL;DR: it's not a uniform win, and the split is informative.** Holding the
-GPU backend fixed and identical for both frontends: cold start and host RAM
-are a clear, large Rust win; raw throughput is statistically tied; tail
-latency under concurrent or saturated load is dramatically *worse* for
-Rust — not a rounding error, an order of magnitude. The root cause for that
-last one is not obviously a mistake in the Rust implementation; the
-evidence points at the ZMQ process-boundary transport itself, which is the
-one piece of the original architecture this project could not change (the
-vendored Python scheduler must stay frozen and unmodified — see the repo's
-`CLAUDE.md`). That conclusion is independently corroborated by SGLang's own
-production Rust-migration team, who hit the same wall and abandoned ZMQ for
-an in-process, zero-copy transport.
+**TL;DR (v2, Phase 8).** Holding the GPU backend fixed and identical for
+both frontends: cold start and host RAM are a clear, large Rust win; raw
+throughput is statistically tied; and, since Phase 8, tail latency under
+load is tied with Python too (S1 P99 TTFT 302 ms vs 314 ms for tuned
+Python; the CI of the difference includes zero).
+
+Phase 7 measured Rust's S1 P99 TTFT at **4687 ms**, ~10× Python. The v1 write-up
+below blamed the ZMQ transport to the frozen scheduler. **That was wrong.**
+Phase 8 instrumented every stage of the request path, rejected the ZMQ
+hypothesis with data, and found an ordinary bug in the Rust frontend.
+Every request deep-cloned the whole Hugging Face tokenizer (~15–30 MiB of
+small allocations) before it could be submitted. Under a burst of 128
+concurrent requests, those clones each took seconds. Sharing one
+`Arc<Tokenizer>` removed the tail: P99 went from 4868 ms to 302 ms on the
+same box. See [v2: the actual root cause (per-request tokenizer clone)](#v2-the-actual-root-cause-per-request-tokenizer-clone).
+
+The v1 sections are kept as written, labelled as superseded, because the
+wrong turn is part of the record.
 
 ## Situation
 
@@ -79,6 +85,9 @@ pass in CI with a mock backend):
 
 ## Result
 
+These are the Phase 7 numbers, measured before the Phase 8 fix. The current
+numbers are in [v2](#v2-the-actual-root-cause-per-request-tokenizer-clone).
+
 **Cold start & host RAM (S3): Rust wins, clearly.** Frontend RSS: **490 MB**
 (Rust) vs. 1.48 GB (Python, default `--num-tokenizer`) vs. 3.03 GB (Python,
 sweep-tuned) — a 67–84% reduction, statistically significant
@@ -110,7 +119,12 @@ S1's P99 TTFT delta is enormous and tightly bounded — not noise. In S2, the
 degradation is sharpest at exactly one load level (rate=60); Python stays
 smooth across the whole ramp.
 
-### Root cause investigation
+### Root cause investigation (v1 hypothesis, superseded)
+
+> **Superseded by Phase 8.** The ZMQ explanation below was tested in Phase 8
+> and rejected: the tail reproduces on a mock backend, and the submit, writer
+> queue and ZMQ send stages all have small tails. The actual cause is a
+> per-request tokenizer clone. See [v2](#v2-the-actual-root-cause-per-request-tokenizer-clone).
 
 Reading `rsg-server`'s request-lifecycle code (`engine.rs`, `dispatch.rs`,
 `writer.rs`) found a well-engineered implementation — Drop-based
@@ -140,7 +154,10 @@ occasionally catastrophic" shape is consistent with — not proof of — the
 real benchmark's measured pattern (tied RPS, a P99 blown out by outliers).
 Full write-up: `crates/zmq-vs-channel-spike/README.md`.
 
-### Independent corroboration
+### Independent corroboration (v1, superseded)
+
+> The SGLang reference is accurate, but it does not explain this project's
+> tail. Phase 8 showed this project's ZMQ hop is not on the slow path.
 
 This isn't a theory invented to excuse a bad number. SGLang's own
 production Rust-migration effort
@@ -160,20 +177,176 @@ the literal same process — rules that fix out. The measured regression is
 likely the honest cost of that constraint, not a defect to be optimized
 away within it.
 
+## v2: the actual root cause (per-request tokenizer clone)
+
+Plan: [`docs/plans/p99-ttft-root-cause.md`](../plans/p99-ttft-root-cause.md).
+Issues #14–#18 hold the commands and raw outputs for each step.
+
+### Feedback loop (#14)
+
+`scripts/ttft_tail_loop.sh` runs a 10 s, 128-agent S1 round on the mock
+backend (`rsg-mock-stack`, no GPU). It goes RED when TTFT P99/P50 exceeds
+10. Before the fix it was RED in every round (P99/P50 44–56), so the tail
+**reproduces without the real scheduler and without CUDA**.
+
+Minimising the scenario showed that cancellations, `max_tokens` and warmup
+make no difference. What matters is the first wave: 128 requests arriving
+at once. The first wave waited 3–5 s for its first token, and later
+requests waited ~75 ms. Spreading the same arrivals over 5 s turned the
+loop GREEN.
+
+### Instrumentation (#15)
+
+`rsg-server` now records one Prometheus histogram per stage of the request
+path, `rsg_stage_<stage>_seconds`, with fixed buckets:
+- `spawn_delay`
+- `encode`
+- `decoder_queue` and `decoder_build`
+- `submit_enqueue`
+- `writer_queue` and `zmq_send`
+- `backend_wait`
+
+Fixed buckets matter here. The exporter's default summaries only keep a
+rolling window, so they hid the first-wave burst.
+
+### Hypothesis verdicts (#16)
+
+| Hypothesis | Verdict | Deciding data |
+|---|---|---|
+| **H1: per-request tokenizer clone** in `HfCodec::decoder()` | **Confirmed** | `decoder_build` P99 4751 ms tracks TTFT P99, while `decoder_queue` P99 is 4.9 ms. A causal one-variable experiment (share one `Arc<Tokenizer>`) turns the loop GREEN |
+| H2: inline encode starves tokio workers | Rejected | `spawn_delay` P99 ≤ 0.67 ms. The encode tail disappears once the clones are gone |
+| H3: ZMQ send blocks at the high-water mark (v1) | Rejected | Reproduces on mock. `submit_enqueue` P99 0.10 ms, `writer_queue` ≤ 8.5 ms, `zmq_send` ≤ 1.8 ms |
+| H4: HTTP ingress/egress | Rejected | A temporary probe put the whole delay between handler entry and `Accepted`, before submit |
+
+**Why a clone costs seconds.** `tokenizers::Tokenizer::clone()` copies the
+~150k-entry vocabulary and merges, which is 15–30 MiB of small allocations.
+One clone alone takes ~18 ms. In a throwaway harness:
+- 128 clones started at once on a cold heap took **3.6 s P50 / 4.6 s max each**.
+- Throughput stayed at ~50–66 clones/s whatever the thread count.
+- A warm heap was ~30× faster, so first-touch heap growth (page faults)
+  dominates.
+- A single malloc arena was slower still, so allocator contention adds to it.
+
+The frontend's RSS grew from 244 MB to 6.3 GB in one 10 s round.
+
+**Why the clone delays the first token.** The decoder must exist before the
+request is registered and submitted. Otherwise a fast backend can overflow
+the request's fixed-size token channel before anyone reads it. So each
+first-wave request waited for its own clone before the scheduler even saw
+it. The `spawn_blocking` hop around the build (code review WR-01) did its
+job of keeping tokio workers free, but it could not make the clones
+themselves cheap.
+
+### Fix (#17)
+
+`Detokenizer` now holds an `Arc<tokenizers::Tokenizer>`. `HfCodec` builds
+one shared copy at load, and `decoder()` hands out `Arc::clone`, so each
+build is a refcount bump. Each request still owns its own decode state.
+
+Nothing else changed:
+- The `spawn_blocking` hop and the build-before-submit ordering are kept.
+  Whether to drop the hop is follow-up #21.
+- `vendor/` and the wire contract are untouched.
+
+Regression tests are in `crates/rsg-server/src/hf_codec.rs`:
+- 1,000 decoder builds must take under 1 s. This test took 24 s before the fix.
+- Two decoders that share a tokenizer must keep independent state.
+
+The mock loop is GREEN 5/5 (P99 60–121 ms, frontend RSS ~130 MiB).
+
+### New numbers (#18)
+
+Same GPU box (RTX 3050 8 GB, WSL2) and the Phase 7 methodology: 5 rounds
+per arm, Welch's 95% CI, Qwen3-0.6B.
+- **After:** all three arms on the fixed build, in
+  [`tokenizer-clone-fix-after.md`](tokenizer-clone-fix-after.md).
+- **Before:** the Rust arm only, on the pre-fix `rsg-server` (built from
+  `fc491b1`) in the same session, in [`tokenizer-clone-fix-before.md`](tokenizer-clone-fix-before.md).
+
+The directories were renamed after the runs, so each manifest's recorded
+`--out` argument still shows the old `phase8-*` path.
+
+```bash
+COMMON=(--backend-kind real --model-arg Qwen/Qwen3-0.6B --port 31031
+        --python .venv/bin/python --runs 5 --python-best-num-tokenizer 2)
+PY_T="{python} -m rsglang.launch --frontend python --model {model} --port {port} --num-tokenizer {num_tokenizer}"
+RS_T="{python} -m rsglang.launch --frontend rust --model {model} --port {port}"
+OUT=docs/benchmarks/tokenizer-clone-fix-after
+target/release/rsg-bench s1 "${COMMON[@]}" --python-cmd "$PY_T" --rust-cmd "$RS_T" --out $OUT/s1_cancel.manifest.json
+target/release/rsg-bench s2 --mode open "${COMMON[@]}" --python-cmd "$PY_T" --rust-cmd "$RS_T" --out $OUT/s2_saturation.manifest.json
+target/release/rsg-bench s3 "${COMMON[@]}" --python-cmd "$PY_T" --rust-cmd "$RS_T" --out $OUT/s3_coldstart.manifest.json
+# Before: s1 and s2 again with --arms rust, "--rust-bin <pre-fix rsg-server>"
+# appended to RS_T, and output under docs/benchmarks/tokenizer-clone-fix-before/.
+target/release/rsg-bench report --manifests-dir $OUT --out-json $OUT.json --out-md $OUT.md
+```
+
+**S1 (128 agents, cancellations)**
+
+| | Rust before fix | **Rust after fix** | python-default | python-best |
+|---|---|---|---|---|
+| P50 TTFT | 69.2 ms | **50.9 ms** | 53.7 ms | 53.5 ms |
+| P99 TTFT | 4867.7 ms, CI [4492, 5243] | **301.7 ms**, CI [275, 329] | 315.6 ms | 314.4 ms |
+| RPS | 13.44 | 13.89 | 13.87 | 13.87 |
+| Frontend RSS max | 8.18 GB | **138 MB** | 1.50 GB | 3.04 GB |
+
+How Rust (after) compares with python-best:
+- **P99 TTFT** −4.0%, CI [−15.7%, +7.7%]: tied.
+- **P50** −4.9%, CI [−6.4%, −3.5%]: significantly lower.
+- **RPS** +0.15%, CI includes zero: tied. Phase 7 had Rust at ~3% fewer RPS;
+  the clones were also costing throughput.
+
+The pre-fix run reproduces Phase 7's 4687 ms. Python's P99 in this session
+(314 ms) is lower than in Phase 7 (431 ms). Rust's 302 ms is below both.
+
+**S2 (open-loop ramp), P99 TTFT in ms**
+
+| Rate | Rust before fix | **Rust after fix** | python-default | python-best |
+|---|---|---|---|---|
+| 5 | 75.2 | **53.3** | 38.1 | 38.4 |
+| 10 | 78.3 | **57.8** | 42.4 | 40.9 |
+| 20 | 80.9 | **58.3** | 45.4 | 46.3 |
+| 40 | 227.7 | **59.2** | 51.2 | 50.6 |
+| 60 | 671.7 | **63.4** | 90.6 | 73.5 |
+| 80 | 282.3 | **59.1** | 98.5 | 110.3 |
+
+The rate=60 spike is gone. Rust is now flat across the whole ramp and lowest
+at rates 60 and 80. Peak RPS is tied (72.70 vs 72.71). At low rates (5–40),
+Rust's P99 is still ~10–15 ms above Python's. That gap is small and was not
+investigated in Phase 8.
+
+**S3 (cold start)**
+
+| | python-default | python-best | **Rust** |
+|---|---|---|---|
+| End-to-end cold start | 8.87 s | 9.28 s | **8.22 s** |
+| Frontend RSS | 1.48 GB | 3.03 GB | **123 MB** |
+
+Rust's frontend RSS is down from 490 MB in Phase 7. This most likely comes
+from the same fix, since a per-request clone grows the heap even under
+light load. It was not separately measured. One python-best S3 trial failed
+(hyperfine's conclusion command exited non-zero), so that arm has 4 of 5
+samples. Absolute cold-start times differ from Phase 7 for every arm, so
+compare within a session.
+
+### What v1 got wrong, and why
+
+v1 read the code, found no obvious blocking bug, and matched the tail's
+shape to a ZMQ micro-benchmark. It never measured where the time went in
+the real request path. v1 did see the tokenizer clone, but filed it as
+"already fixed", because WR-01 had moved it off the async workers. That fix
+stopped the clone from starving other requests, but the clone still delayed
+its own request. Phase 8 measured each stage first and reproduced the tail
+without the backend, which ruled ZMQ out directly.
+
 ## Future work
 
-- **Confirm the writer-queue-depth hypothesis with live data.** `rsg-server`
-  now exposes `rsg_writer_queue_depth` on `/metrics` (added alongside this
-  report). The next step is a short, targeted load test correlating that
-  gauge's timeseries against TTFT spikes from a real run, turning "the
-  micro-benchmark's shape is consistent with this" into a direct
-  measurement on the real system.
-- **In-process, zero-copy IPC.** The architecturally complete fix —
-  removing the ZMQ hop entirely, the way SGLang's own migration did —
-  requires patching the vendored Python scheduler, which is out of this
-  project's current scope by design (see `CLAUDE.md`'s "fair comparison"
-  constraint). This is the natural next milestone if that constraint is
-  deliberately revisited, not a bug to fix within the current one.
+- **Decide whether to drop the `spawn_blocking` hop** around the decoder
+  build, now that the build is cheap (#21).
+- **In-process, zero-copy IPC.** This would remove the ZMQ hop entirely, the
+  way SGLang's own migration did. It is no longer motivated by this
+  project's tail latency, since Phase 8 showed the hop is not on the slow
+  path. It still requires patching the vendored Python scheduler, which is
+  out of scope by design (see `CLAUDE.md`'s "fair comparison" constraint).
 - **Rust radix-tree KV cache.** SGLang's own Rust radix-tree integration
   (`sgl-project/sglang#20415`) splits the tree behind a
   `UnifiedTreeCoreInterface`: Rust owns match/insert/evict/LRU, Python

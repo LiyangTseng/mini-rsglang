@@ -10,6 +10,7 @@
 //! wrapping `DecodeStream` and patching in the missing branches.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::TokenizerError;
 
@@ -103,21 +104,27 @@ fn clean_up_tokenization(text: &str) -> String {
 }
 
 /// Incremental per-`uid` detokenizer, hand-ported from `DetokenizeManager`/`DecodeStatus`.
+///
+/// The tokenizer is only read (`decode`), so many detokenizers can share one
+/// behind an `Arc`; each keeps its own `decode_map`.
 pub struct Detokenizer {
-    tokenizer: tokenizers::Tokenizer,
+    tokenizer: Arc<tokenizers::Tokenizer>,
     eos_token_id: u32,
     clean_up_tokenization_spaces: bool,
     decode_map: HashMap<i64, DecodeStatus>,
 }
 
 impl Detokenizer {
+    /// Accepts an owned `Tokenizer` or a shared `Arc<Tokenizer>`. Pass an
+    /// `Arc` clone to build one detokenizer per request without copying the
+    /// vocab (Phase 8, #17: a per-request deep clone caused the P99 TTFT tail).
     pub fn new(
-        tokenizer: tokenizers::Tokenizer,
+        tokenizer: impl Into<Arc<tokenizers::Tokenizer>>,
         eos_token_id: u32,
         clean_up_tokenization_spaces: bool,
     ) -> Self {
         Self {
-            tokenizer,
+            tokenizer: tokenizer.into(),
             eos_token_id,
             clean_up_tokenization_spaces,
             decode_map: HashMap::new(),

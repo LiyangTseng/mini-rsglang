@@ -8,7 +8,7 @@
 //! another's numbers.
 //!
 //! No series here carries any label (T-05-13/T-05-14): cardinality is
-//! fixed at seven series regardless of traffic, and nothing
+//! fixed (eight series plus the [`StageMetrics`] ones) regardless of traffic, and nothing
 //! request-specific (uid, model text, prompt) can appear in the
 //! exposition.
 
@@ -32,6 +32,117 @@ pub const METRICS_CONTENT_TYPE: &str = "text/plain; version=0.0.4; charset=utf-8
 
 const META: Metadata<'static> = Metadata::new("rsg_server::metrics", Level::INFO, None);
 
+/// Bucket upper bounds, in seconds, for every `rsg_stage_*_seconds`
+/// histogram. Buckets (not the exporter's default summaries, whose
+/// quantiles only cover a recent rolling window) keep the whole run, so a
+/// burst at the start of a benchmark still shows up in a scrape at its end.
+pub const STAGE_BUCKETS_SECONDS: [f64; 17] = [
+    0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5,
+    5.0, 10.0, 30.0,
+];
+
+/// Per-lifecycle-stage latency histograms (Phase 8, #15), one series per
+/// stage, each in seconds with [`STAGE_BUCKETS_SECONDS`]. `Clone` is cheap:
+/// every field is an `Arc` handle.
+#[derive(Clone)]
+pub struct StageMetrics {
+    /// `Engine::start` until the driver task first runs on a worker.
+    pub spawn_delay: Histogram,
+    /// `codec.encode` (chat template + tokenize), inline on the driver task.
+    pub encode: Histogram,
+    /// Time the decoder build waited in tokio's blocking pool before running.
+    pub decoder_queue: Histogram,
+    /// Run time of `codec.decoder()` on the blocking pool.
+    pub decoder_build: Histogram,
+    /// The `writer.submit` await (bounded-queue enqueue).
+    pub submit_enqueue: Histogram,
+    /// Time a message sat in the writer's queue before `tx-zmq` dequeued it.
+    pub writer_queue: Histogram,
+    /// One frame's `send_backend` call on `tx-zmq`.
+    pub zmq_send: Histogram,
+    /// Submit returned until the driver received the first token.
+    pub backend_wait: Histogram,
+}
+
+/// `(series name, help text)` for every [`StageMetrics`] field, in field order.
+const STAGE_SERIES: [(&str, &str); 8] = [
+    (
+        "rsg_stage_spawn_delay_seconds",
+        "Engine::start until the request's driver task first runs.",
+    ),
+    (
+        "rsg_stage_encode_seconds",
+        "Prompt encode (chat template + tokenize), inline on the driver task.",
+    ),
+    (
+        "rsg_stage_decoder_queue_seconds",
+        "Time the per-request decoder build waited in tokio's blocking pool.",
+    ),
+    (
+        "rsg_stage_decoder_build_seconds",
+        "Run time of the per-request decoder build.",
+    ),
+    (
+        "rsg_stage_submit_enqueue_seconds",
+        "The writer.submit await (enqueue onto the tx-zmq queue).",
+    ),
+    (
+        "rsg_stage_writer_queue_seconds",
+        "Time a message waited in the tx-zmq queue before being dequeued.",
+    ),
+    (
+        "rsg_stage_zmq_send_seconds",
+        "One frame's send on the backend ZMQ socket.",
+    ),
+    (
+        "rsg_stage_backend_wait_seconds",
+        "Submit returned until the driver received the first token.",
+    ),
+];
+
+impl StageMetrics {
+    /// Handles that record nothing, for callers without a server recorder.
+    pub fn noop() -> StageMetrics {
+        StageMetrics {
+            spawn_delay: Histogram::noop(),
+            encode: Histogram::noop(),
+            decoder_queue: Histogram::noop(),
+            decoder_build: Histogram::noop(),
+            submit_enqueue: Histogram::noop(),
+            writer_queue: Histogram::noop(),
+            zmq_send: Histogram::noop(),
+            backend_wait: Histogram::noop(),
+        }
+    }
+
+    fn register(recorder: &impl Recorder) -> StageMetrics {
+        let reg = |(name, help): (&'static str, &'static str)| {
+            recorder.describe_histogram(KeyName::from_const_str(name), None, help.into());
+            recorder.register_histogram(&Key::from_static_name(name), &META)
+        };
+        let [
+            spawn_delay,
+            encode,
+            decoder_queue,
+            decoder_build,
+            submit_enqueue,
+            writer_queue,
+            zmq_send,
+            backend_wait,
+        ] = STAGE_SERIES.map(reg);
+        StageMetrics {
+            spawn_delay,
+            encode,
+            decoder_queue,
+            decoder_build,
+            submit_enqueue,
+            writer_queue,
+            zmq_send,
+            backend_wait,
+        }
+    }
+}
+
 /// Every Prometheus series this server exposes, with the live handle
 /// `ServerMetrics`'s own methods write through. `Clone` is cheap: every
 /// field is an `Arc` clone under the hood (the `metrics` crate's own
@@ -47,6 +158,7 @@ pub struct ServerMetrics {
     requests_active: Gauge,
     writer_queue_depth: Gauge,
     ttft_seconds: Histogram,
+    stages: StageMetrics,
     handle: PrometheusHandle,
 }
 
@@ -70,6 +182,11 @@ impl ServerMetrics {
                 &TTFT_BUCKETS_SECONDS,
             )
             .expect("TTFT_BUCKETS_SECONDS is a fixed, non-empty bucket list")
+            .set_buckets_for_metric(
+                Matcher::Prefix("rsg_stage_".to_string()),
+                &STAGE_BUCKETS_SECONDS,
+            )
+            .expect("STAGE_BUCKETS_SECONDS is a fixed, non-empty bucket list")
             .build_recorder();
 
         recorder.describe_counter(
@@ -128,6 +245,7 @@ impl ServerMetrics {
         let writer_queue_depth =
             recorder.register_gauge(&Key::from_name("rsg_writer_queue_depth"), &META);
         let ttft_seconds = recorder.register_histogram(&Key::from_name("rsg_ttft_seconds"), &META);
+        let stages = StageMetrics::register(&recorder);
 
         requests_total.increment(0);
         requests_finished_total.increment(0);
@@ -148,8 +266,14 @@ impl ServerMetrics {
             requests_active,
             writer_queue_depth,
             ttft_seconds,
+            stages,
             handle,
         }
+    }
+
+    /// The per-stage latency handles (Phase 8, #15), for the engine and writer.
+    pub fn stages(&self) -> StageMetrics {
+        self.stages.clone()
     }
 
     /// A request reached `Received` (the registry's new-request path).
@@ -251,6 +375,22 @@ mod tests {
         };
         let text = metrics.render(Some(dispatch), None);
         assert!(text.contains("rsg_late_tokens_dropped_total 3"), "{text}");
+    }
+
+    #[test]
+    fn stage_histograms_keep_every_observation_in_buckets() {
+        let metrics = ServerMetrics::new();
+        let stages = metrics.stages();
+        stages.decoder_build.record(Duration::from_millis(20));
+        stages.decoder_build.record(Duration::from_secs(3));
+        let text = metrics.render(None, None);
+        for want in [
+            "rsg_stage_decoder_build_seconds_bucket{le=\"0.025\"} 1",
+            "rsg_stage_decoder_build_seconds_bucket{le=\"5\"} 2",
+            "rsg_stage_decoder_build_seconds_count 2",
+        ] {
+            assert!(text.contains(want), "missing {want:?} in:\n{text}");
+        }
     }
 
     #[test]

@@ -75,6 +75,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## Verification & Execution Guidelines
 
+Follow exactly one branch, chosen by the session's platform.
+
+### On macOS (platform `darwin`): Mac checkout + remote GPU
+
 - **Primary Runtime (Mac)**: General code editing, linting, tests that do not require CUDA.
 - **CUDA / GPU Runtime (Remote WSL)**:
   When verifying CUDA kernels, PyTorch GPU workflows, or GPU unit tests:
@@ -82,3 +86,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   2. Execute the verification command over SSH using the `wsl-gpu` alias.
      Example: `ssh wsl-gpu "cd ~/projects/my-cuda-project && python3 test_cuda.py"` (you might want to soure ~/.bashrc first)
   3. Inspect compiler/driver warnings and runtime errors directly from the SSH stdout/stderr.
+
+### On Windows (platform `win32`): this is the GPU box
+
+- Do not build, test or run git on the Windows side.
+- Read `\\wsl.localhost\Ubuntu\home\user39261580\projects\mini-rsglang\CLAUDE.local.md` first. It overrides the
+  macOS branch above and holds every machine-specific detail.
