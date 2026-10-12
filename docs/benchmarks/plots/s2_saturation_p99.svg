@@ -27,26 +27,25 @@
 <text x='730.0' y='382.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='middle' font-weight='normal' fill='#1f2937'>80</text>
 <text x='395.0' y='402.0' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='13' text-anchor='middle' font-weight='500' fill='#1f2937'>Requests/sec</text>
 <text transform='rotate(-90 16 222.5)' x='16.0' y='222.5' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='13' text-anchor='middle' font-weight='500' fill='#1f2937'>P99 TTFT (ms)</text>
-<polyline points='60.0,335.8 194.0,322.8 328.0,308.8 462.0,289.2 596.0,270.7 730.0,256.9' fill='none' stroke='#2563eb' stroke-width='2.5'/>
-<circle cx='60.0' cy='335.8' r='4' fill='#2563eb'/>
-<circle cx='194.0' cy='322.8' r='4' fill='#2563eb'/>
-<circle cx='328.0' cy='308.8' r='4' fill='#2563eb'/>
-<circle cx='462.0' cy='289.2' r='4' fill='#2563eb'/>
-<circle cx='596.0' cy='270.7' r='4' fill='#2563eb'/>
-<circle cx='730.0' cy='256.9' r='4' fill='#2563eb'/>
-<polyline points='60.0,335.5 194.0,321.2 328.0,319.1 462.0,256.8 596.0,259.1 730.0,242.6' fill='none' stroke='#0891b2' stroke-width='2.5'/>
-<circle cx='60.0' cy='335.5' r='4' fill='#0891b2'/>
-<circle cx='194.0' cy='321.2' r='4' fill='#0891b2'/>
-<circle cx='328.0' cy='319.1' r='4' fill='#0891b2'/>
-<circle cx='462.0' cy='256.8' r='4' fill='#0891b2'/>
-<circle cx='596.0' cy='259.1' r='4' fill='#0891b2'/>
-<circle cx='730.0' cy='242.6' r='4' fill='#0891b2'/>
-<polyline points='60.0,293.4 194.0,289.1 328.0,284.5 462.0,207.3 596.0,112.4 730.0,182.7' fill='none' stroke='#ea580c' stroke-width='2.5'/>
-<circle cx='60.0' cy='293.4' r='4' fill='#ea580c'/>
-<circle cx='194.0' cy='289.1' r='4' fill='#ea580c'/>
-<circle cx='328.0' cy='284.5' r='4' fill='#ea580c'/>
-<circle cx='462.0' cy='207.3' r='4' fill='#ea580c'/>
-<circle cx='596.0' cy='112.4' r='4' fill='#ea580c'/>
-<circle cx='730.0' cy='182.7' r='4' fill='#ea580c'/>
-<text x='586.0' y='132.4' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif' font-size='12' text-anchor='end' font-weight='600' fill='#ea580c'>1016ms (~8× Python)</text>
+<polyline points='60.0,343.2 194.0,335.7 328.0,330.8 462.0,322.5 596.0,282.3 730.0,276.5' fill='none' stroke='#2563eb' stroke-width='2.5'/>
+<circle cx='60.0' cy='343.2' r='4' fill='#2563eb'/>
+<circle cx='194.0' cy='335.7' r='4' fill='#2563eb'/>
+<circle cx='328.0' cy='330.8' r='4' fill='#2563eb'/>
+<circle cx='462.0' cy='322.5' r='4' fill='#2563eb'/>
+<circle cx='596.0' cy='282.3' r='4' fill='#2563eb'/>
+<circle cx='730.0' cy='276.5' r='4' fill='#2563eb'/>
+<polyline points='60.0,342.6 194.0,338.2 328.0,329.4 462.0,323.2 596.0,297.0 730.0,268.5' fill='none' stroke='#0891b2' stroke-width='2.5'/>
+<circle cx='60.0' cy='342.6' r='4' fill='#0891b2'/>
+<circle cx='194.0' cy='338.2' r='4' fill='#0891b2'/>
+<circle cx='328.0' cy='329.4' r='4' fill='#0891b2'/>
+<circle cx='462.0' cy='323.2' r='4' fill='#0891b2'/>
+<circle cx='596.0' cy='297.0' r='4' fill='#0891b2'/>
+<circle cx='730.0' cy='268.5' r='4' fill='#0891b2'/>
+<polyline points='60.0,319.6 194.0,313.9 328.0,313.4 462.0,312.3 596.0,307.4 730.0,312.3' fill='none' stroke='#ea580c' stroke-width='2.5'/>
+<circle cx='60.0' cy='319.6' r='4' fill='#ea580c'/>
+<circle cx='194.0' cy='313.9' r='4' fill='#ea580c'/>
+<circle cx='328.0' cy='313.4' r='4' fill='#ea580c'/>
+<circle cx='462.0' cy='312.3' r='4' fill='#ea580c'/>
+<circle cx='596.0' cy='307.4' r='4' fill='#ea580c'/>
+<circle cx='730.0' cy='312.3' r='4' fill='#ea580c'/>
 </svg>

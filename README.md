@@ -36,17 +36,23 @@ benchmark harness built for exactly three host-overhead-bound scenarios where
 a frontend rewrite should matter most — concurrent load with cancellations,
 short-prompt RPS saturation, and cold start / host RAM.
 
-**The honest result so far is not "Rust wins."** See below for the numbers,
-or [`docs/benchmarks/FINDINGS.md`](docs/benchmarks/FINDINGS.md) for the full
-write-up.
+**The honest result is not "Rust wins everything."** See below for the
+numbers, or [`docs/benchmarks/FINDINGS.md`](docs/benchmarks/FINDINGS.md) for
+the full write-up, including a tail-latency bug that took a second look to
+find.
 
 ## Results
 
-Holding the GPU backend completely unmodified and identical for both
-frontends, the outcome is a split: Rust wins decisively on cold start and
-memory, loses decisively on tail latency under load, and roughly ties on raw
-throughput. Full methodology, statistical significance (Welch's 95% CI), and
+The GPU backend is completely unmodified and identical for both frontends.
+- **Cold start and memory:** Rust wins decisively.
+- **Tail latency under load:** tied with Python. Rust was ~10× worse until
+  Phase 8 found and fixed a bug in the Rust frontend.
+- **Raw throughput:** tied.
+
+Full methodology, statistical significance (Welch's 95% CI), and
 root-cause investigation: **[docs/benchmarks/FINDINGS.md](docs/benchmarks/FINDINGS.md)**.
+Current numbers are from Phase 8
+([`phase8-benchmarks.md`](docs/benchmarks/phase8-benchmarks.md)).
 
 Three frontends were benchmarked against the *same* backend process:
 
@@ -64,51 +70,58 @@ Three frontends were benchmarked against the *same* backend process:
 
 | | python-default | python-best | **Rust** |
 |---|---|---|---|
-| End-to-end cold start | 9.67s | 10.74s | **9.13s** |
-| Frontend memory (RSS) | 1.48 GB | 3.03 GB | **490 MB** |
+| End-to-end cold start | 8.87s | 9.28s | **8.22s** |
+| Frontend memory (RSS) | 1.48 GB | 3.03 GB | **123 MB** |
 
-### Tail latency under load — Rust loses
+### Tail latency under load — tied since Phase 8
 
-Two separate load tests tell the same story. P50 is the typical case;
-**P99 is the worst 1% of requests** — the users most likely to notice
-something is wrong.
+P50 is the typical case. **P99 is the worst 1% of requests**, the users most
+likely to notice something is wrong.
 
 **128 concurrent agents, random requests with mid-stream cancellations:**
 
-| | python-default | python-best | **Rust** |
-|---|---|---|---|
-| P50 time-to-first-token | 54.0 ms | 54.2 ms | 75.0 ms |
-| **P99 time-to-first-token** | 409 ms | 431 ms | **4687 ms (~10×)** |
+| | python-default | python-best | **Rust** | Rust before the Phase 8 fix |
+|---|---|---|---|---|
+| P50 time-to-first-token | 53.7 ms | 53.5 ms | **50.9 ms** | 69.2 ms |
+| **P99 time-to-first-token** | 315.6 ms | 314.4 ms | **301.7 ms** | 4867.7 ms |
+
+Rust vs python-best on P99: −4.0%, CI [−15.7%, +7.7%], so statistically tied.
 
 **Steadily increasing request rate, until the server saturates:**
 
-<img src="docs/benchmarks/plots/s2_saturation_p99.svg" alt="P99 time-to-first-token rising with request rate; Rust spikes to 1016ms at 60 requests/sec while Python stays under 160ms across the whole ramp" width="100%">
+<img src="docs/benchmarks/plots/s2_saturation_p99.svg" alt="P99 time-to-first-token per request rate; Rust stays flat around 53 to 63ms across the ramp, slightly above Python at low rates and below it at 60 and 80 requests/sec" width="100%">
 
-Once the backend scheduler is saturated rather than under cancellation
-churn, raw throughput (GPU-bound workload) is statistically tied — every
-confidence interval includes zero, the expected result when the backend,
-not the frontend, is the bottleneck.
+Rust's P99 stays flat across the ramp. It is ~10–15 ms above Python at low
+rates and below Python at 60 and 80 req/s. Peak throughput is statistically
+tied, which is expected when the GPU backend, not the frontend, is the
+bottleneck.
 
-### Why tail latency regresses: a root cause, not a bug
+### Why tail latency regressed, and the fix
 
-Every request funnels through one ZMQ socket to the same, unmodified Python
-scheduler. Under concurrent load, that transport is usually instant but
-occasionally stalls for over a second — a standalone micro-benchmark
-(`crates/zmq-vs-channel-spike/`) reproduces this exact pattern, and it's
-independently corroborated by SGLang's own production Rust-migration RFC,
-which abandoned ZMQ for the same reason. Removing that bottleneck means
-patching the Python backend, which is outside this project's "frozen
-backend, fair comparison" constraint — see
-[FINDINGS.md § Root cause investigation](docs/benchmarks/FINDINGS.md#root-cause-investigation).
+Phase 7 measured Rust's S1 P99 at 4687 ms and blamed the ZMQ transport to
+the frozen scheduler. Phase 8 showed that was wrong. It instrumented every
+stage of the request path and reproduced the tail on a mock backend
+without a GPU.
+
+The real cause was a bug in the Rust frontend. Every request deep-cloned
+the whole Hugging Face tokenizer (~15–30 MiB of small allocations) to build
+its detokenizer, and it had to finish before the request could be
+submitted. With 128 requests arriving at once, those clones each took
+seconds on a cold heap.
+
+Sharing one `Arc<Tokenizer>` fixed it: S1 P99 went from 4868 ms to 302 ms,
+and frontend RSS under load went from 8.2 GB to 138 MB. See
+[FINDINGS.md § v2](docs/benchmarks/FINDINGS.md#v2-the-actual-root-cause-phase-8).
 
 ### Future work
 
-- **Confirm the queue-depth hypothesis with live data** — correlate the
-  `rsg_writer_queue_depth` metric (exposed on `/metrics`) against TTFT
-  spikes in a real run.
-- **In-process, zero-copy IPC** — remove the ZMQ hop entirely, the
-  architecturally complete fix; requires patching the vendored backend, so
-  it's a deliberate scope decision, not an oversight.
+- **Decide whether to drop the `spawn_blocking` hop** around the decoder
+  build, now that building it is cheap
+  ([#21](https://github.com/LiyangTseng/mini-rsglang/issues/21)).
+- **In-process, zero-copy IPC.** This would remove the ZMQ hop entirely.
+  Phase 8 showed the hop is not on this project's slow path, so this is no
+  longer a latency fix. It would also require patching the vendored
+  backend, so it remains a deliberate scope decision.
 - **Rust radix-tree KV cache** — follow SGLang's own
   `UnifiedTreeCoreInterface` pattern
   ([sgl-project/sglang#20415](https://github.com/sgl-project/sglang/issues/20415))
@@ -137,7 +150,11 @@ scripts/gpu_phase7_bench.sh   # Linux + CUDA GPU required
 
 Runs preflight checks, a `--num-tokenizer` sweep, then all three scenarios for
 both frontends, and writes `docs/benchmarks/frontend-benchmarks.{json,md}`.
-See [`docs/benchmarks/FINDINGS.md`](docs/benchmarks/FINDINGS.md) for the
+The Phase 8 rerun used the same `rsg-bench` scenarios, with the commands in
+[FINDINGS.md § New numbers](docs/benchmarks/FINDINGS.md#new-numbers-18).
+`scripts/plot_benchmarks.py REPORT_JSON docs/benchmarks/plots` redraws the
+charts above from a report. See
+[`docs/benchmarks/FINDINGS.md`](docs/benchmarks/FINDINGS.md) for the
 write-up.
 
 ## Repository layout
