@@ -448,6 +448,11 @@ async fn drive_request(
     // clone to tokio's dedicated blocking pool, so the ordering guarantee
     // above still holds (this `.await` completes before register/submit)
     // but no async worker thread is blocked while it runs.
+    //
+    // Since Phase 8 (#17), `HfCodec::decoder()` shares one `Arc<Tokenizer>`
+    // instead of cloning it, so the build itself is cheap. The hop is kept
+    // anyway (panic -> Rejected path, guard against a heavy future codec);
+    // whether to drop it is a separate follow-up decision.
     let codec_for_decoder = engine.codec.clone();
     let (queue_hist, build_hist) = (stages.decoder_queue.clone(), stages.decoder_build.clone());
     let queued_at = Instant::now();

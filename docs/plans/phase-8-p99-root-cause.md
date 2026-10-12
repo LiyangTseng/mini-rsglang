@@ -91,6 +91,21 @@ so is HTTP ingress/egress. Evidence is on #16:
   cloning turns the loop GREEN 3/3 (P99 94–106 ms, RSS ~130 MiB). On the
   GPU, a 30 s Rust-arm S1 run goes from TTFT P99 5460 ms to 319 ms.
 
+### Fix (#17)
+
+The maintainer chose option A on #17: `Detokenizer` holds an
+`Arc<Tokenizer>`, and `HfCodec` builds one shared copy at load, so
+`decoder()` is a refcount bump. The `spawn_blocking` hop around the build is
+kept on purpose (whether to drop it is a separate follow-up issue).
+
+Regression checks:
+
+- `cargo test -p rsg-server --lib hf_codec` (needs the HF cache):
+  `decoder_build_does_not_copy_the_tokenizer` (1,000 builds < 1 s; 24.2 s
+  before the fix) and `decoders_sharing_a_tokenizer_keep_independent_state`.
+- Manual scenario step: `scripts/p8_ttft_loop.sh --runs 5` must be GREEN
+  5/5. After the fix: P99 60–121 ms, P99/P50 2.8–5.0, frontend RSS ~130 MiB.
+
 ### Fix-decision gate (after #16)
 
 Once #16 names the root cause, the agent does **not** start #17 on its own.

@@ -2561,6 +2561,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokenizers",
  "tokio",
  "tokio-util",
  "tracing",
