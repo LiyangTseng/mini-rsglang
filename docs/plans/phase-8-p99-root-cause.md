@@ -72,6 +72,25 @@ the end of the round.
 Calibration (2026-10-11): RED in 5/5 rounds, P99/P50 = 44–54. The same load
 with arrivals spread over 5 s (`--think-max-s 5`) is GREEN (P99 106 ms).
 
+### Root cause (#16)
+
+The tail is the **first wave** of a burst, and its cause is the per-request
+tokenizer deep clone in `HfCodec::decoder()` (hypothesis 1). Inline encode
+(H2) and ZMQ send blocking (H3, the FINDINGS v1 hypothesis) are rejected;
+so is HTTP ingress/egress. Evidence is on #16:
+
+- `rsg_stage_decoder_build_seconds` P99 ≈ 4.75 s (mean 470–670 ms, P50
+  ~40 ms) tracks TTFT P99 (3.3–4.8 s). Every other stage's mean stays under
+  33 ms.
+- In isolation, one clone takes 15–18 ms, but 128 concurrent clones on a
+  cold heap take 3.6 s P50 / 4.6 s max each. A second burst on a warm heap
+  takes ~0.11 s P50. The cost is concurrent heap growth (~15–30 MiB of small
+  allocations per clone): frontend RSS goes 244 MB → 6.3 GB in one loop
+  round.
+- A throwaway experiment that shares one tokenizer (`Arc`) instead of
+  cloning turns the loop GREEN 3/3 (P99 94–106 ms, RSS ~130 MiB). On the
+  GPU, a 30 s Rust-arm S1 run goes from TTFT P99 5460 ms to 319 ms.
+
 ### Fix-decision gate (after #16)
 
 Once #16 names the root cause, the agent does **not** start #17 on its own.
