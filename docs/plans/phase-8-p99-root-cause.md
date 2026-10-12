@@ -81,14 +81,18 @@ lead, keep investigating.
 
 ## Environment
 
-- **Dev:** Mac. Run Claude Code only in the Mac clone.
-- **GPU box:** Linux/WSL with an RTX 3050 8GB, Qwen3-0.6B only. The agent
-  reaches it over SSH and only runs scripts there; it never launches `claude`
-  on the box.
-- Before running on the box:
+- **Single machine:** the GPU box, a Windows host with WSL2 and an RTX 3050
+  8GB, Qwen3-0.6B only. The clone, toolchains and GPU workloads live in WSL.
+  The agent runs on the same machine and may sit on the Windows side, but
+  every build, test, git and benchmark command runs inside WSL.
+- Machine-specific setup notes (paths, how to invoke commands, environment
+  activation) live in an untracked `CLAUDE.local.md`, written by a one-off
+  setup pass.
+- Before running on the GPU:
   1. Check `nvidia-smi`.
-  2. Fetch and check out this branch in the box's clone.
-  3. Use a non-default port (31000+).
+  2. Use a non-default port (31000+).
+  3. Do not build or run tests while a benchmark is running. Build contention
+     on the same CPU distorts tail latency.
 - After the run, kill every process you started.
 
 ## Documentation policy
