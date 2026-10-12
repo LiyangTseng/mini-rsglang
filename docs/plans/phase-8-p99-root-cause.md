@@ -62,7 +62,9 @@ stack. No GPU is needed and a round takes about 16 s. Every request gets the
 mock's fixed 20 ms prefill delay with no queueing, so any tail above that is
 added outside the backend model. The script prints TTFT P50/P99 and the
 first-wave vs. rest split, and exits 1 (RED) when P99/P50 > `--max-ratio`
-(default 10) in any round.
+(default 10) in any round. Since #15 it also prints each lifecycle stage's
+mean/P50/P99 from the server's `rsg_stage_*_seconds` histograms, scraped at
+the end of the round.
 
     scripts/p8_ttft_loop.sh            # one round
     scripts/p8_ttft_loop.sh --runs 5   # reproduction rate

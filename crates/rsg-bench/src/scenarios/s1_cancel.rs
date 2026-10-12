@@ -25,6 +25,10 @@ pub struct S1Args {
     /// `<trial_dir>/requests.jsonl`, for locating the tail within a run.
     #[arg(long)]
     pub requests_jsonl: bool,
+    /// Also save the server's `/metrics` text, scraped right after the
+    /// load window, to `<trial_dir>/server-metrics.prom`.
+    #[arg(long)]
+    pub save_server_metrics: bool,
 }
 
 /// A [`TrialRunner`] over [`loadgen::run_agents`].
@@ -66,6 +70,17 @@ impl TrialRunner for S1Runner {
         let summary = loadgen::summarize(&result);
         if self.args.requests_jsonl {
             write_requests_jsonl(&ctx.trial_dir.join("requests.jsonl"), &result)?;
+        }
+        if self.args.save_server_metrics {
+            let text = ctx
+                .client
+                .get(format!("{}/metrics", ctx.base_url))
+                .send()
+                .await?
+                .error_for_status()?
+                .text()
+                .await?;
+            std::fs::write(ctx.trial_dir.join("server-metrics.prom"), text)?;
         }
 
         Ok(TrialMeasurement {

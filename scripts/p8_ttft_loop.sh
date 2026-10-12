@@ -15,7 +15,8 @@ Usage: scripts/p8_ttft_loop.sh [--agents 128] [--duration-s 10] [--runs 1]
                                [--max-ratio 10] [--port 31011] [--no-build]
 
 Prints, per round: TTFT P50/P99, the TTFT of the first wave (requests sent
-in the first --think-max-s, one per agent) vs the rest, then RED or GREEN.
+in the first --think-max-s, one per agent) vs the rest, then RED or GREEN,
+followed by the server's per-stage P50/P99/max (rsg_stage_*_seconds).
 Exits 0 only if every round is GREEN (P99/P50 <= --max-ratio), 1 if any
 round is RED, 2 on bad usage or a harness failure.
 
@@ -65,14 +66,15 @@ if ! target/release/rsg-bench s1 --backend-kind mock --arms rust --runs "$RUNS" 
     --python-cmd "$STACK" --rust-cmd "$STACK" --rust-frontend-process-name rsg-server \
     --gc-hook off --warmup-requests 2 --work-root "$OUT/work" \
     --agents "$AGENTS" --duration-s "$DURATION_S" --cancel-fraction 0.25 --max-tokens 256 \
-    --think-max-s "$THINK_MAX_S" --requests-jsonl \
+    --think-max-s "$THINK_MAX_S" --requests-jsonl --save-server-metrics \
     --out "$OUT/s1.manifest.json" >"$OUT/bench.log" 2>&1; then
   echo "rsg-bench s1 failed; see $OUT/bench.log" >&2
   exit 2
 fi
 
 "$PYTHON" - "$OUT" "$MAX_RATIO" "$THINK_MAX_S" <<'PY'
-import glob, json, os, sys
+import glob, json, os, re, sys
+from math import nan
 
 out, max_ratio, think_max_ms = sys.argv[1], float(sys.argv[2]), float(sys.argv[3]) * 1000
 doc = json.load(open(os.path.join(out, "s1.manifest.json")))
@@ -98,6 +100,38 @@ for t in doc["trials"]:
         f"| rest n={len(rest)} p50={med(rest):.0f}ms max={max(rest, default=float('nan')):.0f}ms "
         f"| {verdict} (max ratio {max_ratio:g})"
     )
+    # Per-stage breakdown from the server's cumulative histograms (#15).
+    # Quantiles are interpolated within buckets; the mean is exact.
+    buckets, sums, counts = {}, {}, {}
+    for line in open(os.path.join(os.path.dirname(path), "server-metrics.prom")):
+        m = re.match(r'rsg_stage_(\w+)_seconds_bucket\{le="([^"]+)"\} (\S+)', line)
+        if m:
+            buckets.setdefault(m[1], []).append((float(m[2]), float(m[3])))
+        m = re.match(r"rsg_stage_(\w+)_seconds_(sum|count) (\S+)", line)
+        if m:
+            (sums if m[2] == "sum" else counts)[m[1]] = float(m[3])
+
+    def quantile(bs, q):
+        bs = sorted(bs)
+        total = bs[-1][1]
+        if total == 0:
+            return nan
+        lo_le, lo_n = 0.0, 0.0
+        for le, n in bs:
+            if n >= q * total:
+                if le == float("inf"):
+                    return lo_le * 1000
+                return (lo_le + (le - lo_le) * (q * total - lo_n) / max(n - lo_n, 1e-9)) * 1000
+            lo_le, lo_n = le, n
+        return nan
+
+    for name in sorted(buckets):
+        n = counts.get(name, 0)
+        mean = sums.get(name, 0) / n * 1000 if n else nan
+        print(
+            f"    stage {name:<15} n={n:5.0f} mean={mean:8.2f}ms "
+            f"p50={quantile(buckets[name], 0.5):8.2f}ms p99={quantile(buckets[name], 0.99):8.2f}ms"
+        )
 print(f"out: {out}")
 sys.exit(1 if red else 0)
 PY
