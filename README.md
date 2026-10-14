@@ -47,8 +47,8 @@ The GPU backend is completely unmodified and identical for both frontends.
 - **Tail latency under load:** tied with Python.
 - **Raw throughput:** tied.
 
-Full methodology, statistical significance (Welch's 95% CI), and the history
-of how these numbers were reached: **[docs/benchmarks/FINDINGS.md](docs/benchmarks/FINDINGS.md)**.
+Full methodology, statistical significance (Welch's 95% CI), and the bug
+behind the earlier tail-latency gap: **[docs/benchmarks/FINDINGS.md](docs/benchmarks/FINDINGS.md)**.
 Full tables: [`tokenizer-clone-fix-after.md`](docs/benchmarks/tokenizer-clone-fix-after.md).
 
 Three frontends were benchmarked against the *same* backend process:
@@ -131,7 +131,7 @@ scripts/gpu_phase7_bench.sh   # Linux + CUDA GPU required
 Runs preflight checks, a `--num-tokenizer` sweep, then all three scenarios for
 both frontends, and writes `docs/benchmarks/frontend-benchmarks.{json,md}`.
 The numbers above come from the same `rsg-bench` scenarios, run with the
-commands in [FINDINGS.md § New numbers](docs/benchmarks/FINDINGS.md#new-numbers-18).
+commands in [FINDINGS.md § Reproducing](docs/benchmarks/FINDINGS.md#reproducing).
 `scripts/plot_benchmarks.py REPORT_JSON docs/benchmarks/plots` redraws the
 charts above from a report. See
 [`docs/benchmarks/FINDINGS.md`](docs/benchmarks/FINDINGS.md) for the
@@ -150,6 +150,11 @@ write-up.
 | `docs/benchmarks/` | Every measured result, baseline through final findings |
 | `.planning/` | Read-only archive of the Phase 1–7 plans, verification reports, and decisions |
 | `docs/plans/` | Plans for work after Phase 7 |
+
+## Authors
+
+- [@LiyangTseng](https://github.com/LiyangTseng)
+- [@mileschintw](https://github.com/mileschintw)
 
 ## License
 
