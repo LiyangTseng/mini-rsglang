@@ -7,7 +7,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/gpu_phase7_bench.sh [--model Qwen/Qwen3-0.6B] [--port 1919] [--runs 5] [--candidates 0,1,2,4] [--out-dir docs/benchmarks/frontend-benchmarks] [--dry-run] [--help]
+Usage: scripts/gpu_phase7_bench.sh [--model Qwen/Qwen3-0.6B] [--port 1919] [--runs 5] [--candidates 0,1,2,4] [--out-dir docs/experiments/2026-10-rust-vs-python-frontend/runs/<today>-gpu] [--dry-run] [--help]
 
 Run this on the Linux GPU box, after Phase 6 (GPU End-to-End Parity) has
 landed. It runs preflight, the --num-tokenizer sweep, Scenario 1, Scenario 2
@@ -21,7 +21,7 @@ PASS/FAIL line per step. Exits 0 only if every step passed.
   2. s1 (BENCH-03), s2 --mode open (BENCH-04)
   3. crosscheck vllm / sglang -- only when VLLM_BIN / SGLANG_PYTHON are set
   4. s3 (BENCH-05), throughput (BENCH-06)
-  5. report: writes <out-dir>.json and <out-dir>.md (BENCH-07/BENCH-08)
+  5. report: writes <out-dir>/report.json and <out-dir>/report.md (BENCH-07/BENCH-08)
   6. scripts/check_upstream.py (the vendored tree was not touched)
 
 Options:
@@ -29,9 +29,9 @@ Options:
   --port N           HTTP port for every launched server (default 1919)
   --runs N           A/B rounds for every scenario except the sweep (default 5)
   --candidates LIST  comma-separated --num-tokenizer sweep candidates (default 0,1,2,4)
-  --out-dir DIR      manifest directory and report base path; writes
-                     DIR/*.manifest.json, DIR.json and DIR.md
-                     (default docs/benchmarks/frontend-benchmarks)
+  --out-dir DIR      run directory; writes DIR/*.manifest.json,
+                     DIR/report.json and DIR/report.md (default
+                     docs/experiments/2026-10-rust-vs-python-frontend/runs/<today>-gpu)
   --dry-run          print every `RUN: ` command this script would run, then exit 0
   --help             show this help
 
@@ -52,7 +52,7 @@ MODEL="Qwen/Qwen3-0.6B"
 PORT=1919
 RUNS=5
 CANDIDATES="0,1,2,4"
-OUT_DIR="docs/benchmarks/frontend-benchmarks"
+OUT_DIR="docs/experiments/2026-10-rust-vs-python-frontend/runs/$(date +%F)-gpu"
 DRY_RUN=0
 
 while [ $# -gt 0 ]; do
@@ -102,7 +102,7 @@ if [ "$DRY_RUN" = 1 ]; then
   fi
   echo "RUN: $BENCH s3 --backend-kind real --model-arg \"$MODEL\" --port \"$PORT\" --python \"$PYTHON\" --runs $RUNS --python-best-num-tokenizer \"$BEST\" --python-cmd \"$PYTHON_TEMPLATE\" --rust-cmd \"$RUST_TEMPLATE\" --out \"$OUT_DIR/s3_coldstart.manifest.json\""
   echo "RUN: $BENCH throughput --backend-kind real --model-arg \"$MODEL\" --port \"$PORT\" --python \"$PYTHON\" --runs $RUNS --python-best-num-tokenizer \"$BEST\" --python-cmd \"$PYTHON_TEMPLATE\" --rust-cmd \"$RUST_TEMPLATE\" --out \"$OUT_DIR/standard_throughput.manifest.json\""
-  echo "RUN: $BENCH report --manifests-dir \"$OUT_DIR\" --out-json \"$OUT_DIR.json\" --out-md \"$OUT_DIR.md\""
+  echo "RUN: $BENCH report --manifests-dir \"$OUT_DIR\" --out-json \"$OUT_DIR/report.json\" --out-md \"$OUT_DIR/report.md\""
   echo "RUN: $PYTHON scripts/check_upstream.py"
   exit 0
 fi
@@ -274,7 +274,7 @@ run_bench_step throughput throughput \
 
 # --- Step 5: the combined report (BENCH-07/BENCH-08) -----------------------------
 run_bench_step report report \
-  --manifests-dir "$OUT_DIR" --out-json "$OUT_DIR.json" --out-md "$OUT_DIR.md"
+  --manifests-dir "$OUT_DIR" --out-json "$OUT_DIR/report.json" --out-md "$OUT_DIR/report.md"
 
 # --- Step 6: the vendored tree was not touched -----------------------------------
 CHECK_LOG="$LOG_DIR/check_upstream.log"

@@ -1,6 +1,7 @@
 //! Phase 06-08 scope expansion: confirms the engine/dispatch pair never
 //! second-guesses the backend's own `finished` flag. The GPU parity run
-//! (docs/benchmarks/parity-report.json, prompt `edge-08`) found Rust one
+//! (parity-report.json in docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/,
+//! prompt `edge-08`) found Rust one
 //! token short of Python for both models, always at a natural-end-of-
 //! generation boundary (the `max_tokens` cap for Qwen3-0.6B, immediately
 //! after the stop token for Llama-3.2-1B-Instruct). The backend tap

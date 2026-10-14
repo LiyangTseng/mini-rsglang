@@ -1,5 +1,6 @@
 //! `rsg-bench report` (D-13): turns the per-scenario manifests in a
-//! directory into the combined `docs/benchmarks/` JSON and markdown pair.
+//! directory into the combined JSON and markdown pair (`report.json` and
+//! `report.md` in a run directory under `docs/experiments/`).
 //! The JSON is the single source of truth -- `render_markdown` derives
 //! every table and sentence from it, so the two can never drift apart
 //! (BENCH-07/BENCH-08).

@@ -22,7 +22,8 @@ pub enum LoopMode {
 /// Scenario 2's own CLI flags (flattened alongside
 /// [`crate::orchestrator::SessionArgs`]). Defaults bracket Phase 2's
 /// measured 55.18 rps on a 512-request burst
-/// (`docs/benchmarks/baseline-profile.json`).
+/// (`baseline-profile.json` in
+/// `docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/`).
 #[derive(Debug, Clone, clap::Args)]
 pub struct S2Args {
     #[arg(long, value_enum, default_value_t = LoopMode::Open)]

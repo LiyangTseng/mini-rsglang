@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""The only writer of docs/benchmarks/baseline-profile.json (D-14): BENCH-01's
-profiling driver.
+"""The only writer of
+docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/
+baseline-profile.json (D-14): BENCH-01's profiling driver.
 
 This plan adds the `discover` subcommand: launch the profiled server, discover
 and role-identify its children via a one-shot py-spy dump, confirm the 02-02

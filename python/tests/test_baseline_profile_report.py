@@ -1,8 +1,10 @@
-"""Report-to-JSON consistency tests for docs/benchmarks/baseline-profile.md
+"""Report-to-JSON consistency tests for
+docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/
+baseline-profile.md
 (BENCH-01, plan 02-09, T-02-17).
 
 The narrative report is hand-written from the committed GPU sidecar
-(docs/benchmarks/baseline-profile.json); this test is the mechanical proof
+(baseline-profile.json next to it); this test is the mechanical proof
 that every radix share and P99 TTFT the JSON reports as a number also
 appears in the markdown, formatted exactly as the sidecar's own numbers
 would render (f"{share * 100:.2f}%" and f"{p99:.1f} ms"), and that it
@@ -18,8 +20,9 @@ from pathlib import Path
 from rsglang.profiling import sidecar
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-JSON_PATH = REPO_ROOT / "docs" / "benchmarks" / "baseline-profile.json"
-MD_PATH = REPO_ROOT / "docs" / "benchmarks" / "baseline-profile.md"
+RUN_DIR = REPO_ROOT / "docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu"
+JSON_PATH = RUN_DIR / "baseline-profile.json"
+MD_PATH = RUN_DIR / "baseline-profile.md"
 
 REQUIRED_HEADINGS = [
     "# Python Frontend Baseline Profile",

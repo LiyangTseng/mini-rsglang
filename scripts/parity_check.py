@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""The only writer of docs/benchmarks/parity-report.json (D-07): PAR-01's
+"""The only writer of
+docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/
+parity-report.json (D-07): PAR-01's
 zero-tolerance hard gate and (in later plans) PAR-02's informational
 concurrent-load measurement.
 

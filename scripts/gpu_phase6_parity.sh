@@ -27,7 +27,7 @@ Options:
   --concurrency N         PAR-02 concurrent-load level (default 128, D-10)
   --port N                HTTP port (default 1919)
   --timeout S             server-readiness timeout in seconds (default 900)
-  --out PATH              parity-report.json path (default docs/benchmarks/parity-report.json)
+  --out PATH              parity-report.json path (default docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/parity-report.json)
   --corpus PATH           parity corpus path (default fixtures/parity/corpus.json)
   --python-server-cmd T   override for parity_check.py's --python-server-cmd
                           (default: parity_check.py's own default)
@@ -62,7 +62,7 @@ LLAMA_MODEL="$DEFAULT_LLAMA_MODEL"
 CONCURRENCY=128
 PORT=1919
 TIMEOUT=900
-OUT="docs/benchmarks/parity-report.json"
+OUT="docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/parity-report.json"
 CORPUS="fixtures/parity/corpus.json"
 PYTHON_SERVER_CMD=""
 RUST_SERVER_CMD=""

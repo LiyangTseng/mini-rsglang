@@ -6,7 +6,7 @@
 # the harness's loop modes, manifest/report writing, histogram decoding and
 # client-cancellation-reaches-the-server path, never a Python-vs-Rust
 # performance claim. All output stays under target/rsg-bench/devpass; never
-# docs/benchmarks.
+# docs/experiments.
 #
 # Usage: scripts/bench_mac_devpass.sh   (no arguments)
 set -euo pipefail
@@ -22,7 +22,7 @@ asserts the written manifests, builds the combined report and asserts its
 mock banner, then proves a client-aborted streaming request increments
 rsg-server's /metrics cancellation counter. Prints "devpass: OK" and exits
 0 only when every assertion passes. Writes only under
-target/rsg-bench/devpass/<run>; never touches docs/benchmarks.
+target/rsg-bench/devpass/<run>; never touches docs/experiments.
 
 Environment:
   PYTHON   interpreter used for JSON assertions (default .venv/bin/python
@@ -156,10 +156,10 @@ case "$first_summary_line" in
 esac
 echo "OK: $OUT/report.md banner: $first_summary_line"
 
-# --- docs/benchmarks was never touched ---------------------------------------
-if [ -n "$(git -C "$ROOT" status --porcelain docs/benchmarks 2>/dev/null || true)" ]; then
-  echo "docs/benchmarks was modified by this dev pass (prohibited):" >&2
-  git -C "$ROOT" status --porcelain docs/benchmarks >&2
+# --- docs/experiments was never touched ---------------------------------------
+if [ -n "$(git -C "$ROOT" status --porcelain docs/experiments 2>/dev/null || true)" ]; then
+  echo "docs/experiments was modified by this dev pass (prohibited):" >&2
+  git -C "$ROOT" status --porcelain docs/experiments >&2
   exit 1
 fi
 

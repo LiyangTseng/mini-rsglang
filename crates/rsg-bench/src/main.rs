@@ -108,7 +108,8 @@ enum Cmd {
         throughput: ThroughputArgs,
     },
     /// D-13: turns every `*.manifest.json` in a directory into the combined
-    /// `docs/benchmarks/` JSON and markdown pair (BENCH-07/BENCH-08).
+    /// `report.json` and `report.md` pair of a run directory under
+    /// `docs/experiments/` (BENCH-07/BENCH-08).
     Report {
         #[command(flatten)]
         report: ReportArgs,
