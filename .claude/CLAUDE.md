@@ -68,3 +68,12 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 ### Domain docs
 
 Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+### Experiments and results
+
+- Name an experiment after its question with a date prefix: `docs/experiments/<YYYY-MM>-<question-slug>/`, never a phase number.
+- Never edit or rename a committed run under `docs/experiments/*/runs/`; supersede it with a new run.
+- Current numbers live only in `docs/RESULTS.md` (the README shows its headline rows).
+- Compare only within a session: rerun the baseline arms alongside the treatment arms.
+
+See `docs/agents/experiments.md`. `scripts/check_experiments.py` enforces it in CI.

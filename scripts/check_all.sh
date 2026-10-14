@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Phase gate (D-14): Rust tests, Python tests, fixture freshness, tokenizer fixture freshness,
-# API fixture freshness, the WIRE-02 decode check and the vendored-tree check, stopping at the
-# first failure. Fixture freshness (step 3), tokenizer fixture freshness (step 4) and API
+# API fixture freshness, the WIRE-02 decode check, the vendored-tree check and the experiment-data
+# check (docs/agents/experiments.md), stopping at the first failure. Fixture freshness (step 3),
+# tokenizer fixture freshness (step 4) and API
 # fixture freshness (step 5) run alongside the vendored-tree check (step 7), so a vendored-code
 # change cannot silently stale any of the three fixture sets.
 #
@@ -23,7 +24,7 @@ for arg in "$@"; do
   esac
 done
 
-step() { echo; echo "=== check_all [$1/7] $2 ==="; }
+step() { echo; echo "=== check_all [$1/8] $2 ==="; }
 
 # crates/rsg-server/tests/stress_128.rs needs more open files than macOS's
 # default soft limit of 256 (128 client sockets, 128 server sockets, plus
@@ -51,6 +52,8 @@ step 6 "WIRE-02 decode (check_wire_decode.sh)"
 bash scripts/check_wire_decode.sh
 step 7 "vendored tree (check_upstream.py${UPSTREAM_ARGS[*]:+ ${UPSTREAM_ARGS[*]}})"
 "$PYTHON" scripts/check_upstream.py ${UPSTREAM_ARGS[@]+"${UPSTREAM_ARGS[@]}"}
+step 8 "experiment data (check_experiments.py)"
+"$PYTHON" scripts/check_experiments.py
 
 echo
 echo "check_all: OK"
