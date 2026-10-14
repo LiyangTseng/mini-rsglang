@@ -1,7 +1,7 @@
 # mini-rsglang Glossary
 
 What each term means *in this system*. No implementation details; see the code
-and `docs/benchmarks/FINDINGS.md` for those.
+and `docs/RESULTS.md` for those.
 
 ## System boundary
 
