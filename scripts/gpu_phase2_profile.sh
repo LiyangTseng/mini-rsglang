@@ -5,14 +5,14 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: scripts/gpu_phase2_profile.sh [--model Qwen/Qwen3-0.6B] [--port 1919] [--timeout 900] [--out docs/benchmarks/baseline-profile.json] [--py-spy-sudo] [--help]
+Usage: scripts/gpu_phase2_profile.sh [--model Qwen/Qwen3-0.6B] [--port 1919] [--timeout 900] [--out docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/baseline-profile.json] [--py-spy-sudo] [--help]
 
 Runs every GPU-only Phase 2 profiling step and prints one PASS/FAIL line per step:
   preflight: nvidia-smi, curl, py-spy, hyperfine on PATH; psutil/aiohttp/openai/
              transformers import; hyperfine >= 1.19.0; py-spy can attach to a
              sibling process
   1. scripts/baseline_profile.py discover (privilege, topology and hook smoke)
-  2. scripts/baseline_profile.py run (writes docs/benchmarks/baseline-profile.json)
+  2. scripts/baseline_profile.py run (writes docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/baseline-profile.json)
   3. scripts/baseline_profile.py validate --require-gpu
   4. scripts/check_upstream.py (proves the vendored tree was not touched)
 
@@ -20,7 +20,7 @@ Options:
   --model ID         model to serve (default Qwen/Qwen3-0.6B)
   --port N           HTTP port for the profiled server (default 1919)
   --timeout S        seconds to wait for server readiness (default 900)
-  --out PATH         baseline profile JSON output path (default docs/benchmarks/baseline-profile.json)
+  --out PATH         baseline profile JSON output path (default docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/baseline-profile.json)
   --py-spy-sudo      attach py-spy via `sudo -n` instead of a CAP_SYS_PTRACE grant
   --help             show this help
 
@@ -46,7 +46,7 @@ DEFAULT_MODEL="Qwen/Qwen3-0.6B"
 MODEL="$DEFAULT_MODEL"
 PORT=1919
 TIMEOUT=900
-OUT="docs/benchmarks/baseline-profile.json"
+OUT="docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/baseline-profile.json"
 PYSPY_SUDO=()
 
 while [ $# -gt 0 ]; do

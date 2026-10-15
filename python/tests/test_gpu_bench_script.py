@@ -115,11 +115,13 @@ def test_dry_run_sequence(tmp_path):
         assert "--python-best-num-tokenizer" in line and "<best-from-sweep>" in line, (name, line)
 
     report_line = run_lines[indices[6]]
-    assert "docs/benchmarks/frontend-benchmarks.json" in report_line, report_line
-    assert "docs/benchmarks/frontend-benchmarks.md" in report_line, report_line
+    run_dir = "docs/experiments/2026-10-rust-vs-python-frontend/runs/"
+    assert run_dir in report_line, report_line
+    assert "-gpu/report.json" in report_line, report_line
+    assert "-gpu/report.md" in report_line, report_line
 
     assert subprocess.run(
-        ["git", "status", "--porcelain", "docs/benchmarks"],
+        ["git", "status", "--porcelain", "docs/experiments"],
         cwd=ROOT,
         capture_output=True,
         text=True,

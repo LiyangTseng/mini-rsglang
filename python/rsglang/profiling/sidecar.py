@@ -1,5 +1,7 @@
 """Sidecar schema, provenance metadata, and a validated atomic writer for
-BENCH-01's docs/benchmarks/baseline-profile.json (D-13/D-14).
+BENCH-01's
+docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/
+baseline-profile.json (D-13/D-14).
 
 Standard library only. This plan fixes schema_version 1, the top-level shape,
 and the discover-mode "discovery" block; 02-04/02-05/02-06/02-07 add scenario
@@ -24,7 +26,9 @@ SCHEMA_VERSION = 1
 GENERATED_BY = "scripts/baseline_profile.py"
 ROLES = ("api_server", "scheduler", "tokenizer")
 SCENARIOS = ("s1_cancel", "s2_saturation", "s3_coldstart")
-CANONICAL_OUT = "docs/benchmarks/baseline-profile.json"
+CANONICAL_OUT = (
+    "docs/experiments/2026-10-python-frontend-baseline-profile/runs/2026-10-05-gpu/baseline-profile.json"
+)
 
 # Required cpu.<role>.buckets names (plan 02-05 produces exactly these).
 REQUIRED_BUCKETS = (

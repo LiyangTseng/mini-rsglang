@@ -37,7 +37,8 @@ pub const DEFAULT_BACKEND_TIMEOUT_MS: u64 = 60_000;
 /// Server-wide abort-timing mode (LIFE-05, CONTEXT D-01): `Immediate`
 /// aborts as soon as a disconnect is noticed; `Deferred` (default since
 /// Phase 6 D-09 -- see `main.rs`'s `--abort-timing` doc comment and
-/// `docs/benchmarks/parity-report.md`'s "Abort-timing decision (D-09)")
+/// the "Abort-timing decision (D-09)" section of `parity-report.md` in
+/// `docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/`)
 /// waits for the first token.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
 pub enum AbortTiming {

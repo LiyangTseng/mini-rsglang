@@ -1,5 +1,6 @@
 """Sidecar schema and validated atomic writer for PAR-01/PAR-02's
-docs/benchmarks/parity-report.json (D-07).
+docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/
+parity-report.json (D-07).
 
 Mirrors python/rsglang/profiling/sidecar.py's schema/meta/validated-writer
 pattern. Task 1 implements the sequential-only shape; plan 06-04 extends
@@ -29,7 +30,9 @@ from . import sweep
 
 SCHEMA_VERSION = 1
 GENERATED_BY = "scripts/parity_check.py"
-CANONICAL_OUT = "docs/benchmarks/parity-report.json"
+CANONICAL_OUT = (
+    "docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/parity-report.json"
+)
 
 _TOP_KEYS = (
     "schema_version",

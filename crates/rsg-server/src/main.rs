@@ -68,8 +68,9 @@ struct Cli {
     /// under `immediate` timing (watcher verdict unhealthy) that did not
     /// occur under `deferred`, with no double-free/collision evidence
     /// localizing a small scheduler.py fix (branch C -- routed around,
-    /// not patched; see docs/benchmarks/parity-report.md's "Abort-timing
-    /// decision (D-09)" and UPSTREAM.md's "Known upstream issues"). Phase
+    /// not patched; see the "Abort-timing decision (D-09)" section of
+    /// parity-report.md in docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/
+    /// and UPSTREAM.md's "Known upstream issues"). Phase
     /// 6/7 must run both frontends under the same setting for a fair
     /// comparison.
     #[arg(long, value_enum, default_value_t = AbortTiming::Deferred)]

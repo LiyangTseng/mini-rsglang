@@ -6,7 +6,7 @@ Branch: `feat/phase-8-p99-root-cause` · Started 2026-10-10
 
 Phase 7 ended with a split result. The Rust frontend wins on cold start and
 memory, but loses badly on tail latency under load: in the cancellation
-scenario (S1), P99 TTFT is 4687 ms vs 431 ms for python-best. FINDINGS.md
+scenario (S1), P99 TTFT is 4687 ms vs 431 ms for python-best. The Phase 7 write-up
 attributes this to the single ZMQ socket stalling, **by inference only**.
 `rsg_writer_queue_depth` was never correlated with a real run.
 
@@ -51,7 +51,7 @@ order, on this branch.
 | 2 | [#15](https://github.com/LiyangTseng/mini-rsglang/issues/15) Per-stage latency instrumentation | no |
 | 3 | [#16](https://github.com/LiyangTseng/mini-rsglang/issues/16) Root cause: confirm or reject hypotheses | maybe |
 | 4 | [#17](https://github.com/LiyangTseng/mini-rsglang/issues/17) Fix and regression test | no |
-| 5 | [#18](https://github.com/LiyangTseng/mini-rsglang/issues/18) GPU before/after, FINDINGS v2, README | yes |
+| 5 | [#18](https://github.com/LiyangTseng/mini-rsglang/issues/18) GPU before/after, results write-up, README | yes |
 | 6 | *(conditional)* If the target is still unmet after #18, open a follow-up `diagnosing-bugs` round | yes |
 
 ### Feedback loop (#14)
@@ -76,7 +76,7 @@ with arrivals spread over 5 s (`--think-max-s 5`) is GREEN (P99 106 ms).
 
 The tail is the **first wave** of a burst, and its cause is the per-request
 tokenizer deep clone in `HfCodec::decoder()` (hypothesis 1). Inline encode
-(H2) and ZMQ send blocking (H3, the FINDINGS v1 hypothesis) are rejected;
+(H2) and ZMQ send blocking (H3, the Phase 7 write-up's hypothesis) are rejected;
 so is HTTP ingress/egress. Evidence is on #16:
 
 - `rsg_stage_decoder_build_seconds` P99 ≈ 4.75 s (mean 470–670 ms, P50
@@ -149,12 +149,11 @@ lead, keep investigating.
 
 ## Documentation policy
 
-- `docs/benchmarks/FINDINGS.md` keeps the Phase 7 root-cause analysis,
-  labelled as the **v1 hypothesis**. Phase 8 adds a **v2** section covering the
-  instrumentation, the verdict on each hypothesis, the fix, and the new
-  numbers.
-- `README.md` Results is updated from the new run and links to FINDINGS for
-  the v1 → v2 story.
+Superseded by [ADR 0001](../adr/0001-experiment-data-layout.md): the current
+numbers live in [`docs/RESULTS.md`](../RESULTS.md), and the investigation
+(instrumentation, verdicts, fix, before/after) in the
+[p99-ttft-tokenizer-clone experiment](../experiments/2026-10-p99-ttft-tokenizer-clone/README.md).
+`README.md` shows the headline rows from `docs/RESULTS.md`.
 
 ## Git
 

@@ -1,9 +1,11 @@
-"""Report-to-JSON consistency tests for docs/benchmarks/parity-report.md
+"""Report-to-JSON consistency tests for
+docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu/
+parity-report.md
 (PAR-01/PAR-02, plans 06-07/06-08, T-06-16).
 
 Mirrors python/tests/test_baseline_profile_report.py's pattern: the
 narrative report is hand-written from the committed GPU sidecar
-(docs/benchmarks/parity-report.json); this test is the mechanical proof that
+(parity-report.json next to it); this test is the mechanical proof that
 every count, rate, failure mode and flag the JSON reports also appears in
 the markdown, formatted the same way the sidecar's own numbers would
 render, and that the sidecar still re-validates as a real GPU run against
@@ -27,8 +29,9 @@ from pathlib import Path
 from rsglang.parity import corpus, sidecar
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-JSON_PATH = REPO_ROOT / "docs" / "benchmarks" / "parity-report.json"
-MD_PATH = REPO_ROOT / "docs" / "benchmarks" / "parity-report.md"
+RUN_DIR = REPO_ROOT / "docs/experiments/2026-10-rust-python-output-parity/runs/2026-10-07-gpu"
+JSON_PATH = RUN_DIR / "parity-report.json"
+MD_PATH = RUN_DIR / "parity-report.md"
 STATE_PATH = REPO_ROOT / ".planning" / "STATE.md"
 
 REQUIRED_HEADINGS = [
